@@ -1,0 +1,1700 @@
+openapi: 3.0.0
+info:
+  title: TriplanAI API
+  version: 1.0.0
+  description: API para planejamento inteligente de viagens
+  contact:
+    name: TriplanAI Team
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+tags:
+  - name: Auth
+    description: Autenticação e autorização
+  - name: Trips
+    description: Gestão de viagens
+  - name: Itineraries
+    description: Gestão de itinerários
+  - name: Places
+    description: Locais e pontos de interesse
+  - name: Routes
+    description: Rotas e navegação
+  - name: Maps
+    description: Mapas e geolocalização
+  - name: AI
+    description: Funcionalidades de inteligência artificial
+  - name: Health
+    description: Estado da API
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Insira o token JWT obtido no login
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        phone:
+          type: string
+        profile_picture_url:
+          type: string
+        preferences:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+
+    Trip:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        destination_city:
+          type: string
+        destination_country:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        budget:
+          type: number
+        currency:
+          type: string
+          default: EUR
+        status:
+          type: string
+          enum: [planning, confirmed, ongoing, completed, cancelled]
+        trip_type:
+          type: string
+          enum: [leisure, business, adventure, cultural]
+        number_of_travelers:
+          type: integer
+          default: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Itinerary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        trip_id:
+          type: string
+          format: uuid
+        day_number:
+          type: integer
+        date:
+          type: string
+          format: date
+        title:
+          type: string
+        description:
+          type: string
+        notes:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItineraryItem'
+
+    ItineraryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        itinerary_id:
+          type: string
+          format: uuid
+        place_id:
+          type: string
+          format: uuid
+        order_index:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        start_time:
+          type: string
+        end_time:
+          type: string
+        duration_minutes:
+          type: integer
+        item_type:
+          type: string
+          enum: [activity, meal, transport, accommodation, free_time]
+        status:
+          type: string
+          enum: [planned, confirmed, completed, skipped]
+        cost:
+          type: number
+        notes:
+          type: string
+        booking_reference:
+          type: string
+
+    Place:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        google_place_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        place_type:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        rating:
+          type: number
+        price_level:
+          type: integer
+        opening_hours:
+          type: object
+        contact_info:
+          type: object
+        images:
+          type: array
+          items:
+            type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Health
+  /health:
+    get:
+      summary: Verificar estado da API
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: API está a funcionar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                  version:
+                    type: string
+                  database:
+                    type: string
+
+  # Auth
+  /api/auth/register:
+    post:
+      summary: Registar novo utilizador
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - full_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                full_name:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '201':
+          description: Utilizador registado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login:
+    post:
+      summary: Autenticar utilizador
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/me:
+    get:
+      summary: Obter dados do utilizador autenticado
+      tags: [Auth]
+      responses:
+        '200':
+          description: Dados do utilizador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Não autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/logout:
+    post:
+      summary: Terminar sessão
+      tags: [Auth]
+      responses:
+        '200':
+          description: Logout realizado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  # Trips
+  /api/trips:
+    get:
+      summary: Listar viagens do utilizador autenticado
+      tags: [Trips]
+      responses:
+        '200':
+          description: Lista de viagens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trip'
+        '401':
+          description: Não autenticado
+
+    post:
+      summary: Criar nova viagem
+      tags: [Trips]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - destination_city
+                - destination_country
+                - start_date
+                - end_date
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                destination_city:
+                  type: string
+                destination_country:
+                  type: string
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+                budget:
+                  type: number
+                currency:
+                  type: string
+                  default: EUR
+                trip_type:
+                  type: string
+                  enum: [leisure, business, adventure, cultural]
+                number_of_travelers:
+                  type: integer
+                  default: 1
+      responses:
+        '201':
+          description: Viagem criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Dados inválidos
+        '401':
+          description: Não autenticado
+
+  /api/trips/{id}:
+    get:
+      summary: Obter viagem por ID
+      tags: [Trips]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes da viagem
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '404':
+          description: Viagem não encontrada
+
+    put:
+      summary: Atualizar viagem
+      tags: [Trips]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                destination_city:
+                  type: string
+                destination_country:
+                  type: string
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+                budget:
+                  type: number
+                currency:
+                  type: string
+                status:
+                  type: string
+                  enum: [planning, confirmed, ongoing, completed, cancelled]
+                trip_type:
+                  type: string
+                number_of_travelers:
+                  type: integer
+      responses:
+        '200':
+          description: Viagem atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '404':
+          description: Viagem não encontrada
+
+    delete:
+      summary: Eliminar viagem
+      tags: [Trips]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Viagem eliminada
+        '404':
+          description: Viagem não encontrada
+
+  # Itineraries
+  /api/itineraries:
+    post:
+      summary: Criar novo itinerário
+      tags: [Itineraries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - trip_id
+                - day_number
+                - date
+              properties:
+                trip_id:
+                  type: string
+                  format: uuid
+                day_number:
+                  type: integer
+                date:
+                  type: string
+                  format: date
+                title:
+                  type: string
+                description:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Itinerário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Itinerary'
+        '400':
+          description: Dados inválidos
+
+  /api/itineraries/trip/{tripId}:
+    get:
+      summary: Listar itinerários de uma viagem
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de itinerários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Itinerary'
+
+  /api/itineraries/{id}:
+    get:
+      summary: Obter itinerário por ID
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes do itinerário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Itinerary'
+        '404':
+          description: Itinerário não encontrado
+
+    put:
+      summary: Atualizar itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                day_number:
+                  type: integer
+                date:
+                  type: string
+                  format: date
+                title:
+                  type: string
+                description:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Itinerário atualizado
+        '404':
+          description: Itinerário não encontrado
+
+    delete:
+      summary: Eliminar itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Itinerário eliminado
+        '404':
+          description: Itinerário não encontrado
+
+  /api/itineraries/{id}/items:
+    post:
+      summary: Adicionar item ao itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                place_id:
+                  type: string
+                  format: uuid
+                start_time:
+                  type: string
+                end_time:
+                  type: string
+                duration_minutes:
+                  type: integer
+                item_type:
+                  type: string
+                  enum: [activity, meal, transport, accommodation, free_time]
+                cost:
+                  type: number
+                notes:
+                  type: string
+                booking_reference:
+                  type: string
+      responses:
+        '201':
+          description: Item adicionado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryItem'
+        '400':
+          description: Erro ao adicionar item
+
+  # Places
+  /api/places/search:
+    get:
+      summary: Pesquisar locais
+      tags: [Places]
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema:
+            type: string
+          description: Termo de pesquisa
+        - in: query
+          name: lat
+          schema:
+            type: number
+          description: Latitude para pesquisa por proximidade
+        - in: query
+          name: lng
+          schema:
+            type: number
+          description: Longitude para pesquisa por proximidade
+      responses:
+        '200':
+          description: Lista de locais encontrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+
+  /api/places/nearby:
+    get:
+      summary: Obter locais próximos
+      tags: [Places]
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: radius
+          schema:
+            type: number
+          description: Raio em km (default 10)
+        - in: query
+          name: type
+          schema:
+            type: string
+          description: Tipo de local
+      responses:
+        '200':
+          description: Lista de locais próximos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+
+  /api/places/popular/{destination}:
+    get:
+      summary: Obter locais populares de um destino
+      tags: [Places]
+      parameters:
+        - in: path
+          name: destination
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de locais populares
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+
+  /api/places/{id}:
+    get:
+      summary: Obter detalhes de um local
+      tags: [Places]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes do local
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '404':
+          description: Local não encontrado
+
+  # Routes
+  /api/routes/calculate:
+    post:
+      summary: Calcular rota entre dois pontos
+      tags: [Routes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - origin
+                - destination
+              properties:
+                origin:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                    placeId:
+                      type: string
+                destination:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                    placeId:
+                      type: string
+                travelMode:
+                  type: string
+                  enum: [driving, walking, bicycling, transit]
+                waypoints:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Rota calculada
+        '400':
+          description: Erro ao calcular rota
+
+  /api/routes/optimize:
+    post:
+      summary: Calcular rota otimizada com múltiplos waypoints
+      tags: [Routes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - origin
+                - destination
+                - waypoints
+              properties:
+                origin:
+                  type: object
+                destination:
+                  type: object
+                waypoints:
+                  type: array
+                  items:
+                    type: object
+                travelMode:
+                  type: string
+                  enum: [driving, walking, bicycling, transit]
+      responses:
+        '200':
+          description: Rota otimizada
+
+  /api/routes/alternatives:
+    post:
+      summary: Obter rotas alternativas
+      tags: [Routes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - origin
+                - destination
+              properties:
+                origin:
+                  type: object
+                destination:
+                  type: object
+                travelMode:
+                  type: string
+      responses:
+        '200':
+          description: Lista de rotas alternativas
+
+  /api/routes/distance-matrix:
+    post:
+      summary: Calcular matriz de distâncias
+      tags: [Routes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - origins
+                - destinations
+              properties:
+                origins:
+                  type: array
+                  items:
+                    type: object
+                destinations:
+                  type: array
+                  items:
+                    type: object
+                travelMode:
+                  type: string
+      responses:
+        '200':
+          description: Matriz de distâncias
+
+  # Maps
+  /api/maps/geocode:
+    get:
+      summary: Converter endereço em coordenadas
+      tags: [Maps]
+      parameters:
+        - in: query
+          name: address
+          required: true
+          schema:
+            type: string
+          description: Endereço a geocodificar
+      responses:
+        '200':
+          description: Coordenadas do endereço
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lat:
+                    type: number
+                  lng:
+                    type: number
+        '404':
+          description: Endereço não encontrado
+
+  /api/maps/reverse-geocode:
+    get:
+      summary: Converter coordenadas em endereço
+      tags: [Maps]
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Endereço das coordenadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address:
+                    type: string
+        '404':
+          description: Endereço não encontrado
+
+  /api/maps/static:
+    post:
+      summary: Gerar URL de mapa estático
+      tags: [Maps]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - center
+                - zoom
+              properties:
+                center:
+                  type: object
+                  properties:
+                    lat:
+                      type: number
+                    lng:
+                      type: number
+                zoom:
+                  type: number
+                markers:
+                  type: array
+      responses:
+        '200':
+          description: URL do mapa estático
+
+  /api/maps/timezone:
+    get:
+      summary: Obter fuso horário de uma localização
+      tags: [Maps]
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Informação do fuso horário
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timeZoneId:
+                    type: string
+                  timeZoneName:
+                    type: string
+
+  /api/maps/elevation:
+    post:
+      summary: Obter elevação de um caminho
+      tags: [Maps]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - path
+              properties:
+                path:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lat:
+                        type: number
+                      lng:
+                        type: number
+      responses:
+        '200':
+          description: Elevações do caminho
+
+  # AI
+  /api/ai/suggestions:
+    post:
+      summary: Gerar sugestões de viagem com IA
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - interests
+              properties:
+                interests:
+                  type: array
+                  items:
+                    type: string
+                  description: Lista de interesses
+                budget:
+                  type: string
+                  enum: [low, medium, high, luxury]
+                duration:
+                  type: number
+                  description: Duração em dias
+                travelStyle:
+                  type: string
+                  enum: [solo, couple, family, friends]
+      responses:
+        '200':
+          description: Lista de sugestões de viagem
+
+  /api/ai/itinerary:
+    post:
+      summary: Gerar itinerário automático com IA
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - destination
+                - startDate
+                - endDate
+                - interests
+              properties:
+                destination:
+                  type: string
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                interests:
+                  type: array
+                  items:
+                    type: string
+                pace:
+                  type: string
+                  enum: [relaxed, moderate, intensive]
+      responses:
+        '200':
+          description: Itinerário gerado
+
+  /api/ai/chat:
+    post:
+      summary: Chat com assistente de viagem IA
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - messages
+              properties:
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant]
+                      content:
+                        type: string
+                context:
+                  type: object
+                  properties:
+                    tripId:
+                      type: string
+                    destination:
+                      type: string
+      responses:
+        '200':
+          description: Resposta do assistente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+
+  /api/ai/recommendations:
+    post:
+      summary: Obter recomendações de locais com IA
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - destination
+                - interests
+              properties:
+                destination:
+                  type: string
+                interests:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Lista de recomendações
+
+  /api/ai/translate:
+    post:
+      summary: Traduzir texto
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+                - targetLanguage
+              properties:
+                text:
+                  type: string
+                targetLanguage:
+                  type: string
+                  description: Código do idioma (pt, en, es, fr, etc.)
+      responses:
+        '200':
+          description: Texto traduzido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  translated:
+                    type: string
+
+  /api/ai/analyze-sentiment:
+    post:
+      summary: Analisar sentimento de reviews
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reviews
+              properties:
+                reviews:
+                  type: array
+                  items:
+                    type: string
+                  description: Lista de reviews/comentários para analisar
+      responses:
+        '200':
+          description: Análise de sentimento
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overall:
+                    type: string
+                    enum: [positive, neutral, negative]
+                  score:
+                    type: number
+                  highlights:
+                    type: array
+                    items:
+                      type: string
+                  concerns:
+                    type: array
+                    items:
+                      type: string
+
+  # Novos endpoints Maps
+  /api/maps/place/{placeId}:
+    get:
+      summary: Obter detalhes de um lugar
+      tags: [Maps]
+      parameters:
+        - in: path
+          name: placeId
+          required: true
+          schema:
+            type: string
+          description: ID do lugar (Google Place ID)
+      responses:
+        '200':
+          description: Detalhes do lugar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  placeId:
+                    type: string
+                  name:
+                    type: string
+                  formattedAddress:
+                    type: string
+                  location:
+                    type: object
+                    properties:
+                      lat:
+                        type: number
+                      lng:
+                        type: number
+                  types:
+                    type: array
+                    items:
+                      type: string
+                  rating:
+                    type: number
+                  priceLevel:
+                    type: integer
+                  openingHours:
+                    type: object
+                  photos:
+                    type: array
+                    items:
+                      type: string
+                  phoneNumber:
+                    type: string
+                  website:
+                    type: string
+        '404':
+          description: Lugar não encontrado
+
+  /api/maps/search:
+    get:
+      summary: Pesquisar lugares
+      tags: [Maps]
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema:
+            type: string
+          description: Termo de pesquisa
+        - in: query
+          name: lat
+          schema:
+            type: number
+          description: Latitude para pesquisa localizada
+        - in: query
+          name: lng
+          schema:
+            type: number
+          description: Longitude para pesquisa localizada
+        - in: query
+          name: radius
+          schema:
+            type: number
+          description: Raio em metros
+      responses:
+        '200':
+          description: Lista de lugares encontrados
+
+  /api/maps/nearby:
+    get:
+      summary: Obter lugares próximos
+      tags: [Maps]
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: radius
+          schema:
+            type: number
+            default: 1000
+          description: Raio em metros
+        - in: query
+          name: type
+          schema:
+            type: string
+          description: Tipo de lugar (restaurant, hotel, museum, etc.)
+      responses:
+        '200':
+          description: Lista de lugares próximos
+
+  /api/maps/autocomplete:
+    get:
+      summary: Autocomplete de lugares
+      tags: [Maps]
+      parameters:
+        - in: query
+          name: input
+          required: true
+          schema:
+            type: string
+          description: Texto para autocomplete
+        - in: query
+          name: sessionToken
+          schema:
+            type: string
+          description: Token de sessão para agrupar pedidos
+      responses:
+        '200':
+          description: Lista de sugestões
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    placeId:
+                      type: string
+                    description:
+                      type: string
+                    mainText:
+                      type: string
+                    secondaryText:
+                      type: string
+
+  /api/maps/distance:
+    post:
+      summary: Calcular distância entre dois pontos
+      tags: [Maps]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - point1
+                - point2
+              properties:
+                point1:
+                  type: object
+                  properties:
+                    lat:
+                      type: number
+                    lng:
+                      type: number
+                point2:
+                  type: object
+                  properties:
+                    lat:
+                      type: number
+                    lng:
+                      type: number
+      responses:
+        '200':
+          description: Distância calculada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distanceKm:
+                    type: number
+                  distanceMeters:
+                    type: number
+                  distanceMiles:
+                    type: number
+
+  # Novos endpoints Routes
+  /api/routes/traffic:
+    post:
+      summary: Obter tempo de viagem com tráfego
+      tags: [Routes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - origin
+                - destination
+              properties:
+                origin:
+                  $ref: '#/components/schemas/Waypoint'
+                destination:
+                  $ref: '#/components/schemas/Waypoint'
+                departureTime:
+                  type: string
+                  format: date-time
+                  description: Data/hora de partida (opcional, usa agora por defeito)
+      responses:
+        '200':
+          description: Tempo de viagem com tráfego
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  duration:
+                    type: number
+                    description: Duração sem tráfego (segundos)
+                  durationInTraffic:
+                    type: number
+                    description: Duração com tráfego (segundos)
+                  durationText:
+                    type: string
+                  durationInTrafficText:
+                    type: string
+
+  /api/routes/decode-polyline:
+    post:
+      summary: Descodificar polyline em coordenadas
+      tags: [Routes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - polyline
+              properties:
+                polyline:
+                  type: string
+                  description: Polyline codificada
+      responses:
+        '200':
+          description: Lista de coordenadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  points:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        lat:
+                          type: number
+                        lng:
+                          type: number
+
+  # Schema adicional
+components:
+  schemas:
+    Waypoint:
+      type: object
+      properties:
+        placeId:
+          type: string
+        name:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    Route:
+      type: object
+      properties:
+        id:
+          type: string
+        origin:
+          $ref: '#/components/schemas/Waypoint'
+        destination:
+          $ref: '#/components/schemas/Waypoint'
+        waypoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Waypoint'
+        distance:
+          type: number
+          description: Distância em metros
+        duration:
+          type: number
+          description: Duração em segundos
+        distanceText:
+          type: string
+        durationText:
+          type: string
+        polyline:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStep'
+        travelMode:
+          type: string
+          enum: [driving, walking, bicycling, transit]
+        bounds:
+          type: object
+        warnings:
+          type: array
+          items:
+            type: string
+
+    RouteStep:
+      type: object
+      properties:
+        instruction:
+          type: string
+        distance:
+          type: number
+        distanceText:
+          type: string
+        duration:
+          type: number
+        durationText:
+          type: string
+        startLocation:
+          type: object
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+        endLocation:
+          type: object
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+        travelMode:
+          type: string
+        maneuver:
+          type: string
+
+    GeocodingResult:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        formattedAddress:
+          type: string
+        placeId:
+          type: string
+        components:
+          type: object
+          properties:
+            city:
+              type: string
+            country:
+              type: string
+            postalCode:
+              type: string
+            street:
+              type: string
+            number:
+              type: string
+
+    TripSuggestion:
+      type: object
+      properties:
+        destination:
+          type: string
+        description:
+          type: string
+        activities:
+          type: array
+          items:
+            type: string
+        bestTimeToVisit:
+          type: string
+        estimatedBudget:
+          type: object
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+            currency:
+              type: string
+
+    ItinerarySuggestion:
+      type: object
+      properties:
+        day:
+          type: integer
+        activities:
+          type: array
+          items:
+            type: object
+            properties:
+              time:
+                type: string
+              activity:
+                type: string
+              location:
+                type: string
+              duration:
+                type: string
+              tips:
+                type: string

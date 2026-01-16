@@ -10,6 +10,7 @@ WORKDIR /app
 # Copiar arquivos de dependências
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY swagger.yaml ./
 
 # Instalar dependências
 RUN npm ci --only=production && npm cache clean --force
@@ -38,6 +39,7 @@ WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/swagger.yaml ./
 
 # Criar usuário não-root para segurança
 RUN addgroup -g 1001 -S nodejs && \
