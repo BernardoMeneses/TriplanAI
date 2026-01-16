@@ -17,6 +17,8 @@ RUN npm ci --only=production && npm cache clean --force
 # Copiar código fonte
 COPY src ./src
 
+#Instalar TypeScript globalmente
+RUN npm install -g typescript
 # Build da aplicação
 RUN npm run build
 
