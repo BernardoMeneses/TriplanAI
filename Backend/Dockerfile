@@ -19,6 +19,10 @@ COPY src ./src
 
 #Instalar TypeScript globalmente
 RUN npm install -g typescript
+
+# Instalar tipos adicionais
+RUN npm install -D @types/cors @types/swagger-ui-express
+
 # Build da aplicação
 RUN npm run build
 
