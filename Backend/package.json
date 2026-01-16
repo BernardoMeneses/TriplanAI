@@ -5,8 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
-    "build": "npx tsc && npm run copy-yaml",
-    "copy-yaml": "xcopy src\\config\\swagger.yaml dist\\config\\ /Y 2>nul || copy src\\config\\swagger.yaml dist\\config\\",
+    "build": "npx tsc",
     "start": "node dist/main.js",
     "lint": "eslint src/**/*.ts"
   },
