@@ -5,7 +5,7 @@ dotenv.config();
 
 // Database configuration
 const dbConfig = {
-  host: process.env.DATABASE_HOST || 'localhost',
+  host: process.env.DATABASE_HOST || '167.172.35.187',
   port: parseInt(process.env.DATABASE_PORT || '5435'),
   database: process.env.DATABASE_NAME || 'triplanai',
   user: process.env.DATABASE_USER || 'triplanai_user',
