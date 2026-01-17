@@ -25,7 +25,7 @@ import { aiController } from './modules/ai';
 const itineraryItemsController = new ItineraryItemsController();
 
 const app: Express = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Middleware
 app.use(cors());
@@ -39,44 +39,34 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 // Swagger JSON endpoint
-app.get('/api-docs.json', (req: Request, res: Response) => {
+app.get('/api-docs.json', (_req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
 
 // Health Check
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Verificar estado da API
- *     tags: [Health]
- *     security: []
- *     responses:
- *       200:
- *         description: API está a funcionar
- */
-app.get('/health', async (req: Request, res: Response) => {
+app.get('/health', async (_req: Request, res: Response) => {
   let dbStatus = 'disconnected';
+
   try {
     await query('SELECT 1');
     dbStatus = 'connected';
   } catch {
     dbStatus = 'disconnected';
   }
-  
-  res.json({ 
-    status: 'ok', 
+
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     database: dbStatus
   });
 });
 
-// Public Routes (no authentication required)
+// Public Routes
 app.use('/api/auth', authController);
 
-// Protected Routes (authentication required)
+// Protected Routes
 app.use('/api/trips', authenticate, tripsController);
 app.use('/api/itineraries', authenticate, itinerariesController);
 app.use('/api/places', authenticate, placesController);
@@ -93,36 +83,30 @@ app.delete('/api/itinerary-items/:id', authenticate, (req, res) => itineraryItem
 app.post('/api/itinerary-items/reorder/:itineraryId', authenticate, (req, res) => itineraryItemsController.reorderItems(req, res));
 
 // 404 Handler
-app.use((req: Request, res: Response) => {
+app.use((_req, res) => {
   res.status(404).json({ error: 'Endpoint não encontrado' });
 });
 
 // Error Handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error(err);
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// Start server
-const startServer = async () => {
-  // Test database connection
-  const dbConnected = await testConnection();
-  
-  app.listen(PORT, () => {
-    console.log(`
-  ╔═══════════════════════════════════════════════════════════╗
-  ║                                                           ║
-  ║   🌍 TriplanAI API                                        ║
-  ║                                                           ║
-  ║   Server running at: http://localhost:${PORT}               ║
-  ║   Swagger docs at:   http://localhost:${PORT}/api-docs      ║
-  ║   Database:          ${dbConnected ? '✅ Connected' : '❌ Disconnected'}                     ║
-  ║                                                           ║
-  ╚═══════════════════════════════════════════════════════════╝
-    `);
-  });
-};
+// 🚀 START SERVER IMMEDIATELY (CapRover-friendly)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║ 🌍 TriplanAI API                                         ║
+║ Server running on port ${PORT}                            ║
+║ Swagger: /api-docs                                       ║
+╚═══════════════════════════════════════════════════════════╝
+  `);
+});
 
-startServer();
+// 🔌 Database connection in background (NON-BLOCKING)
+testConnection()
+  .then(() => console.log('✅ Database connected'))
+  .catch(err => console.error('❌ Database connection failed', err));
 
 export default app;
