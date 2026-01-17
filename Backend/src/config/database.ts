@@ -5,11 +5,11 @@ dotenv.config();
 
 // Database configuration
 const dbConfig = {
-  host: process.env.DATABASE_HOST || '167.172.35.187',
-  port: parseInt(process.env.DATABASE_PORT || '5435'),
-  database: process.env.DATABASE_NAME || 'triplanai',
-  user: process.env.DATABASE_USER || 'triplanai_user',
-  password: process.env.DATABASE_PASSWORD || '',
+  host: process.env.DB_HOST || '167.172.35.187',
+  port: parseInt(process.env.DB_PORT || '5435'),
+  database: process.env.DB_NAME || 'triplanai',
+  user: process.env.DB_USER || 'triplanai_user',
+  password: process.env.DB_PASSWORD || '',
   max: 20, // Maximum number of connections in the pool
   idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection not established
