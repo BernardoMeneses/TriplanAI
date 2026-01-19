@@ -265,6 +265,7 @@ paths:
                 - email
                 - password
                 - full_name
+                - username
               properties:
                 email:
                   type: string
@@ -273,6 +274,8 @@ paths:
                   type: string
                   minLength: 6
                 full_name:
+                  type: string
+                username:
                   type: string
                 phone:
                   type: string
