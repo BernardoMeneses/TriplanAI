@@ -205,6 +205,7 @@ export class ItineraryItemsService {
           'longitude', p.longitude,
           'rating', p.rating,
           'images', p.images,
+          'place_type', p.place_type,
           'opening_hours', p.opening_hours,
           'price_level', p.price_level,
           'contact_info', p.contact_info
@@ -246,8 +247,10 @@ export class ItineraryItemsService {
           'longitude', p.longitude,
           'rating', p.rating,
           'images', p.images,
+          'place_type', p.place_type,
           'opening_hours', p.opening_hours,
-          'price_level', p.price_level
+          'price_level', p.price_level,
+          'contact_info', p.contact_info
         ) as place
       FROM itinerary_items ii
       LEFT JOIN places p ON ii.place_id = p.id
