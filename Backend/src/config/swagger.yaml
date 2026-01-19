@@ -9,6 +9,8 @@ info:
 servers:
   - url: http://localhost:3000
     description: Development server
+  - url: https://triplanai-backend.triplanai.eupasoft.com:3000
+    description: Production server
 
 tags:
   - name: Auth
