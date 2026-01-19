@@ -97,12 +97,17 @@ export class ItineraryItemsService {
           }
           
           // Criar novo place com todos os detalhes
+          const contactInfo = {
+            phone: placeDetails.phoneNumber || null,
+            website: placeDetails.website || null,
+          };
+          
           const newPlace = await query(
             `INSERT INTO places (
               trip_id, name, google_place_id, description, address, 
-              city, country, latitude, longitude, rating, images, place_type, opening_hours, price_level
+              city, country, latitude, longitude, rating, images, place_type, opening_hours, price_level, contact_info
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             RETURNING id`,
             [
               tripId,
@@ -119,6 +124,7 @@ export class ItineraryItemsService {
               placeType,
               placeDetails.openingHours ? JSON.stringify(placeDetails.openingHours) : null,
               placeDetails.priceLevel || null,
+              JSON.stringify(contactInfo),
             ]
 
           );
@@ -200,7 +206,8 @@ export class ItineraryItemsService {
           'rating', p.rating,
           'images', p.images,
           'opening_hours', p.opening_hours,
-          'price_level', p.price_level
+          'price_level', p.price_level,
+          'contact_info', p.contact_info
         ) as place
       FROM itinerary_items ii
       LEFT JOIN places p ON ii.place_id = p.id
