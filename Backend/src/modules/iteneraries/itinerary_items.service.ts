@@ -100,9 +100,9 @@ export class ItineraryItemsService {
           const newPlace = await query(
             `INSERT INTO places (
               trip_id, name, google_place_id, description, address, 
-              city, country, latitude, longitude, rating, images, place_type
+              city, country, latitude, longitude, rating, images, place_type, opening_hours, price_level
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING id`,
             [
               tripId,
@@ -117,7 +117,10 @@ export class ItineraryItemsService {
               placeDetails.rating || null,
               placeDetails.photos ? JSON.stringify(placeDetails.photos) : '[]',
               placeType,
+              placeDetails.openingHours ? JSON.stringify(placeDetails.openingHours) : null,
+              placeDetails.priceLevel || null,
             ]
+
           );
           placeId = newPlace.rows[0].id;
           
@@ -195,7 +198,9 @@ export class ItineraryItemsService {
           'latitude', p.latitude,
           'longitude', p.longitude,
           'rating', p.rating,
-          'images', p.images
+          'images', p.images,
+          'opening_hours', p.opening_hours,
+          'price_level', p.price_level
         ) as place
       FROM itinerary_items ii
       LEFT JOIN places p ON ii.place_id = p.id
@@ -233,7 +238,9 @@ export class ItineraryItemsService {
           'latitude', p.latitude,
           'longitude', p.longitude,
           'rating', p.rating,
-          'images', p.images
+          'images', p.images,
+          'opening_hours', p.opening_hours,
+          'price_level', p.price_level
         ) as place
       FROM itinerary_items ii
       LEFT JOIN places p ON ii.place_id = p.id
