@@ -139,13 +139,13 @@ router.get('/place-suggestions', async (req: Request, res: Response) => {
   try {
     const { city, country, dayNumber } = req.query;
     
-    if (!city || !country) {
-      return res.status(400).json({ error: 'Cidade e país são obrigatórios' });
+    if (!city && !country) {
+      return res.status(400).json({ error: 'Cidade ou país são obrigatórios' });
     }
 
     const suggestions = await aiService.getPlaceSuggestions(
-      city as string,
-      country as string,
+      (city as string) || '',
+      (country as string) || '',
       dayNumber ? parseInt(dayNumber as string) : undefined
     );
     res.json(suggestions);

@@ -395,7 +395,8 @@ Responde APENAS com o JSON, sem texto adicional.`;
 
   async getPlaceSuggestions(city: string, country: string, dayNumber?: number): Promise<PlaceRecommendation[]> {
     const dayContext = dayNumber ? `para o dia ${dayNumber} da viagem` : '';
-    const prompt = `Sugere 5 lugares/atividades imperdíveis para visitar em ${city}, ${country} ${dayContext}.
+    const location = city && city.trim() ? `${city}, ${country}` : country;
+    const prompt = `Sugere 5 lugares/atividades imperdíveis para visitar em ${location} ${dayContext}.
 
 Para cada lugar, inclui:
 - Nome do lugar
