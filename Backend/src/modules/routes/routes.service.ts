@@ -471,6 +471,36 @@ export class RoutesService {
     }
     return `${minutes} min`;
   }
+
+  /**
+   * Get simple distance between two points (for itinerary items)
+   */
+  async getDistance(
+    origin: { latitude: number; longitude: number },
+    destination: { latitude: number; longitude: number },
+    travelMode: TravelModeType = 'driving'
+  ): Promise<{ distance: number; distanceText: string; duration: number; durationText: string } | null> {
+    try {
+      const originWaypoint: Waypoint = { latitude: origin.latitude, longitude: origin.longitude };
+      const destWaypoint: Waypoint = { latitude: destination.latitude, longitude: destination.longitude };
+      
+      const results = await this.getDistanceMatrix([originWaypoint], [destWaypoint], travelMode);
+      
+      if (results.length > 0 && results[0].status === 'OK') {
+        return {
+          distance: results[0].distance,
+          distanceText: results[0].distanceText,
+          duration: results[0].duration,
+          durationText: results[0].durationText
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error calculating distance:', error);
+      return null;
+    }
+  }
 }
 
 export const routesService = new RoutesService();

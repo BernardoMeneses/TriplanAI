@@ -241,4 +241,32 @@ router.get('/trip/:tripId/day/:dayNumber', async (req: Request, res: Response) =
   }
 });
 
+/**
+ * @swagger
+ * /api/itineraries/{itineraryId}/recalculate-distances:
+ *   post:
+ *     summary: Recalcular distâncias entre pontos do itinerário
+ *     tags: [Itineraries]
+ *     parameters:
+ *       - in: path
+ *         name: itineraryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Distâncias recalculadas com sucesso
+ */
+router.post('/:itineraryId/recalculate-distances', async (req: Request, res: Response) => {
+  try {
+    const { ItineraryItemsService } = await import('./itinerary_items.service');
+    const service = new ItineraryItemsService();
+    await service.recalculateDistances(req.params.itineraryId);
+    res.json({ message: 'Distâncias recalculadas com sucesso' });
+  } catch (error) {
+    console.error('Erro ao recalcular distâncias:', error);
+    res.status(500).json({ error: 'Erro ao recalcular distâncias' });
+  }
+});
+
 export const itinerariesController = router;

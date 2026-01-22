@@ -94,6 +94,12 @@ CREATE TABLE itinerary_items (
     cost DECIMAL(10, 2),
     notes TEXT,
     booking_reference VARCHAR(255),
+    -- Distance tracking fields (NEW)
+    distance_from_previous_meters INT,
+    distance_from_previous_text VARCHAR(50),
+    travel_time_from_previous_seconds INT,
+    travel_time_from_previous_text VARCHAR(50),
+    is_starting_point BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

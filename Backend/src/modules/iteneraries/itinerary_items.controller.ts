@@ -74,4 +74,15 @@ export class ItineraryItemsController {
       res.status(500).json({ error: 'Failed to reorder items' });
     }
   }
+
+  async recalculateDistances(req: Request, res: Response) {
+    try {
+      const { itineraryId } = req.params;
+      await itineraryItemsService.recalculateDistances(itineraryId);
+      res.status(200).json({ message: 'Distances recalculated successfully' });
+    } catch (error) {
+      console.error('Error recalculating distances:', error);
+      res.status(500).json({ error: 'Failed to recalculate distances' });
+    }
+  }
 }

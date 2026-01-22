@@ -1,5 +1,6 @@
 import { query } from '../../config/database';
 import { mapsService } from '../maps/maps.service';
+import { routesService } from '../routes/routes.service';
 
 export interface ItineraryItem {
   id: string;
@@ -18,6 +19,12 @@ export interface ItineraryItem {
   booking_reference?: string;
   created_at: Date;
   updated_at: Date;
+  // Distance tracking fields
+  distance_from_previous_meters?: number;
+  distance_from_previous_text?: string;
+  travel_time_from_previous_seconds?: number;
+  travel_time_from_previous_text?: string;
+  is_starting_point?: boolean;
   // Dados do place associado
   place?: {
     id: string;
@@ -169,8 +176,8 @@ export class ItineraryItemsService {
     const result = await query<ItineraryItem>(
       `INSERT INTO itinerary_items (
         itinerary_id, place_id, order_index, title, description,
-        start_time, end_time, duration_minutes, item_type, status, cost, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        start_time, end_time, duration_minutes, item_type, status, cost, notes, is_starting_point
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         data.itineraryId,
@@ -185,8 +192,15 @@ export class ItineraryItemsService {
         data.status || 'planned',
         data.cost || null,
         data.notes || null,
+        data.orderIndex === 0, // First item is starting point
       ]
     );
+    
+    // Calculate distances if this is not the first item
+    if (data.orderIndex > 0) {
+      await this.calculateDistancesForItem(data.itineraryId, result.rows[0].id);
+    }
+    
     return result.rows[0];
   }
 
@@ -344,9 +358,92 @@ export class ItineraryItemsService {
     // Atualizar ordem de múltiplos items de uma vez
     for (let i = 0; i < itemIds.length; i++) {
       await query(
-        'UPDATE itinerary_items SET order_index = $1 WHERE id = $2 AND itinerary_id = $3',
-        [i, itemIds[i], itineraryId]
+        `UPDATE itinerary_items 
+         SET order_index = $1, is_starting_point = $2 
+         WHERE id = $3 AND itinerary_id = $4`,
+        [i, i === 0, itemIds[i], itineraryId]
       );
+    }
+    
+    // Recalcular distâncias para todos os items
+    for (let i = 1; i < itemIds.length; i++) {
+      await this.calculateDistancesForItem(itineraryId, itemIds[i]);
+    }
+  }
+
+  /**
+   * Calculate distance and travel time from previous item
+   */
+  private async calculateDistancesForItem(itineraryId: string, itemId: string): Promise<void> {
+    // Get current item and previous item
+    const itemResult = await query(
+      `SELECT ii.*, p.latitude, p.longitude
+       FROM itinerary_items ii
+       LEFT JOIN places p ON ii.place_id = p.id
+       WHERE ii.id = $1`,
+      [itemId]
+    );
+
+    if (itemResult.rows.length === 0) return;
+    const currentItem = itemResult.rows[0];
+
+    // Get previous item
+    const previousResult = await query(
+      `SELECT ii.*, p.latitude, p.longitude
+       FROM itinerary_items ii
+       LEFT JOIN places p ON ii.place_id = p.id
+       WHERE ii.itinerary_id = $1 AND ii.order_index = $2`,
+      [itineraryId, currentItem.order_index - 1]
+    );
+
+    if (previousResult.rows.length === 0) return;
+    const previousItem = previousResult.rows[0];
+
+    // Check if both items have coordinates
+    if (!currentItem.latitude || !currentItem.longitude || 
+        !previousItem.latitude || !previousItem.longitude) {
+      return;
+    }
+
+    try {
+      // Calculate distance using Google Maps Distance Matrix API
+      const distanceResult = await routesService.getDistance(
+        { latitude: previousItem.latitude, longitude: previousItem.longitude },
+        { latitude: currentItem.latitude, longitude: currentItem.longitude }
+      );
+
+      if (distanceResult) {
+        // Update item with distance information
+        await query(
+          `UPDATE itinerary_items
+           SET distance_from_previous_meters = $1,
+               distance_from_previous_text = $2,
+               travel_time_from_previous_seconds = $3,
+               travel_time_from_previous_text = $4
+           WHERE id = $5`,
+          [
+            distanceResult.distance,
+            distanceResult.distanceText,
+            distanceResult.duration,
+            distanceResult.durationText,
+            itemId
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error calculating distance:', error);
+      // Don't fail the whole operation if distance calculation fails
+    }
+  }
+
+  /**
+   * Recalculate all distances for an itinerary
+   */
+  async recalculateDistances(itineraryId: string): Promise<void> {
+    const items = await this.getItineraryItemsByDay(itineraryId);
+    
+    for (let i = 1; i < items.length; i++) {
+      await this.calculateDistancesForItem(itineraryId, items[i].id);
     }
   }
 }
