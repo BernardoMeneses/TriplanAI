@@ -277,6 +277,7 @@ export class ItineraryItemsService {
   async updateItineraryItem(
     id: string,
     data: {
+      itineraryId?: string;
       orderIndex?: number;
       title?: string;
       description?: string;
@@ -292,6 +293,10 @@ export class ItineraryItemsService {
     const values: any[] = [];
     let paramCount = 1;
 
+    if (data.itineraryId !== undefined) {
+      updates.push(`itinerary_id = $${paramCount++}`);
+      values.push(data.itineraryId);
+    }
     if (data.orderIndex !== undefined) {
       updates.push(`order_index = $${paramCount++}`);
       values.push(data.orderIndex);
