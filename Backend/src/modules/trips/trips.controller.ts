@@ -197,4 +197,82 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/trips/{id}/export:
+ *   get:
+ *     summary: Exportar viagem completa em JSON
+ *     tags: [Trips]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Dados da viagem exportados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Viagem não encontrada
+ */
+router.get('/:id/export', async (req: Request, res: Response) => {
+  try {
+    const exportData = await tripsService.exportTrip(req.params.id);
+    
+    // Definir headers para download
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="trip-${req.params.id}.json"`);
+    
+    res.json(exportData);
+  } catch (error: any) {
+    if (error.message === 'Viagem não encontrada') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(400).json({ error: 'Erro ao exportar viagem' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/trips/import:
+ *   post:
+ *     summary: Importar viagem de um JSON exportado
+ *     tags: [Trips]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               data:
+ *                 type: object
+ *                 description: Dados da viagem exportados
+ *     responses:
+ *       201:
+ *         description: Viagem importada com sucesso
+ *       400:
+ *         description: Erro na importação
+ */
+router.post('/import', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Utilizador não autenticado' });
+    }
+
+    const importData = req.body;
+    const newTrip = await tripsService.importTrip(userId, importData);
+    
+    res.status(201).json(newTrip);
+  } catch (error: any) {
+    console.error('Erro ao importar viagem:', error);
+    res.status(400).json({ error: error.message || 'Erro ao importar viagem' });
+  }
+});
+
 export const tripsController = router;
