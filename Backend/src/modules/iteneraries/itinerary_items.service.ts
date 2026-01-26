@@ -385,6 +385,9 @@ export class ItineraryItemsService {
     for (let i = 1; i < itemIds.length; i++) {
       await this.calculateDistancesForItem(itineraryId, itemIds[i]);
     }
+    
+    // Recalcular todos os horários desde o início para manter consistência
+    await this.recalculateTimesFromItem(itineraryId, 0);
   }
 
   /**
