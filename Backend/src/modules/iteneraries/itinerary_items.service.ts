@@ -24,6 +24,7 @@ export interface ItineraryItem {
   distance_from_previous_text?: string;
   travel_time_from_previous_seconds?: number;
   travel_time_from_previous_text?: string;
+  transport_mode?: string; // walking, driving, transit
   is_starting_point?: boolean;
   // Dados do place associado
   place?: {
@@ -396,7 +397,7 @@ export class ItineraryItemsService {
   private async calculateDistancesForItem(itineraryId: string, itemId: string): Promise<void> {
     // Get current item and previous item
     const itemResult = await query(
-      `SELECT ii.*, p.latitude, p.longitude
+      `SELECT ii.*, p.latitude, p.longitude, p.city
        FROM itinerary_items ii
        LEFT JOIN places p ON ii.place_id = p.id
        WHERE ii.id = $1`,
@@ -408,7 +409,7 @@ export class ItineraryItemsService {
 
     // Get previous item
     const previousResult = await query(
-      `SELECT ii.*, p.latitude, p.longitude
+      `SELECT ii.*, p.latitude, p.longitude, p.city
        FROM itinerary_items ii
        LEFT JOIN places p ON ii.place_id = p.id
        WHERE ii.itinerary_id = $1 AND ii.order_index = $2`,
@@ -425,6 +426,18 @@ export class ItineraryItemsService {
     }
 
     try {
+      // Get trip information to determine city type
+      const tripResult = await query(
+        `SELECT t.destination_city, t.destination_country
+         FROM trips t
+         JOIN itineraries i ON i.trip_id = t.id
+         WHERE i.id = $1`,
+        [itineraryId]
+      );
+
+      const isBigCity = tripResult.rows.length > 0 ? 
+        this.isBigCity(tripResult.rows[0].destination_city, tripResult.rows[0].destination_country) : false;
+
       // Calculate distance using Google Maps Distance Matrix API
       const distanceResult = await routesService.getDistance(
         { latitude: previousItem.latitude, longitude: previousItem.longitude },
@@ -432,19 +445,27 @@ export class ItineraryItemsService {
       );
 
       if (distanceResult) {
+        // Determine transport mode based on travel time and city type
+        const transportMode = this.determineTransportMode(
+          distanceResult.duration,
+          isBigCity
+        );
+
         // Update item with distance information
         await query(
           `UPDATE itinerary_items
            SET distance_from_previous_meters = $1,
                distance_from_previous_text = $2,
                travel_time_from_previous_seconds = $3,
-               travel_time_from_previous_text = $4
-           WHERE id = $5`,
+               travel_time_from_previous_text = $4,
+               transport_mode = $5
+           WHERE id = $6`,
           [
             distanceResult.distance,
             distanceResult.distanceText,
             distanceResult.duration,
             distanceResult.durationText,
+            transportMode,
             itemId
           ]
         );
@@ -453,6 +474,68 @@ export class ItineraryItemsService {
       console.error('Error calculating distance:', error);
       // Don't fail the whole operation if distance calculation fails
     }
+  }
+
+  /**
+   * Determine best transport mode based on travel time and city type
+   * Rules:
+   * - Less than 10 minutes: walking
+   * - More than 10 minutes in big city: transit (public transport)
+   * - More than 10 minutes in rural/small city: driving (car)
+   */
+  private determineTransportMode(travelTimeSeconds: number, isBigCity: boolean): string {
+    const travelTimeMinutes = travelTimeSeconds / 60;
+
+    // Less than 10 minutes -> walking
+    if (travelTimeMinutes < 10) {
+      return 'walking';
+    }
+
+    // More than 10 minutes -> depends on city type
+    if (isBigCity) {
+      return 'transit'; // Public transport in big cities
+    } else {
+      return 'driving'; // Car in rural/small cities
+    }
+  }
+
+  /**
+   * Check if a city is considered a "big city" for transport purposes
+   */
+  private isBigCity(city: string, country: string): boolean {
+    const bigCities: { [key: string]: string[] } = {
+      'Portugal': ['Lisboa', 'Lisbon', 'Porto', 'Oporto'],
+      'Spain': ['Madrid', 'Barcelona', 'Valencia', 'Seville', 'Sevilla', 'Bilbao'],
+      'France': ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Nice'],
+      'Italy': ['Rome', 'Roma', 'Milan', 'Milano', 'Naples', 'Napoli', 'Turin', 'Torino', 'Florence', 'Firenze'],
+      'Germany': ['Berlin', 'Munich', 'München', 'Hamburg', 'Cologne', 'Köln', 'Frankfurt'],
+      'United Kingdom': ['London', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool', 'Edinburgh'],
+      'United States': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Francisco', 'Washington'],
+      'Brazil': ['São Paulo', 'Rio de Janeiro', 'Brasília', 'Salvador', 'Fortaleza', 'Belo Horizonte'],
+      'Japan': ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo', 'Fukuoka', 'Kyoto'],
+      'China': ['Beijing', 'Shanghai', 'Guangzhou', 'Shenzhen', 'Chengdu', 'Hangzhou'],
+      'India': ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata'],
+    };
+
+    // Normalize city name for comparison
+    const normalizedCity = city.toLowerCase().trim();
+    
+    // Check if country exists in our list
+    const countryCities = bigCities[country];
+    if (countryCities) {
+      return countryCities.some(bigCity => 
+        bigCity.toLowerCase() === normalizedCity
+      );
+    }
+
+    // If country not in list, check all cities across all countries
+    for (const cities of Object.values(bigCities)) {
+      if (cities.some(bigCity => bigCity.toLowerCase() === normalizedCity)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
