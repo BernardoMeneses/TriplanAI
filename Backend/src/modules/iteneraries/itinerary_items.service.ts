@@ -201,6 +201,9 @@ export class ItineraryItemsService {
       await this.calculateDistancesForItem(data.itineraryId, result.rows[0].id);
     }
     
+    // Recalculate times for items after this one
+    await this.recalculateTimesFromItem(data.itineraryId, data.orderIndex);
+    
     return result.rows[0];
   }
 
@@ -352,7 +355,15 @@ export class ItineraryItemsService {
        RETURNING *`,
       values
     );
-    return result.rows[0];
+    
+    const updatedItem = result.rows[0];
+    
+    // Se start_time ou duration_minutes foram atualizados, recalcular horários dos próximos itens
+    if (data.startTime !== undefined || data.durationMinutes !== undefined) {
+      await this.recalculateTimesFromItem(updatedItem.itinerary_id, updatedItem.order_index);
+    }
+    
+    return updatedItem;
   }
 
   async deleteItineraryItem(id: string): Promise<void> {
@@ -449,6 +460,78 @@ export class ItineraryItemsService {
     
     for (let i = 1; i < items.length; i++) {
       await this.calculateDistancesForItem(itineraryId, items[i].id);
+    }
+  }
+
+  /**
+   * Calculate next start time based on previous item
+   */
+  private calculateNextStartTime(
+    previousStartTime: string,
+    previousDuration: number,
+    travelTimeSeconds?: number
+  ): string {
+    try {
+      const [hours, minutes] = previousStartTime.split(':').map(Number);
+      let totalMinutes = hours * 60 + minutes;
+      
+      // Add duration of previous item
+      totalMinutes += previousDuration;
+      
+      // Add travel time if available
+      if (travelTimeSeconds) {
+        totalMinutes += Math.ceil(travelTimeSeconds / 60);
+      }
+      
+      const newHours = Math.floor(totalMinutes / 60) % 24;
+      const newMinutes = totalMinutes % 60;
+      
+      return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}:00`;
+    } catch (error) {
+      console.error('Error calculating next start time:', error);
+      return '09:00:00';
+    }
+  }
+
+  /**
+   * Recalculate start times for all items after a given index
+   */
+  private async recalculateTimesFromItem(itineraryId: string, fromIndex: number): Promise<void> {
+    const items = await this.getItineraryItemsByDay(itineraryId);
+    
+    // Start from the item after the updated one
+    for (let i = fromIndex + 1; i < items.length; i++) {
+      const previousItem = items[i - 1];
+      const currentItem = items[i];
+      
+      if (!previousItem.start_time) continue;
+      
+      const newStartTime = this.calculateNextStartTime(
+        previousItem.start_time,
+        previousItem.duration_minutes || 60,
+        previousItem.travel_time_from_previous_seconds
+      );
+      
+      // Calculate end_time based on duration
+      let endTime: string | undefined;
+      if (currentItem.duration_minutes) {
+        const [hours, minutes] = newStartTime.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes + currentItem.duration_minutes;
+        const endHours = Math.floor(totalMinutes / 60) % 24;
+        const endMinutes = totalMinutes % 60;
+        endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:00`;
+      }
+      
+      // Update the item with new times
+      await query(
+        `UPDATE itinerary_items
+         SET start_time = $1, end_time = $2
+         WHERE id = $3`,
+        [newStartTime, endTime, currentItem.id]
+      );
+      
+      // Update local copy for next iteration
+      items[i].start_time = newStartTime;
     }
   }
 }
