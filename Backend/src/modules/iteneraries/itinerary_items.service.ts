@@ -438,37 +438,47 @@ export class ItineraryItemsService {
       const isBigCity = tripResult.rows.length > 0 ? 
         this.isBigCity(tripResult.rows[0].destination_city, tripResult.rows[0].destination_country) : false;
 
-      // Calculate distance using Google Maps Distance Matrix API
-      const distanceResult = await routesService.getDistance(
+      // First, calculate with driving to get initial duration for decision
+      const initialResult = await routesService.getDistance(
         { latitude: previousItem.latitude, longitude: previousItem.longitude },
-        { latitude: currentItem.latitude, longitude: currentItem.longitude }
+        { latitude: currentItem.latitude, longitude: currentItem.longitude },
+        'driving'
       );
 
-      if (distanceResult) {
+      if (initialResult) {
         // Determine transport mode based on travel time and city type
         const transportMode = this.determineTransportMode(
-          distanceResult.duration,
+          initialResult.duration,
           isBigCity
         );
 
-        // Update item with distance information
-        await query(
-          `UPDATE itinerary_items
-           SET distance_from_previous_meters = $1,
-               distance_from_previous_text = $2,
-               travel_time_from_previous_seconds = $3,
-               travel_time_from_previous_text = $4,
-               transport_mode = $5
-           WHERE id = $6`,
-          [
-            distanceResult.distance,
-            distanceResult.distanceText,
-            distanceResult.duration,
-            distanceResult.durationText,
-            transportMode,
-            itemId
-          ]
+        // Recalculate with the correct transport mode to get accurate time
+        const finalResult = await routesService.getDistance(
+          { latitude: previousItem.latitude, longitude: previousItem.longitude },
+          { latitude: currentItem.latitude, longitude: currentItem.longitude },
+          transportMode as 'walking' | 'driving' | 'transit'
         );
+
+        if (finalResult) {
+          // Update item with distance information using the correct mode's time
+          await query(
+            `UPDATE itinerary_items
+             SET distance_from_previous_meters = $1,
+                 distance_from_previous_text = $2,
+                 travel_time_from_previous_seconds = $3,
+                 travel_time_from_previous_text = $4,
+                 transport_mode = $5
+             WHERE id = $6`,
+            [
+              finalResult.distance,
+              finalResult.distanceText,
+              finalResult.duration,
+              finalResult.durationText,
+              transportMode,
+              itemId
+            ]
+          );
+        }
       }
     } catch (error) {
       console.error('Error calculating distance:', error);
