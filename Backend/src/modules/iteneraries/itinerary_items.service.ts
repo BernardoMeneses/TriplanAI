@@ -595,32 +595,6 @@ export class ItineraryItemsService {
   private async recalculateTimesFromItem(itineraryId: string, fromIndex: number): Promise<void> {
     const items = await this.getItineraryItemsByDay(itineraryId);
     
-    // Se fromIndex é 0, forçar o primeiro item a ter horário base de 09:00
-    if (fromIndex === 0 && items.length > 0) {
-      const firstItem = items[0];
-      const baseStartTime = '09:00:00';
-      
-      // Calcular end_time do primeiro item
-      let endTime: string | undefined;
-      if (firstItem.duration_minutes) {
-        const totalMinutes = 9 * 60 + firstItem.duration_minutes; // 09:00 + duração
-        const endHours = Math.floor(totalMinutes / 60) % 24;
-        const endMinutes = totalMinutes % 60;
-        endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:00`;
-      }
-      
-      await query(
-        `UPDATE itinerary_items
-         SET start_time = $1, end_time = $2
-         WHERE id = $3`,
-        [baseStartTime, endTime, firstItem.id]
-      );
-      
-      // Atualizar local copy
-      items[0].start_time = baseStartTime;
-      items[0].end_time = endTime;
-    }
-    
     // Start from the item after the updated one
     for (let i = fromIndex + 1; i < items.length; i++) {
       const previousItem = items[i - 1];

@@ -275,4 +275,32 @@ router.post('/import', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/trips/{id}/recalculate-transport:
+ *   post:
+ *     summary: Recalcular modos de transporte e tempos para todas as atividades da viagem
+ *     tags: [Trips]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Transportes recalculados com sucesso
+ *       404:
+ *         description: Viagem não encontrada
+ */
+router.post('/:id/recalculate-transport', async (req: Request, res: Response) => {
+  try {
+    await tripsService.recalculateTransportForTrip(req.params.id);
+    res.json({ message: 'Modos de transporte recalculados com sucesso' });
+  } catch (error: any) {
+    console.error('Erro ao recalcular transportes:', error);
+    res.status(400).json({ error: error.message || 'Erro ao recalcular transportes' });
+  }
+});
+
 export const tripsController = router;
