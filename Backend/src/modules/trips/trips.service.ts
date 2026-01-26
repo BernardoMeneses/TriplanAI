@@ -165,6 +165,12 @@ export class TripsService {
             item_type: item.item_type,
             cost: item.cost,
             notes: item.notes,
+            // Adicionar campos de distância e tempo de viagem
+            distance_from_previous_meters: item.distance_from_previous_meters,
+            distance_from_previous_text: item.distance_from_previous_text,
+            travel_time_from_previous_seconds: item.travel_time_from_previous_seconds,
+            travel_time_from_previous_text: item.travel_time_from_previous_text,
+            is_starting_point: item.is_starting_point,
             place: item.place_id ? {
               name: item.place_name,
               google_place_id: item.google_place_id,
@@ -268,8 +274,10 @@ export class TripsService {
             await query(
               `INSERT INTO itinerary_items (
                 itinerary_id, place_id, order_index, title, description,
-                start_time, end_time, duration_minutes, item_type, status, cost, notes
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                start_time, end_time, duration_minutes, item_type, status, cost, notes,
+                distance_from_previous_meters, distance_from_previous_text,
+                travel_time_from_previous_seconds, travel_time_from_previous_text, is_starting_point
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
               [
                 newItinerary.id,
                 placeId,
@@ -283,6 +291,11 @@ export class TripsService {
                 'pending',
                 itemData.cost || null,
                 itemData.notes || null,
+                itemData.distance_from_previous_meters || null,
+                itemData.distance_from_previous_text || null,
+                itemData.travel_time_from_previous_seconds || null,
+                itemData.travel_time_from_previous_text || null,
+                itemData.is_starting_point || false,
               ]
             );
           }
