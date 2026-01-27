@@ -441,59 +441,65 @@ export class ItineraryItemsService {
     }
 
     try {
-      // Get trip information to determine city type
-      const tripResult = await query(
-        `SELECT t.destination_city, t.destination_country
-         FROM trips t
-         JOIN itineraries i ON i.trip_id = t.id
-         WHERE i.id = $1`,
-        [itineraryId]
-      );
-
-      const isBigCity = tripResult.rows.length > 0 ? 
-        this.isBigCity(tripResult.rows[0].destination_city, tripResult.rows[0].destination_country) : false;
-
-      // First, calculate with driving to get initial duration for decision
-      const initialResult = await routesService.getDistance(
-        { latitude: previousItem.latitude, longitude: previousItem.longitude },
-        { latitude: currentItem.latitude, longitude: currentItem.longitude },
-        'driving'
-      );
-
-      if (initialResult) {
-        // Determine transport mode based on travel time and city type
-        const transportMode = this.determineTransportMode(
-          initialResult.duration,
-          isBigCity
+      // Check if item already has a transport mode set by user
+      let transportMode = currentItem.transport_mode;
+      
+      // If no transport mode is set, determine it automatically
+      if (!transportMode) {
+        // Get trip information to determine city type
+        const tripResult = await query(
+          `SELECT t.destination_city, t.destination_country
+           FROM trips t
+           JOIN itineraries i ON i.trip_id = t.id
+           WHERE i.id = $1`,
+          [itineraryId]
         );
 
-        // Recalculate with the correct transport mode to get accurate time
-        const finalResult = await routesService.getDistance(
+        const isBigCity = tripResult.rows.length > 0 ? 
+          this.isBigCity(tripResult.rows[0].destination_city, tripResult.rows[0].destination_country) : false;
+
+        // First, calculate with driving to get initial duration for decision
+        const initialResult = await routesService.getDistance(
           { latitude: previousItem.latitude, longitude: previousItem.longitude },
           { latitude: currentItem.latitude, longitude: currentItem.longitude },
-          transportMode as 'walking' | 'driving' | 'transit'
+          'driving'
         );
 
-        if (finalResult) {
-          // Update item with distance information using the correct mode's time
-          await query(
-            `UPDATE itinerary_items
-             SET distance_from_previous_meters = $1,
-                 distance_from_previous_text = $2,
-                 travel_time_from_previous_seconds = $3,
-                 travel_time_from_previous_text = $4,
-                 transport_mode = $5
-             WHERE id = $6`,
-            [
-              finalResult.distance,
-              finalResult.distanceText,
-              finalResult.duration,
-              finalResult.durationText,
-              transportMode,
-              itemId
-            ]
+        if (initialResult) {
+          // Determine transport mode based on travel time and city type
+          transportMode = this.determineTransportMode(
+            initialResult.duration,
+            isBigCity
           );
         }
+      }
+
+      // Calculate distance and time with the determined or user-selected transport mode
+      const finalResult = await routesService.getDistance(
+        { latitude: previousItem.latitude, longitude: previousItem.longitude },
+        { latitude: currentItem.latitude, longitude: currentItem.longitude },
+        transportMode as 'walking' | 'driving' | 'transit'
+      );
+
+      if (finalResult) {
+        // Update item with distance information
+        await query(
+          `UPDATE itinerary_items
+           SET distance_from_previous_meters = $1,
+               distance_from_previous_text = $2,
+               travel_time_from_previous_seconds = $3,
+               travel_time_from_previous_text = $4,
+               transport_mode = $5
+           WHERE id = $6`,
+          [
+            finalResult.distance,
+            finalResult.distanceText,
+            finalResult.duration,
+            finalResult.durationText,
+            transportMode,
+            itemId
+          ]
+        );
       }
     } catch (error) {
       console.error('Error calculating distance:', error);
