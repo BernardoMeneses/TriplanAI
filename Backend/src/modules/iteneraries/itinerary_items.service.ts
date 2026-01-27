@@ -292,7 +292,6 @@ export class ItineraryItemsService {
       cost?: number;
       notes?: string;
       transportMode?: string;
-      travelTimeFromPreviousSeconds?: number;
     }
   ): Promise<ItineraryItem> {
     const updates: string[] = [];
@@ -343,26 +342,6 @@ export class ItineraryItemsService {
       updates.push(`transport_mode = $${paramCount++}`);
       values.push(data.transportMode);
     }
-    if (data.travelTimeFromPreviousSeconds !== undefined) {
-      updates.push(`travel_time_from_previous_seconds = $${paramCount++}`);
-      values.push(data.travelTimeFromPreviousSeconds);
-      
-      // Update text representation
-      const minutes = Math.ceil(data.travelTimeFromPreviousSeconds / 60);
-      const hours = Math.floor(minutes / 60);
-      const remainingMinutes = minutes % 60;
-      let travelTimeText = '';
-      if (hours > 0) {
-        travelTimeText = `${hours} hour${hours > 1 ? 's' : ''}`;
-        if (remainingMinutes > 0) {
-          travelTimeText += ` ${remainingMinutes} min`;
-        }
-      } else {
-        travelTimeText = `${minutes} min`;
-      }
-      updates.push(`travel_time_from_previous_text = $${paramCount++}`);
-      values.push(travelTimeText);
-    }
 
     if (updates.length === 0) {
       const item = await this.getItineraryItemById(id);
@@ -384,6 +363,11 @@ export class ItineraryItemsService {
     );
     
     const updatedItem = result.rows[0];
+    
+    // Se transport_mode foi atualizado, recalcular distâncias e tempos com o novo modo
+    if (data.transportMode !== undefined && updatedItem.order_index > 0) {
+      await this.calculateDistancesForItem(updatedItem.itinerary_id, updatedItem.id);
+    }
     
     // Se start_time ou duration_minutes foram atualizados, recalcular horários dos próximos itens
     if (data.startTime !== undefined || data.durationMinutes !== undefined) {
