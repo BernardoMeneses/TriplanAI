@@ -367,6 +367,11 @@ export class ItineraryItemsService {
     // Se transport_mode foi atualizado, recalcular distâncias e tempos com o novo modo
     if (data.transportMode !== undefined && updatedItem.order_index > 0) {
       await this.calculateDistancesForItem(updatedItem.itinerary_id, updatedItem.id);
+      // Buscar item novamente após recalcular para obter os valores atualizados
+      const refreshedItem = await this.getItineraryItemById(updatedItem.id);
+      if (refreshedItem) {
+        return refreshedItem;
+      }
     }
     
     // Se start_time ou duration_minutes foram atualizados, recalcular horários dos próximos itens
