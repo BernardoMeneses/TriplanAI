@@ -291,6 +291,8 @@ export class ItineraryItemsService {
       status?: string;
       cost?: number;
       notes?: string;
+      transportMode?: string;
+      travelTimeFromPreviousSeconds?: number;
     }
   ): Promise<ItineraryItem> {
     const updates: string[] = [];
@@ -336,6 +338,30 @@ export class ItineraryItemsService {
     if (data.notes !== undefined) {
       updates.push(`notes = $${paramCount++}`);
       values.push(data.notes);
+    }
+    if (data.transportMode !== undefined) {
+      updates.push(`transport_mode = $${paramCount++}`);
+      values.push(data.transportMode);
+    }
+    if (data.travelTimeFromPreviousSeconds !== undefined) {
+      updates.push(`travel_time_from_previous_seconds = $${paramCount++}`);
+      values.push(data.travelTimeFromPreviousSeconds);
+      
+      // Update text representation
+      const minutes = Math.ceil(data.travelTimeFromPreviousSeconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      let travelTimeText = '';
+      if (hours > 0) {
+        travelTimeText = `${hours} hour${hours > 1 ? 's' : ''}`;
+        if (remainingMinutes > 0) {
+          travelTimeText += ` ${remainingMinutes} min`;
+        }
+      } else {
+        travelTimeText = `${minutes} min`;
+      }
+      updates.push(`travel_time_from_previous_text = $${paramCount++}`);
+      values.push(travelTimeText);
     }
 
     if (updates.length === 0) {
