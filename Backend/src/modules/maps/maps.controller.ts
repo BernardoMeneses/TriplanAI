@@ -96,7 +96,9 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
     }
     
     const places = await mapsService.searchPlaces(query);
-    const formattedResults = places.map(place => {
+    
+    // Para o primeiro resultado, buscar detalhes completos
+    const formattedResults = await Promise.all(places.map(async (place, index) => {
       // Extrair cidade e país dos componentes do endereço
       const addressComponents = place.formattedAddress.split(',').map(s => s.trim());
       let city = '';
@@ -113,6 +115,12 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
         country = addressComponents[addressComponents.length - 1] || '';
       }
       
+      // Buscar detalhes completos apenas para os primeiros 3 resultados
+      let fullDetails = null;
+      if (index < 3 && place.placeId) {
+        fullDetails = await mapsService.getPlaceDetails(place.placeId);
+      }
+      
       return {
         placeId: place.placeId,
         name: place.name,
@@ -121,8 +129,15 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
         types: place.types,
         city,
         country,
+        photos: fullDetails?.photos || place.photos,
+        images: fullDetails?.photos || place.photos,
+        opening_hours: fullDetails?.openingHours,
+        openingHours: fullDetails?.openingHours,
+        rating: fullDetails?.rating || place.rating,
+        phoneNumber: fullDetails?.phoneNumber,
+        website: fullDetails?.website,
       };
-    });
+    }));
     
     res.json(formattedResults);
   } catch (error) {
@@ -155,6 +170,12 @@ router.get('/destinations/:placeId', async (req: Request, res: Response) => {
       location: place.location,
       types: place.types,
       photoUrl,
+      photos: place.photos,
+      opening_hours: place.openingHours,
+      openingHours: place.openingHours,
+      rating: place.rating,
+      phoneNumber: place.phoneNumber,
+      website: place.website,
     });
   } catch (error) {
     console.error('Error getting destination details:', error);
