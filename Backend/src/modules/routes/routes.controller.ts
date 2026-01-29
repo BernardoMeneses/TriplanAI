@@ -110,4 +110,54 @@ router.post('/decode-polyline', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/routes/multi-segment - Calcular rotas com múltiplos segmentos usando transport_mode específico por segmento
+router.post('/multi-segment', async (req: Request, res: Response) => {
+  try {
+    const { points } = req.body;
+    
+    if (!points || !Array.isArray(points) || points.length < 2) {
+      return res.status(400).json({ error: 'Pontos são obrigatórios (mínimo 2 pontos)' });
+    }
+
+    const routes: any[] = [];
+    
+    // Calculate route for each segment
+    for (let i = 0; i < points.length - 1; i++) {
+      const origin = points[i];
+      const destination = points[i + 1];
+      const transportMode = destination.transportMode || 'walking';
+      
+      try {
+        const routeResult = await routesService.calculateRoute(
+          { lat: origin.lat, lng: origin.lng },
+          { lat: destination.lat, lng: destination.lng },
+          transportMode,
+          []
+        );
+        
+        if (routeResult) {
+          routes.push({
+            segmentIndex: i + 1, // Index of the destination point
+            origin: { name: origin.name, lat: origin.lat, lng: origin.lng },
+            destination: { name: destination.name, lat: destination.lat, lng: destination.lng },
+            mode: transportMode,
+            distance: routeResult.distance,
+            duration: routeResult.duration,
+            polyline: routeResult.polyline ? { points: routeResult.polyline } : null,
+            steps: routeResult.steps || [],
+          });
+        }
+      } catch (error) {
+        console.error(`Error calculating route segment ${i}:`, error);
+        // Continue with next segment even if this one fails
+      }
+    }
+    
+    res.json({ routes });
+  } catch (error) {
+    console.error('Error calculating multi-segment routes:', error);
+    res.status(500).json({ error: 'Erro ao calcular rotas multi-segmento' });
+  }
+});
+
 export const routesController = router;

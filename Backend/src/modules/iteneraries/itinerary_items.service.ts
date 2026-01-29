@@ -582,19 +582,23 @@ export class ItineraryItemsService {
 
   /**
    * Calculate next start time based on previous item
-   * Note: Travel time is NOT included here as it's metadata for the next item
-   * The formula is: next_start_time = previous_start_time + previous_duration
+   * The formula is: next_start_time = previous_start_time + previous_duration + travel_time
    */
   private calculateNextStartTime(
     previousStartTime: string,
-    previousDuration: number
+    previousDuration: number,
+    travelTimeSeconds: number = 0
   ): string {
     try {
       const [hours, minutes] = previousStartTime.split(':').map(Number);
       let totalMinutes = hours * 60 + minutes;
       
-      // Add only the duration of previous item (no travel time)
+      // Add duration of previous item
       totalMinutes += previousDuration;
+      
+      // Add travel time to next item (convert seconds to minutes)
+      const travelTimeMinutes = Math.ceil(travelTimeSeconds / 60);
+      totalMinutes += travelTimeMinutes;
       
       const newHours = Math.floor(totalMinutes / 60) % 24;
       const newMinutes = totalMinutes % 60;
@@ -645,10 +649,11 @@ export class ItineraryItemsService {
       
       if (!previousItem.start_time) continue;
       
-      // Calculate next start time: previous start + previous duration (no travel time)
+      // Calculate next start time: previous start + previous duration + travel time
       const newStartTime = this.calculateNextStartTime(
         previousItem.start_time,
-        previousItem.duration_minutes || 60
+        previousItem.duration_minutes || 60,
+        currentItem.travel_time_from_previous_seconds || 0
       );
       
       // Calculate end_time based on duration
@@ -671,6 +676,7 @@ export class ItineraryItemsService {
       
       // Update local copy for next iteration
       items[i].start_time = newStartTime;
+      items[i].end_time = endTime;
     }
   }
 }
