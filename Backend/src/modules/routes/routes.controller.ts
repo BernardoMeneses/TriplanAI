@@ -141,8 +141,8 @@ router.post('/multi-segment', async (req: Request, res: Response) => {
             origin: { name: origin.name, lat: origin.lat, lng: origin.lng },
             destination: { name: destination.name, lat: destination.lat, lng: destination.lng },
             mode: transportMode,
-            distance: routeResult.distance,
-            duration: routeResult.duration,
+            distance: { value: routeResult.distance, text: routeResult.distanceText },
+            duration: { value: routeResult.duration, text: routeResult.durationText },
             polyline: routeResult.polyline ? { points: routeResult.polyline } : null,
             steps: routeResult.steps || [],
           });
