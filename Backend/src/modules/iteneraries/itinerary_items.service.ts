@@ -200,12 +200,23 @@ export class ItineraryItemsService {
     // Calculate distances if this is not the first item
     if (data.orderIndex > 0) {
       await this.calculateDistancesForItem(data.itineraryId, result.rows[0].id);
+      
+      // Recalculate times starting from the previous item to include travel time
+      // This ensures the newly created item gets the correct start time based on:
+      // previous_start + previous_duration + travel_time
+      await this.recalculateTimesFromItem(data.itineraryId, data.orderIndex - 1);
+    } else {
+      // If this is the first item, just recalculate subsequent items
+      await this.recalculateTimesFromItem(data.itineraryId, data.orderIndex);
     }
     
-    // Recalculate times for items after this one
-    await this.recalculateTimesFromItem(data.itineraryId, data.orderIndex);
+    // Fetch the updated item to return with correct times
+    const updatedResult = await query<ItineraryItem>(
+      `SELECT * FROM itinerary_items WHERE id = $1`,
+      [result.rows[0].id]
+    );
     
-    return result.rows[0];
+    return updatedResult.rows[0];
   }
 
   async getItineraryItemsByDay(itineraryId: string): Promise<ItineraryItem[]> {
