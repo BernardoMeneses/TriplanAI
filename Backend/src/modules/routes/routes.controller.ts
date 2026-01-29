@@ -129,8 +129,8 @@ router.post('/multi-segment', async (req: Request, res: Response) => {
       
       try {
         const routeResult = await routesService.calculateRoute(
-          { lat: origin.lat, lng: origin.lng },
-          { lat: destination.lat, lng: destination.lng },
+          { latitude: origin.lat, longitude: origin.lng },
+          { latitude: destination.lat, longitude: destination.lng },
           transportMode,
           []
         );
