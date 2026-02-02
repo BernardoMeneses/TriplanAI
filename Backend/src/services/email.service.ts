@@ -259,6 +259,10 @@ export class EmailService {
                 <strong>📍 Navegação</strong>
                 <p>Navegação em tempo real e planeamento de rotas</p>
               </div>
+              <p style="text-align: center;">
+                <a href="triplanai://app/login" class="button">Abrir Aplicação</a>
+              </p>
+              <p>Pronto para começar? Abre a app e cria a tua primeira viagem!</p>
             </div>
             <div class="footer">
               <p style="margin: 0;">&copy; 2026 ${APP_NAME}. Todos os direitos reservados.</p>
