@@ -54,32 +54,39 @@ export class EmailService {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f8f9fa; padding: 30px 20px; border-radius: 0 0 10px 10px; }
-            .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 40px auto; padding: 0; }
+            .header { background: linear-gradient(135deg, #FF7ED9C8 0%, #EF2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+            .logo { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+            .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+            .button { display: inline-block; padding: 14px 36px; background: #FF7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
+            .button:hover { background: #EF2B7A6E; }
+            .footer { text-align: center; margin-top: 24px; color: #666; font-size: 12px; padding: 20px; }
+            .link-box { background: #f8f9fa; padding: 16px; border-radius: 8px; word-break: break-all; color: #EF2B7A6E; margin: 16px 0; border: 1px solid #e0e0e0; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to ${APP_NAME}!</h1>
+              <div class="logo">✈️</div>
+              <h1 style="margin: 0; font-size: 28px;">Bem-vindo ao ${APP_NAME}!</h1>
             </div>
             <div class="content">
-              <p>Hi ${userName},</p>
-              <p>Thank you for signing up! Please verify your email address to activate your account and start planning your adventures.</p>
+              <p style="font-size: 16px; margin-bottom: 8px;"><strong>Olá ${userName},</strong></p>
+              <p>Obrigado por te registares! Verifica o teu email para ativares a conta e começares a planear as tuas aventuras.</p>
               <p style="text-align: center;">
-                <a href="${verificationUrl}" class="button">Verify Email Address</a>
+                <a href="${verificationUrl}" class="button">Verificar Email</a>
               </p>
-              <p>Or copy and paste this link into your browser:</p>
-              <p style="word-break: break-all; color: #667eea;">${verificationUrl}</p>
-              <p><strong>This link will expire in 24 hours.</strong></p>
-              <p>If you didn't create an account, you can safely ignore this email.</p>
+              <p style="color: #666; font-size: 14px;">Ou copia e cola este link no navegador:</p>
+              <div class="link-box">${verificationUrl}</div>
+              <p style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; font-size: 14px;">
+                <strong>⏱️ Este link expira em 24 horas.</strong>
+              </p>
+              <p style="color: #666; font-size: 14px;">Se não criaste uma conta, podes ignorar este email.</p>
             </div>
             <div class="footer">
-              <p>&copy; 2026 ${APP_NAME}. All rights reserved.</p>
+              <p style="margin: 0;">&copy; 2026 ${APP_NAME}. Todos os direitos reservados.</p>
+              <p style="margin: 8px 0 0 0; color: #999;">Planeamento de viagens com IA</p>
             </div>
           </div>
         </body>
@@ -122,35 +129,43 @@ export class EmailService {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f8f9fa; padding: 30px 20px; border-radius: 0 0 10px 10px; }
-            .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 40px auto; padding: 0; }
+            .header { background: linear-gradient(135deg, #FF7ED9C8 0%, #EF2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+            .logo { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+            .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+            .button { display: inline-block; padding: 14px 36px; background: #FF7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
+            .button:hover { background: #EF2B7A6E; }
+            .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; margin: 20px 0; border-radius: 4px; }
+            .link-box { background: #f8f9fa; padding: 16px; border-radius: 8px; word-break: break-all; color: #EF2B7A6E; margin: 16px 0; border: 1px solid #e0e0e0; }
+            .footer { text-align: center; margin-top: 24px; color: #666; font-size: 12px; padding: 20px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Password Reset Request</h1>
+              <div class="logo">🔒</div>
+              <h1 style="margin: 0; font-size: 28px;">Redefinir Password</h1>
             </div>
             <div class="content">
-              <p>Hi ${userName},</p>
-              <p>We received a request to reset your password. Click the button below to create a new password:</p>
-              <p style="text-align: center;">
-                <a href="${resetUrl}" class="button">Reset Password</a>
+              <p style="font-size: 16px; margin-bottom: 8px;"><strong>Olá ${userName},</strong></p>
+              <p>Recebemos um pedido para redefinir a tua password. Clica no botão abaixo para criar uma nova
+            <div class="content">definir Password</a>
               </p>
-              <p>Or copy and paste this link into your browser:</p>
-              <p style="word-break: break-all; color: #667eea;">${resetUrl}</p>
+              <p style="color: #666; font-size: 14px;">Ou copia e cola este link no navegador:</p>
+              <div class="link-box">${resetUrl}</div>
               <div class="warning">
-                <strong>⚠️ Security Notice:</strong>
-                <ul>
-                  <li>This link will expire in 1 hour</li>
-                  <li>If you didn't request a password reset, please ignore this email</li>
-                  <li>Your password won't change until you create a new one</li>
+                <strong>⚠️ Aviso de Segurança:</strong>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                  <li>Este link expira em 1 hora</li>
+                  <li>Se não pediste para redefinir a password, ignora este email</li>
+                  <li>A tua password não mudará até criares uma nova</li>
                 </ul>
+              </div>
+            </div>
+            <div class="footer">
+              <p style="margin: 0;">&copy; 2026 ${APP_NAME}. Todos os direitos reservados.</p>
+              <p style="margin: 8px 0 0 0; color: #999;">Planeamento de viagens com IA
               </div>
             </div>
             <div class="footer">
