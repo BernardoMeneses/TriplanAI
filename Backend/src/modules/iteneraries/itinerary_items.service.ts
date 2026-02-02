@@ -589,6 +589,9 @@ export class ItineraryItemsService {
     for (let i = 1; i < items.length; i++) {
       await this.calculateDistancesForItem(itineraryId, items[i].id);
     }
+    
+    // Recalculate times after updating distances/travel times
+    await this.recalculateTimesFromItem(itineraryId, 0);
   }
 
   /**

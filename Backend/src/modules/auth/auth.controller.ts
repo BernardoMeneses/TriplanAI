@@ -146,4 +146,122 @@ router.post('/logout', async (req: Request, res: Response) => {
   res.json({ success: true, message: 'Logout realizado com sucesso' });
 });
 
+/**
+ * @swagger
+ * /api/auth/verify-email:
+ *   post:
+ *     summary: Verificar email com token
+ *     tags: [Auth]
+ *     security: []
+ */
+router.post('/verify-email', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'Token não fornecido' });
+    }
+    const result = await authService.verifyEmail(token);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao verificar email' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/resend-verification:
+ *   post:
+ *     summary: Reenviar email de verificação
+ *     tags: [Auth]
+ *     security: []
+ */
+router.post('/resend-verification', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email não fornecido' });
+    }
+    const result = await authService.resendVerificationEmail(email);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao reenviar email' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Solicitar reset de password
+ *     tags: [Auth]
+ *     security: []
+ */
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email não fornecido' });
+    }
+    const result = await authService.requestPasswordReset(email);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao processar pedido' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password com token
+ *     tags: [Auth]
+ *     security: []
+ */
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token e password são obrigatórios' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password deve ter pelo menos 6 caracteres' });
+    }
+    const result = await authService.resetPassword(token, password);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao redefinir password' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/google:
+ *   post:
+ *     summary: Login com Google
+ *     tags: [Auth]
+ *     security: []
+ */
+router.post('/google', async (req: Request, res: Response) => {
+  try {
+    const { googleId, email, name, picture, accessToken, refreshToken } = req.body;
+    
+    if (!googleId || !email || !name || !accessToken) {
+      return res.status(400).json({ error: 'Dados do Google incompletos' });
+    }
+
+    const result = await authService.googleLogin({
+      googleId,
+      email,
+      name,
+      picture,
+      accessToken,
+      refreshToken,
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro no login com Google' });
+  }
+});
+
 export const authController = router;

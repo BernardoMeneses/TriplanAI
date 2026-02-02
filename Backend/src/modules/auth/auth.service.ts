@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { query } from '../../config/database';
+import { EmailService } from '../../services/email.service';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'triplanai-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '365d'; // Token válido por 1 ano para testes
@@ -10,11 +11,20 @@ export interface User {
   id: string;
   email: string;
   username: string;
-  password_hash: string;
+  password_hash?: string; // Optional for OAuth users
   full_name: string;
   phone?: string;
   profile_picture_url?: string;
   preferences?: Record<string, any>;
+  auth_provider: string; // native, google, etc
+  email_verified: boolean;
+  email_verification_token?: string;
+  email_verification_token_expires?: Date;
+  password_reset_token?: string;
+  password_reset_token_expires?: Date;
+  google_id?: string;
+  google_access_token?: string;
+  google_refresh_token?: string;
   created_at: Date;
   updated_at: Date;
   last_login?: Date;
@@ -28,33 +38,67 @@ export class AuthService {
     fullName: string,
     username: string,
     phone?: string
-  ): Promise<{ user: Omit<User, 'password_hash'>; token: string }> {
-    // Check if user already exists
-    const existingUser = await query('SELECT id FROM users WHERE email = $1 OR username = $2', [email, username]);
+  ): Promise<{ user: Omit<User, 'password_hash'>; token: string; message: string }> {
+    // Check if user already exists (both native and OAuth)
+    const existingUser = await query(
+      'SELECT id, auth_provider FROM users WHERE email = $1 OR username = $2',
+      [email, username]
+    );
+    
     if (existingUser.rows.length > 0) {
-      throw new Error('Email ou username já registado');
+      const existing = existingUser.rows[0];
+      if (existing.auth_provider === 'native') {
+        throw new Error('Email ou username já registado');
+      } else {
+        throw new Error(`Este email já está associado a uma conta ${existing.auth_provider}`);
+      }
     }
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // Generate email verification token
+    const verificationToken = EmailService.generateToken();
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     // Create user
     const result = await query<User>(
-      `INSERT INTO users (email, username, password_hash, full_name, phone)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, email, username, full_name, phone, profile_picture_url, preferences, created_at, updated_at, is_active`,
-      [email, username, passwordHash, fullName, phone || null]
+      `INSERT INTO users (
+        email, username, password_hash, full_name, phone, 
+        auth_provider, email_verified, email_verification_token, email_verification_token_expires
+      )
+       VALUES ($1, $2, $3, $4, $5, 'native', false, $6, $7)
+       RETURNING id, email, username, full_name, phone, profile_picture_url, preferences, 
+                 auth_provider, email_verified, created_at, updated_at, is_active`,
+      [email, username, passwordHash, fullName, phone || null, verificationToken, tokenExpires]
     );
 
     const user = result.rows[0];
+
+    // Send verification email
+    try {
+      await EmailService.sendVerificationEmail(email, verificationToken, fullName);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // Don't fail registration if email fails
+    }
+
+    // Generate token (but login will require verification)
     const token = this.generateToken(user.id);
 
-    return { user, token };
+    return { 
+      user, 
+      token,
+      message: 'Account created! Please check your email to verify your account.' 
+    };
   }
 
   async login(identifier: string, password: string): Promise<{ user: Omit<User, 'password_hash'>; token: string }> {
-    // Find user by email or username
-    const result = await query<User>('SELECT * FROM users WHERE (email = $1 OR username = $1) AND is_active = true', [identifier]);
+    // Find user by email or username (only native auth)
+    const result = await query<User>(
+      'SELECT * FROM users WHERE (email = $1 OR username = $1) AND auth_provider = $2 AND is_active = true',
+      [identifier, 'native']
+    );
     
     if (result.rows.length === 0) {
       throw new Error('Credenciais inválidas');
@@ -63,9 +107,18 @@ export class AuthService {
     const user = result.rows[0];
 
     // Verify password
+    if (!user.password_hash) {
+      throw new Error('Esta conta usa login social');
+    }
+    
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       throw new Error('Credenciais inválidas');
+    }
+
+    // Check email verification
+    if (!user.email_verified) {
+      throw new Error('Por favor, verifique o seu email antes de fazer login');
     }
 
     // Update last login
@@ -139,6 +192,209 @@ export class AuthService {
     // For JWT-based auth, logout is handled client-side
     // Here we could implement token blacklisting if needed
     return { success: true };
+  }
+
+  async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
+    // Find user by verification token
+    const result = await query<User>(
+      `SELECT * FROM users WHERE email_verification_token = $1 
+       AND email_verification_token_expires > NOW()`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Token de verificação inválido ou expirado');
+    }
+
+    const user = result.rows[0];
+
+    // Update user as verified
+    await query(
+      `UPDATE users SET 
+        email_verified = true, 
+        email_verification_token = NULL, 
+        email_verification_token_expires = NULL,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [user.id]
+    );
+
+    // Send welcome email
+    try {
+      await EmailService.sendWelcomeEmail(user.email, user.full_name);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+    }
+
+    return { success: true, message: 'Email verificado com sucesso!' };
+  }
+
+  async resendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
+    const result = await query<User>(
+      'SELECT * FROM users WHERE email = $1 AND auth_provider = $2',
+      [email, 'native']
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Utilizador não encontrado');
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+      throw new Error('Email já verificado');
+    }
+
+    // Generate new verification token
+    const verificationToken = EmailService.generateToken();
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await query(
+      `UPDATE users SET 
+        email_verification_token = $1, 
+        email_verification_token_expires = $2
+       WHERE id = $3`,
+      [verificationToken, tokenExpires, user.id]
+    );
+
+    // Send verification email
+    await EmailService.sendVerificationEmail(email, verificationToken, user.full_name);
+
+    return { success: true, message: 'Email de verificação enviado!' };
+  }
+
+  async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    const result = await query<User>(
+      'SELECT * FROM users WHERE email = $1 AND auth_provider = $2',
+      [email, 'native']
+    );
+
+    if (result.rows.length === 0) {
+      // Don't reveal if user exists
+      return { success: true, message: 'Se o email existir, receberá um link de reset' };
+    }
+
+    const user = result.rows[0];
+
+    // Generate reset token
+    const resetToken = EmailService.generateToken();
+    const tokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await query(
+      `UPDATE users SET 
+        password_reset_token = $1, 
+        password_reset_token_expires = $2
+       WHERE id = $3`,
+      [resetToken, tokenExpires, user.id]
+    );
+
+    // Send reset email
+    await EmailService.sendPasswordResetEmail(email, resetToken, user.full_name);
+
+    return { success: true, message: 'Email de reset enviado!' };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    // Find user by reset token
+    const result = await query<User>(
+      `SELECT * FROM users WHERE password_reset_token = $1 
+       AND password_reset_token_expires > NOW()`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Token de reset inválido ou expirado');
+    }
+
+    const user = result.rows[0];
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Update password and clear reset token
+    await query(
+      `UPDATE users SET 
+        password_hash = $1, 
+        password_reset_token = NULL, 
+        password_reset_token_expires = NULL,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [passwordHash, user.id]
+    );
+
+    return { success: true, message: 'Password redefinida com sucesso!' };
+  }
+
+  async googleLogin(googleData: {
+    googleId: string;
+    email: string;
+    name: string;
+    picture?: string;
+    accessToken: string;
+    refreshToken?: string;
+  }): Promise<{ user: Omit<User, 'password_hash'>; token: string; isNewUser: boolean }> {
+    // Check if user exists with Google ID
+    let result = await query<User>(
+      'SELECT * FROM users WHERE google_id = $1 OR (email = $2 AND auth_provider = $3)',
+      [googleData.googleId, googleData.email, 'google']
+    );
+
+    let user: User;
+    let isNewUser = false;
+
+    if (result.rows.length === 0) {
+      // Create new user with Google auth
+      const username = googleData.email.split('@')[0] + '_' + Math.random().toString(36).substring(7);
+      
+      const insertResult = await query<User>(
+        `INSERT INTO users (
+          email, username, full_name, profile_picture_url,
+          auth_provider, email_verified, google_id, google_access_token, google_refresh_token
+        )
+         VALUES ($1, $2, $3, $4, 'google', true, $5, $6, $7)
+         RETURNING id, email, username, full_name, phone, profile_picture_url, preferences, 
+                   auth_provider, email_verified, created_at, updated_at, is_active`,
+        [
+          googleData.email,
+          username,
+          googleData.name,
+          googleData.picture || null,
+          googleData.googleId,
+          googleData.accessToken,
+          googleData.refreshToken || null,
+        ]
+      );
+
+      user = insertResult.rows[0];
+      isNewUser = true;
+
+      // Send welcome email
+      try {
+        await EmailService.sendWelcomeEmail(user.email, user.full_name);
+      } catch (error) {
+        console.error('Failed to send welcome email:', error);
+      }
+    } else {
+      user = result.rows[0];
+      
+      // Update Google tokens
+      await query(
+        `UPDATE users SET 
+          google_access_token = $1, 
+          google_refresh_token = COALESCE($2, google_refresh_token),
+          last_login = CURRENT_TIMESTAMP,
+          profile_picture_url = COALESCE($3, profile_picture_url)
+         WHERE id = $4`,
+        [googleData.accessToken, googleData.refreshToken, googleData.picture, user.id]
+      );
+    }
+
+    // Generate JWT token
+    const token = this.generateToken(user.id);
+
+    const { password_hash, ...userWithoutPassword } = user;
+
+    return { user: userWithoutPassword, token, isNewUser };
   }
 
   private generateToken(userId: string): string {

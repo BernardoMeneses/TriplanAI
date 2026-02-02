@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email - TriplanAI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 480px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .icon {
+            font-size: 80px;
+            margin: 20px 0;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        h2 {
+            color: #333;
+            font-size: 24px;
+            margin: 20px 0 10px;
+        }
+
+        p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        #content {
+            display: none;
+        }
+
+        #content.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>TriplanAI</h1>
+        </div>
+
+        <div id="loading">
+            <div class="loading-spinner"></div>
+            <h2>Verifying your email...</h2>
+            <p>Please wait while we confirm your account</p>
+        </div>
+
+        <div id="content"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://triplanai-backend.triplanai.eupasoft.com/api';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const loading = document.getElementById('loading');
+        const content = document.getElementById('content');
+
+        async function verifyEmail() {
+            if (!token) {
+                showResult('error', 'Invalid Link', 
+                    'This verification link is invalid or has expired.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/auth/verify-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('success', 'Email Verified! 🎉', 
+                        'Your account has been successfully verified. You can now log in to the app.');
+                } else {
+                    showResult('error', 'Verification Failed', 
+                        data.error || 'Unable to verify your email. The link may have expired.');
+                }
+            } catch (error) {
+                showResult('error', 'Connection Error', 
+                    'Unable to connect to the server. Please check your internet connection and try again.');
+            }
+        }
+
+        function showResult(type, title, message) {
+            loading.style.display = 'none';
+            
+            const icon = type === 'success' ? '✅' : '❌';
+            const className = type === 'success' ? 'success' : 'error';
+            
+            content.innerHTML = `
+                <div class="icon">${icon}</div>
+                <h2 class="${className}">${title}</h2>
+                <p>${message}</p>
+                <a href="triplanai://app/login" class="btn">Open App</a>
+            `;
+            
+            content.classList.add('show');
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    window.location.href = 'triplanai://app/login';
+                }, 3000);
+            }
+        }
+
+        // Start verification on page load
+        verifyEmail();
+    </script>
+</body>
+</html>
