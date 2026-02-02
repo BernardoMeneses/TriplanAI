@@ -70,7 +70,11 @@ export class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">✈️</div>
+              <div class="logo">
+                <!-- Descomentar para usar logo personalizado -->
+                <img src="https://www.pixelstalk.net/wp-content/uploads/images6/4K-Travel-Wallpaper-HD-Free-download.jpg" alt="TriplanAI">
+                ✈️
+              </div>
               <h1 style="margin: 0; font-size: 28px;">Bem-vindo ao ${APP_NAME}!</h1>
             </div>
             <div class="content">
@@ -146,7 +150,11 @@ export class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">🔒</div>
+              <div class="logo">
+                <!-- Descomentar para usar logo personalizado -->
+                <!-- <img src="https://seu-dominio.com/images/logo-white.png" alt="TriplanAI"> -->
+                🔒
+              </div>
               <h1 style="margin: 0; font-size: 28px;">Redefinir Password</h1>
             </div>
             <div class="content">
