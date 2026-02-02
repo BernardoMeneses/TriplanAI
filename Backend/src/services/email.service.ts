@@ -7,6 +7,8 @@ const EMAIL_PORT = parseInt(process.env.EMAIL_PORT || '587');
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4500';
+// Remove /api do BACKEND_URL para links de páginas HTML estáticas
+const BASE_URL = BACKEND_URL.replace('/api', '');
 const APP_NAME = 'TriplanAI';
 
 // Create transporter
@@ -41,7 +43,7 @@ export class EmailService {
    * Send email verification email
    */
   static async sendVerificationEmail(email: string, token: string, userName: string): Promise<void> {
-    const verificationUrl = `${BACKEND_URL}/auth/verify-email.html?token=${token}`;
+    const verificationUrl = `${BASE_URL}/auth/verify-email.html?token=${token}`;
 
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,
@@ -116,7 +118,7 @@ export class EmailService {
    * Send password reset email
    */
   static async sendPasswordResetEmail(email: string, token: string, userName: string): Promise<void> {
-    const resetUrl = `${BACKEND_URL}/auth/reset-password.html?token=${token}`;
+    const resetUrl = `${BASE_URL}/auth/reset-password.html?token=${token}`;
 
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,
