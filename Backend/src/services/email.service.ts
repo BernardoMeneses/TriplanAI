@@ -139,8 +139,9 @@ export class EmailService {
             .container { max-width: 600px; margin: 40px auto; padding: 0; }
             .header { background: linear-gradient(135deg, #7ED9C8 0%, #2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
             .logo { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+            .logo img { width: 48px; height: 48px; object-fit: contain; }
             .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-            .button { display: inline-block; padding: 14px 36px; background: #7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
+            .button { display: inline-block; padding: 14px 36px; background: #7ED9C8; color: white !important; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
             .button:hover { background: #2B7A6E; }
             .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; margin: 20px 0; border-radius: 4px; }
             .link-box { background: #f8f9fa; padding: 16px; border-radius: 8px; word-break: break-all; color: #2B7A6E; margin: 16px 0; border: 1px solid #e0e0e0; }
@@ -151,9 +152,7 @@ export class EmailService {
           <div class="container">
             <div class="header">
               <div class="logo">
-                <!-- Descomentar para usar logo personalizado -->
-                <!-- <img src="https://seu-dominio.com/images/logo-white.png" alt="TriplanAI"> -->
-                🔒
+                <img src="https://github.com/BernardoMeneses/TriplanAI/blob/main/Backend/public/triplan_ai_logo.png?raw=true" alt="TriplanAI">
               </div>
               <h1 style="margin: 0; font-size: 28px;">Redefinir Password</h1>
             </div>
@@ -224,17 +223,20 @@ export class EmailService {
             .container { max-width: 600px; margin: 40px auto; padding: 0; }
             .header { background: linear-gradient(135deg, #7ED9C8 0%, #2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
             .logo { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 32px; }
+            .logo img { width: 48px; height: 48px; object-fit: contain; }
             .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
             .feature { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #7ED9C8; }
             .feature strong { color: #2B7A6E; display: block; margin-bottom: 8px; font-size: 16px; }
-            .button { display: inline-block; padding: 14px 36px; background: #7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
+            .button { display: inline-block; padding: 14px 36px; background: #7ED9C8; color: white !important; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
             .footer { text-align: center; margin-top: 24px; color: #666; font-size: 12px; padding: 20px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">🎉</div>
+              <div class="logo">
+                <img src="https://github.com/BernardoMeneses/TriplanAI/blob/main/Backend/public/triplan_ai_logo.png?raw=true" alt="TriplanAI">
+              </div>
               <h1 style="margin: 0; font-size: 28px;">Conta Ativada!</h1>
             </div>
             <div class="content">
