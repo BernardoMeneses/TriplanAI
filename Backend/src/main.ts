@@ -34,10 +34,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files for password reset and email verification pages
-// In production, public folder should be copied to dist/public
-const publicPath = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, './public')
-  : path.join(__dirname, '../public');
+// In Docker, public folder is in the root alongside dist
+const publicPath = path.join(__dirname, '../public');
 app.use('/auth', express.static(publicPath));
 
 // Swagger Documentation

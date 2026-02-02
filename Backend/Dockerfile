@@ -12,6 +12,9 @@ COPY package*.json ./
 COPY tsconfig.json ./
 COPY swagger.yaml ./
 
+# Copiar pasta public com HTML pages
+COPY public ./public
+
 # Instalar dependências
 RUN npm ci --only=production && npm cache clean --force
 
@@ -40,6 +43,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/swagger.yaml ./
+COPY --from=builder /app/public ./public
 
 # Criar usuário não-root para segurança
 RUN addgroup -g 1001 -S nodejs && \

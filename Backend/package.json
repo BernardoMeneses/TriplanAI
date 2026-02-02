@@ -5,8 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
-    "build": "npx tsc && npm run copy-public",
-    "copy-public": "cp -r public dist/ || xcopy /E /I public dist\\public",
+    "build": "tsc",
     "start": "node dist/main.js",
     "lint": "eslint src/**/*.ts"
   },
