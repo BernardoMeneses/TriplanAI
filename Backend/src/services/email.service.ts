@@ -56,13 +56,13 @@ export class EmailService {
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 0; }
             .container { max-width: 600px; margin: 40px auto; padding: 0; }
-            .header { background: linear-gradient(135deg, #FF7ED9C8 0%, #EF2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+            .header { background: linear-gradient(135deg, #7ED9C8 0%, #2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
             .logo { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; }
             .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-            .button { display: inline-block; padding: 14px 36px; background: #FF7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
-            .button:hover { background: #EF2B7A6E; }
+            .button { display: inline-block; padding: 14px 36px; background: #7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
+            .button:hover { background: #2B7A6E; }
             .footer { text-align: center; margin-top: 24px; color: #666; font-size: 12px; padding: 20px; }
-            .link-box { background: #f8f9fa; padding: 16px; border-radius: 8px; word-break: break-all; color: #EF2B7A6E; margin: 16px 0; border: 1px solid #e0e0e0; }
+            .link-box { background: #f8f9fa; padding: 16px; border-radius: 8px; word-break: break-all; color: #2B7A6E; margin: 16px 0; border: 1px solid #e0e0e0; }
           </style>
         </head>
         <body>
@@ -131,13 +131,13 @@ export class EmailService {
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 0; }
             .container { max-width: 600px; margin: 40px auto; padding: 0; }
-            .header { background: linear-gradient(135deg, #FF7ED9C8 0%, #EF2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+            .header { background: linear-gradient(135deg, #7ED9C8 0%, #2B7A6E 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0; }
             .logo { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; }
             .content { background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-            .button { display: inline-block; padding: 14px 36px; background: #FF7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
-            .button:hover { background: #EF2B7A6E; }
+            .button { display: inline-block; padding: 14px 36px; background: #7ED9C8; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0; font-weight: 600; font-size: 16px; }
+            .button:hover { background: #2B7A6E; }
             .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; margin: 20px 0; border-radius: 4px; }
-            .link-box { background: #f8f9fa; padding: 16px; border-radius: 8px; word-break: break-all; color: #EF2B7A6E; margin: 16px 0; border: 1px solid #e0e0e0; }
+            .link-box { background: #f8f9fa; padding: 16px; border-radius: 8px; word-break: break-all; color: #2B7A6E; margin: 16px 0; border: 1px solid #e0e0e0; }
             .footer { text-align: center; margin-top: 24px; color: #666; font-size: 12px; padding: 20px; }
           </style>
         </head>
