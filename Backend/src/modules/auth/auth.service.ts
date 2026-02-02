@@ -41,16 +41,22 @@ export class AuthService {
   ): Promise<{ user: Omit<User, 'password_hash'>; token: string; message: string }> {
     // Check if user already exists (both native and OAuth)
     const existingUser = await query(
-      'SELECT id, auth_provider FROM users WHERE email = $1 OR username = $2',
+      'SELECT id, auth_provider, email FROM users WHERE email = $1 OR username = $2',
       [email, username]
     );
     
     if (existingUser.rows.length > 0) {
       const existing = existingUser.rows[0];
-      if (existing.auth_provider === 'native') {
-        throw new Error('Email ou username já registado');
+      
+      // Se o email é o que já existe (não é só username)
+      if (existing.email === email) {
+        if (existing.auth_provider === 'native') {
+          throw new Error('EMAIL_EXISTS_NATIVE|Este email já está registado. Faz login com email e password.');
+        } else {
+          throw new Error(`EMAIL_EXISTS_${existing.auth_provider.toUpperCase()}|Este email já está associado a uma conta ${existing.auth_provider === 'google' ? 'Google' : existing.auth_provider}. Usa "Sign in via Google" para entrar.`);
+        }
       } else {
-        throw new Error(`Este email já está associado a uma conta ${existing.auth_provider}`);
+        throw new Error('USERNAME_EXISTS|Este username já está em uso.');
       }
     }
 
@@ -333,6 +339,16 @@ export class AuthService {
     accessToken: string;
     refreshToken?: string;
   }): Promise<{ user: Omit<User, 'password_hash'>; token: string; isNewUser: boolean }> {
+    // Check if user exists with this email but different provider
+    const emailCheck = await query<User>(
+      'SELECT * FROM users WHERE email = $1',
+      [googleData.email]
+    );
+
+    if (emailCheck.rows.length > 0 && emailCheck.rows[0].auth_provider !== 'google') {
+      throw new Error('EMAIL_EXISTS_NATIVE|Este email já está registado com Email/Password. Faz login com email e password.');
+    }
+
     // Check if user exists with Google ID
     let result = await query<User>(
       'SELECT * FROM users WHERE google_id = $1 OR (email = $2 AND auth_provider = $3)',
