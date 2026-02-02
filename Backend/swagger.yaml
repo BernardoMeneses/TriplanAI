@@ -362,6 +362,203 @@ paths:
                   message:
                     type: string
 
+  /api/auth/verify-email:
+    post:
+      summary: Verificar email do utilizador
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: Token de verificação recebido por email
+      responses:
+        '200':
+          description: Email verificado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email verified successfully"
+        '400':
+          description: Token inválido ou expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/resend-verification:
+    post:
+      summary: Reenviar email de verificação
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Email de verificação reenviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Verification email sent"
+        '404':
+          description: Utilizador não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/forgot-password:
+    post:
+      summary: Solicitar reset de password
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Email de reset enviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset email sent"
+        '404':
+          description: Utilizador não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/reset-password:
+    post:
+      summary: Redefinir password com token
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  description: Token de reset recebido por email
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '200':
+          description: Password redefinida com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset successfully"
+        '400':
+          description: Token inválido ou password inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/google:
+    post:
+      summary: Login/Registro via Google OAuth
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - googleId
+                - email
+                - name
+              properties:
+                googleId:
+                  type: string
+                  description: ID único do utilizador no Google
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                picture:
+                  type: string
+                  description: URL da foto de perfil
+                accessToken:
+                  type: string
+                  description: Token de acesso do Google
+                refreshToken:
+                  type: string
+                  description: Token de refresh do Google
+      responses:
+        '200':
+          description: Login Google realizado com sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+                  - type: object
+                    properties:
+                      isNewUser:
+                        type: boolean
+                        description: Indica se é um novo utilizador
+        '400':
+          description: Dados do Google inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   # Trips
   /api/trips:
     get:
