@@ -72,7 +72,7 @@ export class EmailService {
             <div class="header">
               <div class="logo">
                 <!-- Descomentar para usar logo personalizado -->
-                <img src="https://www.pixelstalk.net/wp-content/uploads/images6/4K-Travel-Wallpaper-HD-Free-download.jpg" alt="TriplanAI">
+                <img src="https://github.com/BernardoMeneses/TriplanAI/blob/main/Backend/public/triplan_ai_logo.png?raw=true" alt="TriplanAI">
                 ✈️
               </div>
               <h1 style="margin: 0; font-size: 28px;">Bem-vindo ao ${APP_NAME}!</h1>
