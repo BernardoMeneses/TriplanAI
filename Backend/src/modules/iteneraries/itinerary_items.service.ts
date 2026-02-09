@@ -472,16 +472,27 @@ export class ItineraryItemsService {
     console.log(`📍 [calculateDistancesForItem] Current item: ${currentItem.title}, order: ${currentItem.order_index}`);
 
     // Get previous item
+    const previousOrderIndex = currentItem.order_index - 1;
+    console.log(`🔍 [calculateDistancesForItem] Looking for previous item with order_index = ${previousOrderIndex} in itinerary ${itineraryId}`);
+    
     const previousResult = await query(
       `SELECT ii.*, p.latitude, p.longitude, p.city
        FROM itinerary_items ii
        LEFT JOIN places p ON ii.place_id = p.id
        WHERE ii.itinerary_id = $1 AND ii.order_index = $2`,
-      [itineraryId, currentItem.order_index - 1]
+      [itineraryId, previousOrderIndex]
     );
 
+    console.log(`🔍 [calculateDistancesForItem] Query returned ${previousResult.rows.length} rows`);
+    
     if (previousResult.rows.length === 0) {
-      console.log(`❌ [calculateDistancesForItem] Previous item not found`);
+      // Log all items in this itinerary to debug
+      const allItemsResult = await query(
+        `SELECT id, title, order_index FROM itinerary_items WHERE itinerary_id = $1 ORDER BY order_index`,
+        [itineraryId]
+      );
+      console.log(`❌ [calculateDistancesForItem] Previous item not found. All items in itinerary:`, 
+        allItemsResult.rows.map(r => `[${r.order_index}] ${r.title}`).join(', '));
       return;
     }
     const previousItem = previousResult.rows[0];
