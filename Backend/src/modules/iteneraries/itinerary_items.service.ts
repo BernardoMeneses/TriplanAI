@@ -57,6 +57,8 @@ export class ItineraryItemsService {
     cost?: number;
     notes?: string;
   }): Promise<ItineraryItem> {
+    console.log(`🔵 [createItineraryItem] Creating item: ${data.title} at order ${data.orderIndex}`);
+    
     let placeId = data.placeId;
 
     // Se não tem placeId mas tem googlePlaceId, criar/buscar o place primeiro
@@ -210,13 +212,43 @@ export class ItineraryItemsService {
       await this.recalculateTimesFromItem(data.itineraryId, data.orderIndex);
     }
     
-    // Fetch the updated item to return with correct times
+    // Fetch the updated item with full place details to return
     const updatedResult = await query<ItineraryItem>(
-      `SELECT * FROM itinerary_items WHERE id = $1`,
+      `SELECT 
+        ii.*,
+        json_build_object(
+          'id', p.id,
+          'name', p.name,
+          'google_place_id', p.google_place_id,
+          'address', p.address,
+          'city', p.city,
+          'country', p.country,
+          'latitude', p.latitude,
+          'longitude', p.longitude,
+          'rating', p.rating,
+          'images', p.images,
+          'place_type', p.place_type,
+          'opening_hours', p.opening_hours,
+          'price_level', p.price_level,
+          'contact_info', p.contact_info
+        ) as place
+      FROM itinerary_items ii
+      LEFT JOIN places p ON ii.place_id = p.id
+      WHERE ii.id = $1`,
       [result.rows[0].id]
     );
     
-    return updatedResult.rows[0];
+    // Parse images if they're a string
+    const item = updatedResult.rows[0];
+    if (item.place && item.place.images && typeof item.place.images === 'string') {
+      try {
+        item.place.images = JSON.parse(item.place.images);
+      } catch (e) {
+        item.place.images = [];
+      }
+    }
+    
+    return item;
   }
 
   async getItineraryItemsByDay(itineraryId: string): Promise<ItineraryItem[]> {
@@ -421,6 +453,8 @@ export class ItineraryItemsService {
    * Calculate distance and travel time from previous item
    */
   private async calculateDistancesForItem(itineraryId: string, itemId: string): Promise<void> {
+    console.log(`🔄 [calculateDistancesForItem] Starting for item ${itemId}`);
+    
     // Get current item and previous item
     const itemResult = await query(
       `SELECT ii.*, p.latitude, p.longitude, p.city
@@ -430,8 +464,12 @@ export class ItineraryItemsService {
       [itemId]
     );
 
-    if (itemResult.rows.length === 0) return;
+    if (itemResult.rows.length === 0) {
+      console.log(`❌ [calculateDistancesForItem] Current item not found`);
+      return;
+    }
     const currentItem = itemResult.rows[0];
+    console.log(`📍 [calculateDistancesForItem] Current item: ${currentItem.title}, order: ${currentItem.order_index}`);
 
     // Get previous item
     const previousResult = await query(
@@ -442,14 +480,21 @@ export class ItineraryItemsService {
       [itineraryId, currentItem.order_index - 1]
     );
 
-    if (previousResult.rows.length === 0) return;
+    if (previousResult.rows.length === 0) {
+      console.log(`❌ [calculateDistancesForItem] Previous item not found`);
+      return;
+    }
     const previousItem = previousResult.rows[0];
+    console.log(`📍 [calculateDistancesForItem] Previous item: ${previousItem.title}`);
 
     // Check if both items have coordinates
     if (!currentItem.latitude || !currentItem.longitude || 
         !previousItem.latitude || !previousItem.longitude) {
+      console.log(`❌ [calculateDistancesForItem] Missing coordinates - Current: [${currentItem.latitude}, ${currentItem.longitude}], Previous: [${previousItem.latitude}, ${previousItem.longitude}]`);
       return;
     }
+    
+    console.log(`✅ [calculateDistancesForItem] Both items have coordinates - proceeding with distance calculation`);
 
     try {
       // Check if item already has a transport mode set by user
@@ -493,6 +538,14 @@ export class ItineraryItemsService {
       );
 
       if (finalResult) {
+        console.log(`✅ [calculateDistancesForItem] Got distance result:`, {
+          distance: finalResult.distance,
+          distanceText: finalResult.distanceText,
+          duration: finalResult.duration,
+          durationText: finalResult.durationText,
+          transportMode
+        });
+        
         // Update item with distance information
         await query(
           `UPDATE itinerary_items
@@ -511,9 +564,13 @@ export class ItineraryItemsService {
             itemId
           ]
         );
+        
+        console.log(`✅ [calculateDistancesForItem] Updated item with distance information`);
+      } else {
+        console.log(`❌ [calculateDistancesForItem] No distance result returned from API`);
       }
     } catch (error) {
-      console.error('Error calculating distance:', error);
+      console.error('❌ [calculateDistancesForItem] Error calculating distance:', error);
       // Don't fail the whole operation if distance calculation fails
     }
   }
