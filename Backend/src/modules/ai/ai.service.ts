@@ -499,7 +499,7 @@ Responde APENAS com o JSON, sem texto adicional.`;
     }
   }
 
-  async getConversations(userId: string, tripId?: string): Promise<any[]> {
+  async getConversations(userId: string, tripId?: string, dayNumber?: number): Promise<any[]> {
     try {
       let queryText = `
         SELECT c.*, 
@@ -514,6 +514,11 @@ Responde APENAS com o JSON, sem texto adicional.`;
       if (tripId) {
         queryText += ` AND c.trip_id = $2`;
         params.push(tripId);
+      }
+      
+      if (dayNumber !== undefined) {
+        queryText += ` AND c.title LIKE $${params.length + 1}`;
+        params.push(`Day ${dayNumber}%`);
       }
       
       queryText += ` GROUP BY c.id ORDER BY c.updated_at DESC`;

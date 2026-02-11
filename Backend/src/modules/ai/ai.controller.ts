@@ -186,12 +186,13 @@ router.get('/conversations', authenticate, async (req: Request, res: Response) =
   try {
     const userId = req.user?.id;
     const tripId = req.query.tripId as string;
+    const dayNumber = req.query.dayNumber ? parseInt(req.query.dayNumber as string) : undefined;
 
     if (!userId) {
       return res.status(401).json({ error: 'Utilizador não autenticado' });
     }
 
-    const conversations = await aiService.getConversations(userId, tripId);
+    const conversations = await aiService.getConversations(userId, tripId, dayNumber);
     res.json(conversations);
   } catch (error) {
     console.error('Erro ao buscar conversas:', error);
