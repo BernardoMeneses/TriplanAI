@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { query } from '../../config/database';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -442,6 +443,120 @@ Responde APENAS com o JSON, sem texto adicional.`;
     } catch (error) {
       console.error('Erro ao obter sugestões de lugares:', error);
       throw new Error('Falha ao obter sugestões de lugares');
+    }
+  }
+
+  // ============================================
+  // Conversation Persistence Methods
+  // ============================================
+
+  async createConversation(userId: string, tripId: string | null, title?: string): Promise<any> {
+    try {
+      const result = await query(
+        `INSERT INTO ai_conversations (user_id, trip_id, title)
+         VALUES ($1, $2, $3)
+         RETURNING *`,
+        [userId, tripId, title || 'New Conversation']
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      throw new Error('Failed to create conversation');
+    }
+  }
+
+  async addMessageToConversation(conversationId: string, role: 'user' | 'assistant' | 'system', content: string): Promise<any> {
+    try {
+      const result = await query(
+        `INSERT INTO ai_messages (conversation_id, role, content)
+         VALUES ($1, $2, $3)
+         RETURNING *`,
+        [conversationId, role, content]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error adding message:', error);
+      throw new Error('Failed to add message');
+    }
+  }
+
+  async getConversations(userId: string, tripId?: string): Promise<any[]> {
+    try {
+      let queryText = `
+        SELECT c.*, 
+               COUNT(m.id) as message_count,
+               MAX(m.created_at) as last_message_at
+        FROM ai_conversations c
+        LEFT JOIN ai_messages m ON c.id = m.conversation_id
+        WHERE c.user_id = $1`;
+      
+      const params: any[] = [userId];
+      
+      if (tripId) {
+        queryText += ` AND c.trip_id = $2`;
+        params.push(tripId);
+      }
+      
+      queryText += ` GROUP BY c.id ORDER BY c.updated_at DESC`;
+      
+      const result = await query(queryText, params);
+      return result.rows;
+    } catch (error) {
+      console.error('Error getting conversations:', error);
+      return [];
+    }
+  }
+
+  async getConversationWithMessages(conversationId: string, userId: string): Promise<any | null> {
+    try {
+      // Get conversation
+      const convResult = await query(
+        `SELECT * FROM ai_conversations WHERE id = $1 AND user_id = $2`,
+        [conversationId, userId]
+      );
+      
+      if (convResult.rows.length === 0) {
+        return null;
+      }
+      
+      const conversation = convResult.rows[0];
+      
+      // Get messages
+      const messagesResult = await query(
+        `SELECT * FROM ai_messages WHERE conversation_id = $1 ORDER BY created_at ASC`,
+        [conversationId]
+      );
+      
+      return {
+        ...conversation,
+        messages: messagesResult.rows
+      };
+    } catch (error) {
+      console.error('Error getting conversation with messages:', error);
+      return null;
+    }
+  }
+
+  async deleteConversation(conversationId: string, userId: string): Promise<void> {
+    try {
+      // Verify ownership
+      const result = await query(
+        `SELECT id FROM ai_conversations WHERE id = $1 AND user_id = $2`,
+        [conversationId, userId]
+      );
+      
+      if (result.rows.length === 0) {
+        throw new Error('Conversation not found or unauthorized');
+      }
+      
+      // Delete conversation (messages will be deleted by CASCADE)
+      await query(
+        `DELETE FROM ai_conversations WHERE id = $1`,
+        [conversationId]
+      );
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      throw error;
     }
   }
 }

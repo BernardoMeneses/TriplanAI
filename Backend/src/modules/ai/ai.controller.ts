@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { aiService } from './ai.service';
+import { authenticate } from '../../middlewares';
 
 const router = Router();
 
 // POST /api/ai/suggestions - Gerar sugestões de lugares para chat AI
-router.post('/suggestions', async (req: Request, res: Response) => {
+router.post('/suggestions', authenticate, async (req: Request, res: Response) => {
   try {
-    const { query, location, dayNumber } = req.body;
+    const { query, location, dayNumber, conversationId, tripId } = req.body;
+    const userId = (req as any).userId;
     
     if (!query) {
       return res.status(400).json({ error: 'Query é obrigatória' });
@@ -17,6 +19,25 @@ router.post('/suggestions', async (req: Request, res: Response) => {
       location: location || '',
       dayNumber: dayNumber || 1,
     });
+    
+    // Save to conversation history
+    let currentConversationId = conversationId;
+    
+    if (!currentConversationId && userId) {
+      // Create new conversation if none exists
+      const newConversation = await aiService.createConversation(
+        userId, 
+        tripId || null, 
+        `Day ${dayNumber || 1} suggestions`
+      );
+      currentConversationId = newConversation.id;
+    }
+    
+    if (currentConversationId) {
+      await aiService.addMessageToConversation(currentConversationId, 'user', query);
+      await aiService.addMessageToConversation(currentConversationId, 'assistant', result.response);
+      (result as any).conversationId = currentConversationId;
+    }
     
     res.json(result);
   } catch (error) {
@@ -152,6 +173,53 @@ router.get('/place-suggestions', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Erro ao obter sugestões:', error);
     res.status(500).json({ error: 'Erro ao obter sugestões de lugares' });
+  }
+});
+
+// GET /api/ai/conversations - Obter conversas do utilizador
+router.get('/conversations', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+    const tripId = req.query.tripId as string;
+
+    const conversations = await aiService.getConversations(userId, tripId);
+    res.json(conversations);
+  } catch (error) {
+    console.error('Erro ao buscar conversas:', error);
+    res.status(500).json({ error: 'Erro ao buscar conversas' });
+  }
+});
+
+// GET /api/ai/conversations/:id - Obter conversa específica com mensagens
+router.get('/conversations/:id', authenticate, async (req: Request, res: Response) => {
+  try {
+    const conversationId = req.params.id;
+    const userId = (req as any).userId;
+
+    const conversation = await aiService.getConversationWithMessages(conversationId, userId);
+    
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+
+    res.json(conversation);
+  } catch (error) {
+    console.error('Erro ao buscar conversa:', error);
+    res.status(500).json({ error: 'Erro ao buscar conversa' });
+  }
+});
+
+// DELETE /api/ai/conversations/:id - Eliminar conversa
+router.delete('/conversations/:id', authenticate, async (req: Request, res: Response) => {
+  try {
+    const conversationId = req.params.id;
+    const userId = (req as any).userId;
+
+    await aiService.deleteConversation(conversationId, userId);
+    res.json({ message: 'Conversa eliminada com sucesso' });
+  } catch (error) {
+    console.error('Erro ao eliminar conversa:', error);
+    res.status(500).json({ error: 'Erro ao eliminar conversa' });
   }
 });
 
