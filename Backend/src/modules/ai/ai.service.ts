@@ -452,30 +452,34 @@ Responde APENAS com o JSON, sem texto adicional.`;
 
   async createConversation(userId: string, tripId: string | null, title?: string): Promise<any> {
     try {
+      console.log('📝 Creating conversation for user:', userId, 'trip:', tripId, 'title:', title);
       const result = await query(
         `INSERT INTO ai_conversations (user_id, trip_id, title)
          VALUES ($1, $2, $3)
          RETURNING *`,
         [userId, tripId, title || 'New Conversation']
       );
+      console.log('✅ Conversation created:', result.rows[0].id);
       return result.rows[0];
     } catch (error) {
-      console.error('Error creating conversation:', error);
+      console.error('❌ Error creating conversation:', error);
       throw new Error('Failed to create conversation');
     }
   }
 
   async addMessageToConversation(conversationId: string, role: 'user' | 'assistant' | 'system', content: string): Promise<any> {
     try {
+      console.log('💬 Adding message to conversation:', conversationId, 'role:', role);
       const result = await query(
         `INSERT INTO ai_messages (conversation_id, role, content)
          VALUES ($1, $2, $3)
          RETURNING *`,
         [conversationId, role, content]
       );
+      console.log('✅ Message added:', result.rows[0].id);
       return result.rows[0];
     } catch (error) {
-      console.error('Error adding message:', error);
+      console.error('❌ Error adding message:', error);
       throw new Error('Failed to add message');
     }
   }

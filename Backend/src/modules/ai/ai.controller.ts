@@ -8,7 +8,7 @@ const router = Router();
 router.post('/suggestions', authenticate, async (req: Request, res: Response) => {
   try {
     const { query, location, dayNumber, conversationId, tripId } = req.body;
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     
     if (!query) {
       return res.status(400).json({ error: 'Query é obrigatória' });
@@ -179,8 +179,12 @@ router.get('/place-suggestions', async (req: Request, res: Response) => {
 // GET /api/ai/conversations - Obter conversas do utilizador
 router.get('/conversations', authenticate, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     const tripId = req.query.tripId as string;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Utilizador não autenticado' });
+    }
 
     const conversations = await aiService.getConversations(userId, tripId);
     res.json(conversations);
@@ -194,7 +198,11 @@ router.get('/conversations', authenticate, async (req: Request, res: Response) =
 router.get('/conversations/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const conversationId = req.params.id;
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Utilizador não autenticado' });
+    }
 
     const conversation = await aiService.getConversationWithMessages(conversationId, userId);
     
@@ -213,7 +221,11 @@ router.get('/conversations/:id', authenticate, async (req: Request, res: Respons
 router.delete('/conversations/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const conversationId = req.params.id;
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Utilizador não autenticado' });
+    }
 
     await aiService.deleteConversation(conversationId, userId);
     res.json({ message: 'Conversa eliminada com sucesso' });
