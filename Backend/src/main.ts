@@ -22,6 +22,7 @@ import { placesController } from './modules/places';
 import { routesController } from './modules/routes';
 import { mapsController } from './modules/maps';
 import { aiController } from './modules/ai';
+import { favoritesController } from './modules/favorites';
 
 const itineraryItemsController = new ItineraryItemsController();
 
@@ -79,6 +80,7 @@ app.use('/api/places', authenticate, placesController);
 app.use('/api/routes', authenticate, routesController);
 app.use('/api/maps', authenticate, mapsController);
 app.use('/api/ai', authenticate, aiController);
+app.use('/api/favorites', authenticate, favoritesController);
 
 // Itinerary Items Routes
 app.post('/api/itinerary-items', authenticate, (req, res) => itineraryItemsController.createItem(req, res));
