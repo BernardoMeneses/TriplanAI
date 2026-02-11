@@ -36,7 +36,12 @@ router.post('/suggestions', authenticate, async (req: Request, res: Response) =>
       
       if (currentConversationId) {
         await aiService.addMessageToConversation(currentConversationId, 'user', query);
-        await aiService.addMessageToConversation(currentConversationId, 'assistant', result.response);
+        await aiService.addMessageToConversation(
+          currentConversationId, 
+          'assistant', 
+          result.response,
+          { places: result.places } // Save places data in metadata
+        );
         (result as any).conversationId = currentConversationId;
       }
     } catch (convError) {

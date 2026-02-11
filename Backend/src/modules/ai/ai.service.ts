@@ -482,14 +482,14 @@ Responde APENAS com o JSON, sem texto adicional.`;
     }
   }
 
-  async addMessageToConversation(conversationId: string, role: 'user' | 'assistant' | 'system', content: string): Promise<any> {
+  async addMessageToConversation(conversationId: string, role: 'user' | 'assistant' | 'system', content: string, metadata?: any): Promise<any> {
     try {
       console.log('💬 Adding message to conversation:', conversationId, 'role:', role);
       const result = await query(
-        `INSERT INTO ai_messages (conversation_id, role, content)
-         VALUES ($1, $2, $3)
+        `INSERT INTO ai_messages (conversation_id, role, content, metadata)
+         VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [conversationId, role, content]
+        [conversationId, role, content, metadata || {}]
       );
       console.log('✅ Message added:', result.rows[0].id);
       return result.rows[0];
