@@ -453,11 +453,26 @@ Responde APENAS com o JSON, sem texto adicional.`;
   async createConversation(userId: string, tripId: string | null, title?: string): Promise<any> {
     try {
       console.log('📝 Creating conversation for user:', userId, 'trip:', tripId, 'title:', title);
+      
+      // Validate trip_id exists if provided
+      let validatedTripId = tripId;
+      if (tripId) {
+        const tripCheck = await query(
+          'SELECT id FROM trips WHERE id = $1 AND user_id = $2',
+          [tripId, userId]
+        );
+        
+        if (tripCheck.rows.length === 0) {
+          console.warn('⚠️ Trip not found or does not belong to user. Creating conversation without trip association.');
+          validatedTripId = null;
+        }
+      }
+      
       const result = await query(
         `INSERT INTO ai_conversations (user_id, trip_id, title)
          VALUES ($1, $2, $3)
          RETURNING *`,
-        [userId, tripId, title || 'New Conversation']
+        [userId, validatedTripId, title || 'New Conversation']
       );
       console.log('✅ Conversation created:', result.rows[0].id);
       return result.rows[0];

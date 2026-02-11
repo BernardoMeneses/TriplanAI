@@ -20,23 +20,28 @@ router.post('/suggestions', authenticate, async (req: Request, res: Response) =>
       dayNumber: dayNumber || 1,
     });
     
-    // Save to conversation history
-    let currentConversationId = conversationId;
-    
-    if (!currentConversationId && userId) {
-      // Create new conversation if none exists
-      const newConversation = await aiService.createConversation(
-        userId, 
-        tripId || null, 
-        `Day ${dayNumber || 1} suggestions`
-      );
-      currentConversationId = newConversation.id;
-    }
-    
-    if (currentConversationId) {
-      await aiService.addMessageToConversation(currentConversationId, 'user', query);
-      await aiService.addMessageToConversation(currentConversationId, 'assistant', result.response);
-      (result as any).conversationId = currentConversationId;
+    // Save to conversation history (non-blocking, don't fail if it errors)
+    try {
+      let currentConversationId = conversationId;
+      
+      if (!currentConversationId && userId) {
+        // Create new conversation if none exists
+        const newConversation = await aiService.createConversation(
+          userId, 
+          tripId || null, 
+          `Day ${dayNumber || 1} suggestions`
+        );
+        currentConversationId = newConversation.id;
+      }
+      
+      if (currentConversationId) {
+        await aiService.addMessageToConversation(currentConversationId, 'user', query);
+        await aiService.addMessageToConversation(currentConversationId, 'assistant', result.response);
+        (result as any).conversationId = currentConversationId;
+      }
+    } catch (convError) {
+      console.error('⚠️ Error saving conversation (non-critical):', convError);
+      // Don't fail the request if conversation saving fails
     }
     
     res.json(result);
