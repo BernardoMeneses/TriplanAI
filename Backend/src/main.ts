@@ -23,6 +23,7 @@ import { routesController } from './modules/routes';
 import { mapsController } from './modules/maps';
 import { aiController } from './modules/ai';
 import { favoritesController } from './modules/favorites';
+import { premiumController } from './modules/premium';
 
 const itineraryItemsController = new ItineraryItemsController();
 
@@ -81,6 +82,16 @@ app.use('/api/routes', authenticate, routesController);
 app.use('/api/maps', authenticate, mapsController);
 app.use('/api/ai', authenticate, aiController);
 app.use('/api/favorites', authenticate, favoritesController);
+
+// Premium routes (webhook não precisa de autenticação)
+app.use('/api/premium', (req, res, next) => {
+  // Webhook do Adapty não precisa autenticação
+  if (req.path === '/adapty-webhook') {
+    return next();
+  }
+  // Outras rotas precisam autenticação
+  return authenticate(req, res, next);
+}, premiumController);
 
 // Itinerary Items Routes
 app.post('/api/itinerary-items', authenticate, (req, res) => itineraryItemsController.createItem(req, res));

@@ -337,6 +337,9 @@ export class ItineraryItemsService {
       transportMode?: string;
     }
   ): Promise<ItineraryItem> {
+    console.log(`📝 updateItineraryItem called for id: ${id}`);
+    console.log(`   Data received:`, data);
+    
     const updates: string[] = [];
     const values: any[] = [];
     let paramCount = 1;
@@ -407,6 +410,8 @@ export class ItineraryItemsService {
     
     const updatedItem = result.rows[0];
     
+    console.log(`✅ Item updated in DB - id: ${updatedItem.id}, order_index: ${updatedItem.order_index}, start_time: ${updatedItem.start_time}`);
+    
     // Se transport_mode foi atualizado, recalcular distâncias e tempos com o novo modo
     if (data.transportMode !== undefined && updatedItem.order_index > 0) {
       await this.calculateDistancesForItem(updatedItem.itinerary_id, updatedItem.id);
@@ -419,7 +424,15 @@ export class ItineraryItemsService {
     
     // Se start_time ou duration_minutes foram atualizados, recalcular horários dos próximos itens
     if (data.startTime !== undefined || data.durationMinutes !== undefined) {
+      console.log(`🔄 Recalculating times from index ${updatedItem.order_index}...`);
       await this.recalculateTimesFromItem(updatedItem.itinerary_id, updatedItem.order_index);
+      
+      // Buscar item novamente após recalcular para verificar se manteve o horário
+      const finalItem = await this.getItineraryItemById(updatedItem.id);
+      console.log(`📊 Final item after recalculation - start_time: ${finalItem?.start_time}`);
+      if (finalItem) {
+        return finalItem;
+      }
     }
     
     return updatedItem;
@@ -698,36 +711,22 @@ export class ItineraryItemsService {
   private async recalculateTimesFromItem(itineraryId: string, fromIndex: number): Promise<void> {
     const items = await this.getItineraryItemsByDay(itineraryId);
     
-    // Se fromIndex é 0, forçar o primeiro item a ter horário base de 09:00
-    if (fromIndex === 0 && items.length > 0) {
-      const firstItem = items[0];
-      const baseStartTime = '09:00:00';
-      
-      // Calcular end_time do primeiro item
-      let endTime: string | undefined;
-      if (firstItem.duration_minutes) {
-        const totalMinutes = 9 * 60 + firstItem.duration_minutes; // 09:00 + duração
-        const endHours = Math.floor(totalMinutes / 60) % 24;
-        const endMinutes = totalMinutes % 60;
-        endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:00`;
-      }
-      
-      await query(
-        `UPDATE itinerary_items
-         SET start_time = $1, end_time = $2
-         WHERE id = $3`,
-        [baseStartTime, endTime, firstItem.id]
-      );
-      
-      // Atualizar local copy
-      items[0].start_time = baseStartTime;
-      items[0].end_time = endTime;
+    console.log(`🔧 recalculateTimesFromItem called with fromIndex: ${fromIndex}`);
+    console.log(`📋 Total items in itinerary: ${items.length}`);
+    for (let i = 0; i < items.length; i++) {
+      console.log(`  Item ${i} (index ${items[i].order_index}): ${items[i].title} - start_time: ${items[i].start_time}`);
     }
     
+    // Não forçar o horário do primeiro item, permitir que mantenha o valor editado
+    // Apenas recalcular os itens APÓS o item atualizado
+    
     // Start from the item after the updated one
+    console.log(`➡️ Will recalculate items from index ${fromIndex + 1} onwards`);
     for (let i = fromIndex + 1; i < items.length; i++) {
       const previousItem = items[i - 1];
       const currentItem = items[i];
+      
+      console.log(`  🔄 Processing item ${i}: ${currentItem.title}`);
       
       if (!previousItem.start_time) continue;
       
@@ -737,6 +736,9 @@ export class ItineraryItemsService {
         previousItem.duration_minutes || 60,
         currentItem.travel_time_from_previous_seconds || 0
       );
+      
+      console.log(`    Previous: ${previousItem.title} (${previousItem.start_time}, ${previousItem.duration_minutes}min, travel ${currentItem.travel_time_from_previous_seconds}s)`);
+      console.log(`    New start time: ${currentItem.start_time} -> ${newStartTime}`);
       
       // Calculate end_time based on duration
       let endTime: string | undefined;
