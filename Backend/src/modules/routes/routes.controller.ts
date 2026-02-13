@@ -6,13 +6,13 @@ const router = Router();
 // POST /api/routes/calculate - Calcular rota entre dois pontos
 router.post('/calculate', async (req: Request, res: Response) => {
   try {
-    const { origin, destination, travelMode, waypoints, optimize } = req.body;
+    const { origin, destination, travelMode, waypoints, optimize, language } = req.body;
     
     if (!origin || !destination) {
       return res.status(400).json({ error: 'Origem e destino são obrigatórios' });
     }
 
-    const route = await routesService.calculateRoute(origin, destination, travelMode, waypoints, optimize);
+    const route = await routesService.calculateRoute(origin, destination, travelMode, waypoints, optimize, language);
     if (!route) {
       return res.status(400).json({ error: 'Não foi possível calcular a rota' });
     }
@@ -113,7 +113,7 @@ router.post('/decode-polyline', async (req: Request, res: Response) => {
 // POST /api/routes/multi-segment - Calcular rotas com múltiplos segmentos usando transport_mode específico por segmento
 router.post('/multi-segment', async (req: Request, res: Response) => {
   try {
-    const { points } = req.body;
+    const { points, language } = req.body;
     
     if (!points || !Array.isArray(points) || points.length < 2) {
       return res.status(400).json({ error: 'Pontos são obrigatórios (mínimo 2 pontos)' });
@@ -132,7 +132,9 @@ router.post('/multi-segment', async (req: Request, res: Response) => {
           { latitude: origin.lat, longitude: origin.lng },
           { latitude: destination.lat, longitude: destination.lng },
           transportMode,
-          []
+          [],
+          false,
+          language
         );
         
         if (routeResult) {

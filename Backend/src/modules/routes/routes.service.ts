@@ -64,6 +64,16 @@ const mapTravelMode = (mode: TravelModeType): TravelMode => {
   return modes[mode] || TravelMode.driving;
 };
 
+const mapLanguage = (lang?: string): Language => {
+  const languages: Record<string, Language> = {
+    'en': Language.en,
+    'pt': Language.pt_PT,
+    'es': Language.es,
+    'fr': Language.fr
+  };
+  return languages[lang || 'en'] || Language.en;
+};
+
 const waypointToString = (waypoint: Waypoint): string => {
   if (waypoint.placeId) {
     return `place_id:${waypoint.placeId}`;
@@ -77,7 +87,8 @@ export class RoutesService {
     destination: Waypoint,
     travelMode: TravelModeType = 'driving',
     waypoints?: Waypoint[],
-    optimize?: boolean
+    optimize?: boolean,
+    language?: string
   ): Promise<Route | null> {
     try {
       const params: any = {
@@ -85,7 +96,7 @@ export class RoutesService {
         destination: waypointToString(destination),
         mode: mapTravelMode(travelMode),
         key: GOOGLE_MAPS_API_KEY,
-        language: Language.pt_PT,
+        language: mapLanguage(language),
         units: UnitSystem.metric
       };
 
@@ -170,7 +181,8 @@ export class RoutesService {
     origin: Waypoint,
     destination: Waypoint,
     waypoints: Waypoint[],
-    travelMode: TravelModeType = 'driving'
+    travelMode: TravelModeType = 'driving',
+    language?: string
   ): Promise<{ route: Route; waypointOrder: number[] } | null> {
     try {
       const params: any = {
@@ -180,7 +192,7 @@ export class RoutesService {
         optimize: true,
         mode: mapTravelMode(travelMode),
         key: GOOGLE_MAPS_API_KEY,
-        language: Language.pt_PT,
+        language: mapLanguage(language),
         units: UnitSystem.metric
       };
 
@@ -262,7 +274,8 @@ export class RoutesService {
   async getAlternativeRoutes(
     origin: Waypoint,
     destination: Waypoint,
-    travelMode: TravelModeType = 'driving'
+    travelMode: TravelModeType = 'driving',
+    language?: string
   ): Promise<Route[]> {
     try {
       const response = await mapsClient.directions({
@@ -272,7 +285,7 @@ export class RoutesService {
           mode: mapTravelMode(travelMode),
           alternatives: true,
           key: GOOGLE_MAPS_API_KEY,
-          language: Language.pt_PT,
+          language: mapLanguage(language),
           units: UnitSystem.metric
         }
       });
@@ -341,7 +354,8 @@ export class RoutesService {
   async getDistanceMatrix(
     origins: Waypoint[],
     destinations: Waypoint[],
-    travelMode: TravelModeType = 'driving'
+    travelMode: TravelModeType = 'driving',
+    language?: string
   ): Promise<DistanceMatrixResult[]> {
     try {
       const response = await mapsClient.distancematrix({
@@ -350,7 +364,7 @@ export class RoutesService {
           destinations: destinations.map(wp => waypointToString(wp)),
           mode: mapTravelMode(travelMode),
           key: GOOGLE_MAPS_API_KEY,
-          language: Language.pt_PT,
+          language: mapLanguage(language),
           units: UnitSystem.metric
         }
       });
@@ -381,7 +395,8 @@ export class RoutesService {
   async getTravelTimeWithTraffic(
     origin: Waypoint,
     destination: Waypoint,
-    departureTime?: Date
+    departureTime?: Date,
+    language?: string
   ): Promise<{ duration: number; durationInTraffic: number; durationText: string; durationInTrafficText: string } | null> {
     try {
       const response = await mapsClient.directions({
@@ -391,7 +406,7 @@ export class RoutesService {
           mode: TravelMode.driving,
           departure_time: departureTime ? Math.floor(departureTime.getTime() / 1000) : 'now',
           key: GOOGLE_MAPS_API_KEY,
-          language: Language.pt_PT,
+          language: mapLanguage(language),
           units: UnitSystem.metric
         }
       });
