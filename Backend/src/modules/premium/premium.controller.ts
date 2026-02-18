@@ -156,4 +156,95 @@ router.post('/deactivate', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/premium/sync:
+ *   post:
+ *     summary: Sincronizar compra do app com o backend (backup ao webhook)
+ *     tags: [Premium]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               productId:
+ *                 type: string
+ *                 description: ID do produto comprado (ex: triplan_premium_monthly)
+ *               purchaseToken:
+ *                 type: string
+ *                 description: Token da compra do Adapty
+ *               expiresAt:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Data de expiração da subscrição
+ *     responses:
+ *       200:
+ *         description: Subscription synced successfully
+ *       401:
+ *         description: Not authenticated
+ */
+router.post('/sync', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { productId, purchaseToken, expiresAt } = req.body;
+    
+    console.log('📱 Premium sync request:', {
+      userId,
+      productId,
+      purchaseToken: purchaseToken ? '***' : undefined,
+      expiresAt,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Determinar o plano baseado no productId
+    let plan: 'basic' | 'premium' = 'premium';
+    if (productId) {
+      if (productId.includes('basic')) {
+        plan = 'basic';
+      } else if (productId.includes('premium')) {
+        plan = 'premium';
+      }
+    }
+
+    // Calcular data de expiração
+    let expiresDate: Date | undefined;
+    if (expiresAt) {
+      expiresDate = new Date(expiresAt);
+    } else if (productId) {
+      // Se não tiver expiresAt, calcular baseado no tipo de subscrição
+      expiresDate = new Date();
+      if (productId.includes('yearly') || productId.includes('annual')) {
+        expiresDate.setFullYear(expiresDate.getFullYear() + 1);
+      } else {
+        expiresDate.setMonth(expiresDate.getMonth() + 1);
+      }
+    }
+
+    // Ativar o plano
+    await premiumService.setUserPlan(userId, plan, expiresDate);
+
+    // Obter status atualizado
+    const status = await premiumService.getSubscriptionStatus(userId);
+
+    res.json({ 
+      success: true, 
+      message: `${plan} plan activated`,
+      plan: status.plan,
+      expires_at: status.subscription_expires_at,
+      limits: status.limits,
+    });
+  } catch (error) {
+    console.error('Error syncing premium:', error);
+    res.status(500).json({ error: 'Error syncing subscription' });
+  }
+});
+
 export default router;
