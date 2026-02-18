@@ -103,7 +103,7 @@ export class PremiumService {
     }>(
       `SELECT 
         id as user_id,
-        COALESCE(subscription_plan, CASE WHEN is_premium THEN 'premium' ELSE 'free' END) as subscription_plan,
+        COALESCE(subscription_plan::text, CASE WHEN is_premium THEN 'premium' ELSE 'free' END)::text as subscription_plan,
         premium_since,
         premium_expires_at
        FROM users 
