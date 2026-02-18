@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PremiumService } from './premium.service';
+import { PremiumService, PLAN_LIMITS } from './premium.service';
 
 const router = Router();
 const premiumService = new PremiumService();
@@ -8,13 +8,13 @@ const premiumService = new PremiumService();
  * @swagger
  * /api/premium/status:
  *   get:
- *     summary: Verificar status premium do utilizador
+ *     summary: Verificar status de subscrição do utilizador
  *     tags: [Premium]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Status premium
+ *         description: Status da subscrição com limites do plano
  *       401:
  *         description: Not authenticated
  */
@@ -25,11 +25,20 @@ router.get('/status', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const status = await premiumService.checkPremiumStatus(userId);
-    res.json(status);
+    const status = await premiumService.getSubscriptionStatus(userId);
+    
+    // Retornar formato completo com limites
+    res.json({
+      plan: status.plan,
+      subscription_since: status.subscription_since,
+      subscription_expires_at: status.subscription_expires_at,
+      limits: status.limits,
+      // Retrocompatibilidade
+      is_premium: status.plan !== 'free',
+    });
   } catch (error) {
-    console.error('Error checking premium status:', error);
-    res.status(500).json({ error: 'Error checking premium status' });
+    console.error('Error checking subscription status:', error);
+    res.status(500).json({ error: 'Error checking subscription status' });
   }
 });
 

@@ -4,6 +4,9 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Subscription plan type
+CREATE TYPE subscription_plan_type AS ENUM ('free', 'basic', 'premium');
+
 -- Users table
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -14,6 +17,12 @@ CREATE TABLE users (
     phone VARCHAR(50),
     profile_picture_url TEXT,
     preferences JSONB DEFAULT '{}',
+    subscription_plan subscription_plan_type DEFAULT 'free',
+    is_premium BOOLEAN DEFAULT FALSE,
+    premium_since TIMESTAMP WITH TIME ZONE,
+    premium_expires_at TIMESTAMP WITH TIME ZONE,
+    ai_generations_this_month INT DEFAULT 0,
+    ai_generations_reset_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP WITH TIME ZONE,
