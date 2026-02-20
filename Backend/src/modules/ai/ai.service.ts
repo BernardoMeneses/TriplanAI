@@ -43,41 +43,63 @@ export interface PlaceRecommendation {
   priceLevel?: string;
 }
 
+// Mapeamento de códigos de língua para nomes
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish (Español)',
+  fr: 'French (Français)',
+  de: 'German (Deutsch)',
+  it: 'Italian (Italiano)',
+  pt: 'Portuguese (Português de Portugal)',
+  nl: 'Dutch (Nederlands)',
+  ja: 'Japanese (日本語)',
+  zh: 'Chinese (中文)',
+  ko: 'Korean (한국어)',
+};
+
 export class AIService {
-  private systemPrompt = `Você é um assistente de viagem especializado chamado TriplanAI. 
-Você ajuda utilizadores a planear viagens, sugere destinos, cria itinerários e fornece dicas de viagem.
-Responda sempre em português de Portugal (pt-PT).
-Seja amigável, informativo e prático nas suas respostas.
-Quando sugerir lugares, inclua informações úteis como horários, preços estimados e dicas práticas.`;
+  // Gerar system prompt dinâmico baseado na língua
+  private getSystemPrompt(language: string = 'en'): string {
+    const langName = LANGUAGE_NAMES[language] || 'English';
+    
+    return `You are a specialized travel assistant called TriplanAI.
+You help users plan trips, suggest destinations, create itineraries, and provide travel tips.
+IMPORTANT: Always respond in ${langName}. The user's language is ${language}.
+Be friendly, informative, and practical in your responses.
+When suggesting places, include useful information such as opening hours, estimated prices, and practical tips.`;
+  }
 
   async generatePlaceSuggestions(params: {
     query: string;
     location: string;
     dayNumber: number;
+    language?: string;
   }): Promise<{ response: string; places: any[] }> {
-    const prompt = `O utilizador está a planear o dia ${params.dayNumber} em ${params.location}.
-Pergunta: "${params.query}"
+    const systemPrompt = this.getSystemPrompt(params.language);
+    const prompt = `The user is planning day ${params.dayNumber} in ${params.location}.
+Question: "${params.query}"
 
-Responde com uma mensagem amigável e sugere 4-5 lugares relevantes.
+Respond with a friendly message and suggest 4-5 relevant places.
 
-Responde em formato JSON com este schema:
+Respond in JSON format with this schema:
 {
-  "response": "mensagem amigável respondendo ao utilizador (ex: 'Great! Here are my top five-star hotel picks near Marina Bay:')",
+  "response": "friendly message responding to the user in ${LANGUAGE_NAMES[params.language || 'en'] || 'English'}",
   "places": [{
-    "name": "nome do lugar",
-    "category": "categoria (ex: Accommodation, Restaurant, Museum, Park, Shopping, Activities & Experiences, Nature & Outdoor)",
-    "placeId": "deixa vazio por agora, será preenchido depois",
-    "description": "breve descrição do lugar"
+    "name": "place name",
+    "category": "category (e.g.: Accommodation, Restaurant, Museum, Park, Shopping, Activities & Experiences, Nature & Outdoor)",
+    "placeId": "leave empty for now, will be filled later",
+    "description": "brief description of the place"
   }]
 }
 
-Responde APENAS com o JSON, sem texto adicional.`;
+IMPORTANT: The "response" field MUST be in ${LANGUAGE_NAMES[params.language || 'en'] || 'English'}.
+Respond ONLY with the JSON, no additional text.`;
 
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [
-          { role: 'system', content: this.systemPrompt },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -87,7 +109,7 @@ Responde APENAS com o JSON, sem texto adicional.`;
       const content = response.choices[0]?.message?.content;
       if (!content) {
         return {
-          response: 'Desculpa, tive dificuldade em processar isso. Podes tentar reformular?',
+          response: this.getDefaultErrorMessage(params.language),
           places: []
         };
       }
@@ -104,16 +126,40 @@ Responde APENAS com o JSON, sem texto adicional.`;
       }
       
       return {
-        response: parsed.response || 'Aqui estão algumas sugestões para ti!',
+        response: parsed.response || this.getDefaultSuggestionsMessage(params.language),
         places: parsed.places || []
       };
     } catch (error) {
-      console.error('Erro ao gerar sugestões de lugares:', error);
+      console.error('Error generating place suggestions:', error);
       return {
-        response: 'Desculpa, tive dificuldade em processar isso. Podes tentar reformular?',
+        response: this.getDefaultErrorMessage(params.language),
         places: []
       };
     }
+  }
+
+  private getDefaultErrorMessage(language?: string): string {
+    const messages: Record<string, string> = {
+      pt: 'Desculpa, tive dificuldade em processar isso. Podes tentar reformular?',
+      en: 'Sorry, I had trouble processing that. Can you try rephrasing?',
+      es: 'Lo siento, tuve dificultades para procesar eso. ¿Puedes intentar reformularlo?',
+      fr: 'Désolé, j\'ai eu du mal à traiter cela. Pouvez-vous essayer de reformuler?',
+      de: 'Entschuldigung, ich hatte Schwierigkeiten, das zu verarbeiten. Kannst du es anders formulieren?',
+      it: 'Mi dispiace, ho avuto difficoltà a elaborare questo. Puoi provare a riformulare?',
+    };
+    return messages[language || 'en'] || messages.en;
+  }
+
+  private getDefaultSuggestionsMessage(language?: string): string {
+    const messages: Record<string, string> = {
+      pt: 'Aqui estão algumas sugestões para ti!',
+      en: 'Here are some suggestions for you!',
+      es: '¡Aquí tienes algunas sugerencias!',
+      fr: 'Voici quelques suggestions pour vous!',
+      de: 'Hier sind einige Vorschläge für dich!',
+      it: 'Ecco alcuni suggerimenti per te!',
+    };
+    return messages[language || 'en'] || messages.en;
   }
 
   async generateTripSuggestions(
@@ -122,34 +168,39 @@ Responde APENAS com o JSON, sem texto adicional.`;
       budget?: string;
       duration?: number;
       travelStyle?: string;
+      language?: string;
     }
   ): Promise<TripSuggestion[]> {
-    const prompt = `Sugere 5 destinos de viagem baseado nestas preferências:
-- Interesses: ${preferences.interests.join(', ')}
-- Orçamento: ${preferences.budget || 'médio'}
-- Duração: ${preferences.duration || 7} dias
-- Estilo de viagem: ${preferences.travelStyle || 'flexível'}
+    const lang = preferences.language || 'en';
+    const systemPrompt = this.getSystemPrompt(lang);
+    
+    const prompt = `Suggest 5 travel destinations based on these preferences:
+- Interests: ${preferences.interests.join(', ')}
+- Budget: ${preferences.budget || 'medium'}
+- Duration: ${preferences.duration || 7} days
+- Travel style: ${preferences.travelStyle || 'flexible'}
 
-Responde em formato JSON com este schema:
+Respond in JSON format with this schema:
 [{
-  "destination": "nome do destino",
-  "description": "descrição breve do destino",
-  "activities": ["atividade1", "atividade2", "atividade3"],
-  "bestTimeToVisit": "melhor época para visitar",
+  "destination": "destination name",
+  "description": "brief description",
+  "activities": ["activity1", "activity2", "activity3"],
+  "bestTimeToVisit": "best time to visit",
   "estimatedBudget": {
-    "min": número mínimo em EUR,
-    "max": número máximo em EUR,
+    "min": minimum number in EUR,
+    "max": maximum number in EUR,
     "currency": "EUR"
   }
 }]
 
-Responde APENAS com o JSON, sem texto adicional.`;
+IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+Respond ONLY with the JSON, no additional text.`;
 
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [
-          { role: 'system', content: this.systemPrompt },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -162,8 +213,8 @@ Responde APENAS com o JSON, sem texto adicional.`;
       const parsed = JSON.parse(content);
       return Array.isArray(parsed) ? parsed : (parsed.suggestions || parsed.destinations || []);
     } catch (error) {
-      console.error('Erro ao gerar sugestões de viagem:', error);
-      throw new Error('Falha ao gerar sugestões de viagem');
+      console.error('Error generating trip suggestions:', error);
+      throw new Error('Failed to generate trip suggestions');
     }
   }
 
@@ -174,27 +225,30 @@ Responde APENAS com o JSON, sem texto adicional.`;
       endDate: string;
       interests: string[];
       pace?: 'relaxed' | 'moderate' | 'intensive';
+      language?: string;
     }
   ): Promise<ItinerarySuggestion[]> {
+    const lang = tripDetails.language || 'en';
+    const systemPrompt = this.getSystemPrompt(lang);
     const startDate = new Date(tripDetails.startDate);
     const endDate = new Date(tripDetails.endDate);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    const paceDescriptions = {
-      relaxed: '2-3 atividades por dia, com bastante tempo livre',
-      moderate: '3-4 atividades por dia, ritmo equilibrado',
-      intensive: '5-6 atividades por dia, aproveitando ao máximo'
+    const paceDescriptions: Record<string, string> = {
+      relaxed: '2-3 activities per day, with plenty of free time',
+      moderate: '3-4 activities per day, balanced pace',
+      intensive: '5-6 activities per day, making the most of it'
     };
 
-    const prompt = `Cria um itinerário detalhado para ${days} dias em ${tripDetails.destination}.
+    const prompt = `Create a detailed itinerary for ${days} days in ${tripDetails.destination}.
 
-Detalhes:
-- Data início: ${tripDetails.startDate}
-- Data fim: ${tripDetails.endDate}
-- Interesses: ${tripDetails.interests.join(', ')}
-- Ritmo: ${paceDescriptions[tripDetails.pace || 'moderate']}
+Details:
+- Start date: ${tripDetails.startDate}
+- End date: ${tripDetails.endDate}
+- Interests: ${tripDetails.interests.join(', ')}
+- Pace: ${paceDescriptions[tripDetails.pace || 'moderate']}
 
-Responde em formato JSON com este schema:
+Respond in JSON format with this schema:
 {
   "itinerary": [
     {
@@ -202,23 +256,24 @@ Responde em formato JSON com este schema:
       "activities": [
         {
           "time": "09:00",
-          "activity": "nome da atividade",
-          "location": "local específico",
-          "duration": "2 horas",
-          "tips": "dica útil opcional"
+          "activity": "activity name",
+          "location": "specific location",
+          "duration": "2 hours",
+          "tips": "optional useful tip"
         }
       ]
     }
   ]
 }
 
-Responde APENAS com o JSON, sem texto adicional.`;
+IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+Respond ONLY with the JSON, no additional text.`;
 
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [
-          { role: 'system', content: this.systemPrompt },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -231,8 +286,8 @@ Responde APENAS com o JSON, sem texto adicional.`;
       const parsed = JSON.parse(content);
       return parsed.itinerary || parsed.days || parsed;
     } catch (error) {
-      console.error('Erro ao gerar itinerário:', error);
-      throw new Error('Falha ao gerar itinerário');
+      console.error('Error generating itinerary:', error);
+      throw new Error('Failed to generate itinerary');
     }
   }
 
@@ -241,12 +296,14 @@ Responde APENAS com o JSON, sem texto adicional.`;
     context?: {
       tripId?: string;
       destination?: string;
+      language?: string;
     }
   ): Promise<string> {
-    let contextMessage = this.systemPrompt;
+    const lang = context?.language || 'en';
+    let contextMessage = this.getSystemPrompt(lang);
     
     if (context?.destination) {
-      contextMessage += `\n\nO utilizador está a planear uma viagem para ${context.destination}. Foca as tuas respostas neste destino.`;
+      contextMessage += `\n\nThe user is planning a trip to ${context.destination}. Focus your responses on this destination.`;
     }
 
     const openaiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -265,39 +322,44 @@ Responde APENAS com o JSON, sem texto adicional.`;
         max_tokens: 1000
       });
 
-      return response.choices[0]?.message?.content || 'Desculpe, não consegui processar o seu pedido.';
+      return response.choices[0]?.message?.content || this.getDefaultErrorMessage(lang);
     } catch (error) {
-      console.error('Erro no chat:', error);
-      throw new Error('Falha na comunicação com o assistente');
+      console.error('Error in chat:', error);
+      throw new Error('Failed to communicate with assistant');
     }
   }
 
   async getPlaceRecommendations(
     destination: string,
-    interests: string[]
+    interests: string[],
+    language?: string
   ): Promise<PlaceRecommendation[]> {
-    const prompt = `Recomenda 10 lugares para visitar em ${destination} baseado nestes interesses: ${interests.join(', ')}.
+    const lang = language || 'en';
+    const systemPrompt = this.getSystemPrompt(lang);
+    
+    const prompt = `Recommend 10 places to visit in ${destination} based on these interests: ${interests.join(', ')}.
 
-Responde em formato JSON com este schema:
+Respond in JSON format with this schema:
 {
   "places": [
     {
-      "name": "nome do lugar",
-      "description": "descrição breve",
-      "category": "categoria (restaurante, museu, parque, etc.)",
-      "estimatedDuration": "tempo estimado de visita",
-      "priceLevel": "gratuito/económico/moderado/caro"
+      "name": "place name",
+      "description": "brief description",
+      "category": "category (restaurant, museum, park, etc.)",
+      "estimatedDuration": "estimated visit time",
+      "priceLevel": "free/budget/moderate/expensive"
     }
   ]
 }
 
-Responde APENAS com o JSON, sem texto adicional.`;
+IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+Respond ONLY with the JSON, no additional text.`;
 
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [
-          { role: 'system', content: this.systemPrompt },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

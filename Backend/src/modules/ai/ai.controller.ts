@@ -7,17 +7,18 @@ const router = Router();
 // POST /api/ai/suggestions - Gerar sugestões de lugares para chat AI
 router.post('/suggestions', authenticate, async (req: Request, res: Response) => {
   try {
-    const { query, location, dayNumber, conversationId, tripId } = req.body;
+    const { query, location, dayNumber, conversationId, tripId, language } = req.body;
     const userId = req.user?.id;
     
     if (!query) {
-      return res.status(400).json({ error: 'Query é obrigatória' });
+      return res.status(400).json({ error: 'Query is required' });
     }
 
     const result = await aiService.generatePlaceSuggestions({
       query,
       location: location || '',
       dayNumber: dayNumber || 1,
+      language: language || 'en', // Default to English if not provided
     });
     
     // Save to conversation history (non-blocking, don't fail if it errors)
