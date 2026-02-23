@@ -292,8 +292,17 @@ router.get('/by-code/:trip_code', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Viagem não encontrada' });
     }
 
+    // Determine se a viagem já pertence ao utilizador atual
+    const userId = (req as any).user?.id;
+    const owned = userId ? trip.user_id === userId : false;
+
     // Reutilizar a lógica de export para retornar { version, trip, itineraries }
     const exportData = await tripsService.exportTrip(trip.id);
+
+    // Anexar metadados úteis ao cliente
+    (exportData as any).owned = !!owned;
+    (exportData as any).original_trip_id = trip.id;
+
     res.json(exportData);
   } catch (error) {
     res.status(400).json({ error: 'Erro ao buscar viagem por código' });

@@ -224,6 +224,15 @@ export class TripsService {
       throw new Error('Formato de importação inválido');
     }
 
+    // Se o payload indicar um original_trip_id, evitar import duplicado
+    const originalId = importData.original_trip_id || null;
+    if (originalId) {
+      const check = await query('SELECT id FROM trips WHERE user_id = $1 AND (preferences->>\'source_trip_id\') = $2', [userId, originalId]);
+      if (check.rows.length > 0) {
+        throw new Error('Viagem já importada');
+      }
+    }
+
     const tripData = importData.trip;
 
     // Criar nova trip para o usuário
@@ -241,6 +250,15 @@ export class TripsService {
       preferences: tripData.preferences,
       status: 'planning',
     });
+
+    // Se tivermos originalId, atualizar as preferences para guardar a referência
+    if (originalId) {
+      const prefs = tripData.preferences || {};
+      prefs.source_trip_id = originalId;
+      await query('UPDATE trips SET preferences = $1 WHERE id = $2', [JSON.stringify(prefs), newTrip.id]);
+      // Reflect in newTrip object
+      (newTrip as any).preferences = prefs;
+    }
 
     // Importar itinerários se existirem
     if (importData.itineraries && Array.isArray(importData.itineraries)) {
