@@ -286,11 +286,15 @@ router.post('/:id/code', async (req: Request, res: Response) => {
  */
 router.get('/by-code/:trip_code', async (req: Request, res: Response) => {
   try {
+    // Buscar a viagem pelo código e devolver o mesmo formato do export
     const trip = await tripsService.getTripByCode(req.params.trip_code);
     if (!trip) {
       return res.status(404).json({ error: 'Viagem não encontrada' });
     }
-    res.json(trip);
+
+    // Reutilizar a lógica de export para retornar { version, trip, itineraries }
+    const exportData = await tripsService.exportTrip(trip.id);
+    res.json(exportData);
   } catch (error) {
     res.status(400).json({ error: 'Erro ao buscar viagem por código' });
   }
