@@ -98,6 +98,34 @@ export class TripsService {
     return (result.rowCount ?? 0) > 0;
   }
 
+  // Gera ou retorna trip_code (6 caracteres) para uma viagem
+  async generateOrGetTripCode(tripId: string): Promise<{ id: string; trip_code: string } | null> {
+    // Buscar viagem
+    const result = await query('SELECT id, trip_code FROM trips WHERE id = $1', [tripId]);
+    const trip = result.rows[0];
+    if (!trip) return null;
+    if (trip.trip_code) return { id: trip.id, trip_code: trip.trip_code };
+
+    // Gerar código único de 6 caracteres (A-Z, 0-9)
+    let code: string | undefined;
+    let exists = true;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    while (exists) {
+      code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const check = await query('SELECT 1 FROM trips WHERE trip_code = $1', [code]);
+      exists = check.rows.length > 0;
+    }
+    // Atualizar viagem
+    await query('UPDATE trips SET trip_code = $1 WHERE id = $2', [code, tripId]);
+    return { id: trip.id, trip_code: code! };
+  }
+
+  // Buscar viagem por trip_code
+  async getTripByCode(trip_code: string): Promise<Trip | null> {
+    const result = await query<Trip>('SELECT * FROM trips WHERE trip_code = $1', [trip_code]);
+    return result.rows[0] || null;
+  }
+
   async exportTrip(tripId: string): Promise<any> {
     // Buscar dados da trip
     const tripResult = await query<Trip>('SELECT * FROM trips WHERE id = $1', [tripId]);

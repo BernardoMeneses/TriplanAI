@@ -238,6 +238,66 @@ router.get('/:id/export', async (req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /api/trips/{id}/code:
+ *   post:
+ *     summary: Gerar ou obter código de partilha da viagem
+ *     tags: [Trips]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Código de partilha gerado/obtido
+ *       404:
+ *         description: Viagem não encontrada
+ */
+router.post('/:id/code', async (req: Request, res: Response) => {
+  try {
+    const trip = await tripsService.generateOrGetTripCode(req.params.id);
+    if (!trip) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+    res.json({ trip_code: trip.trip_code });
+  } catch (error) {
+    res.status(400).json({ error: 'Erro ao gerar código de partilha' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/trips/by-code/{trip_code}:
+ *   get:
+ *     summary: Buscar viagem por código de partilha
+ *     tags: [Trips]
+ *     parameters:
+ *       - in: path
+ *         name: trip_code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Viagem encontrada
+ *       404:
+ *         description: Viagem não encontrada
+ */
+router.get('/by-code/:trip_code', async (req: Request, res: Response) => {
+  try {
+    const trip = await tripsService.getTripByCode(req.params.trip_code);
+    if (!trip) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+    res.json(trip);
+  } catch (error) {
+    res.status(400).json({ error: 'Erro ao buscar viagem por código' });
+  }
+});
+
+/**
+ * @swagger
  * /api/trips/import:
  *   post:
  *     summary: Importar viagem de um JSON exportado
