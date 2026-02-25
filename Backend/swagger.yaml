@@ -1007,6 +1007,73 @@ paths:
         '404':
           description: Item não encontrado
 
+  /api/itinerary-items/reorder/{itineraryId}:
+    put:
+      summary: Reordenar items de um itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: itineraryId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID do itinerário cujos items serão reordenados
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - itemIds
+              properties:
+                itemIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Array com os IDs dos items na nova ordem
+      responses:
+        '200':
+          description: Ordem atualizada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Requisição inválida
+        '404':
+          description: Itinerário ou items não encontrados
+
+  /api/itinerary-items/recalculate-distances/{itineraryId}:
+    post:
+      summary: Recalcular distâncias e tempos de viagem para um itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: itineraryId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID do itinerário
+      responses:
+        '200':
+          description: Distâncias e tempos recalculados com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Itinerário não encontrado
+
   # Places
   /api/places/search:
     get:
