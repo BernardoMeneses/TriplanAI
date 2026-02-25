@@ -902,6 +902,111 @@ paths:
         '400':
           description: Erro ao adicionar item
 
+  # Itinerary items (centralized controller endpoints)
+  /api/itinerary-items:
+    get:
+      summary: Listar items de itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: query
+          name: itineraryId
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filtrar por `itinerary_id`
+      responses:
+        '200':
+          description: Lista de items do itinerário
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItineraryItem'
+        '400':
+          description: Requisição inválida
+
+    post:
+      summary: Criar novo item de itinerário
+      tags: [Itineraries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItineraryItem'
+      responses:
+        '201':
+          description: Item criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryItem'
+        '400':
+          description: Requisição inválida
+
+  /api/itinerary-items/{id}:
+    get:
+      summary: Obter item de itinerário por ID
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes do item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryItem'
+        '404':
+          description: Item não encontrado
+
+    put:
+      summary: Atualizar item de itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItineraryItem'
+      responses:
+        '200':
+          description: Item atualizado com sucesso
+        '400':
+          description: Requisição inválida
+        '404':
+          description: Item não encontrado
+
+    delete:
+      summary: Eliminar item de itinerário
+      tags: [Itineraries]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Item eliminado com sucesso
+        '404':
+          description: Item não encontrado
+
   # Places
   /api/places/search:
     get:
