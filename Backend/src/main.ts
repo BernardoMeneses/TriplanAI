@@ -17,15 +17,14 @@ import { authenticate } from './middlewares';
 // Controllers
 import { authController } from './modules/auth';
 import { tripsController } from './modules/trips';
-import { itinerariesController, ItineraryItemsController } from './modules/iteneraries';
+import { itinerariesController} from './modules/iteneraries';
 import { placesController } from './modules/places';
 import { routesController } from './modules/routes';
 import { mapsController } from './modules/maps';
 import { aiController } from './modules/ai';
 import { favoritesController } from './modules/favorites';
 import { premiumController } from './modules/premium';
-
-const itineraryItemsController = new ItineraryItemsController();
+import { itineraryItemsController } from './modules/iteneraries/itinerary_items.controller';
 
 const app: Express = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -82,6 +81,7 @@ app.use('/api/routes', authenticate, routesController);
 app.use('/api/maps', authenticate, mapsController);
 app.use('/api/ai', authenticate, aiController);
 app.use('/api/favorites', authenticate, favoritesController);
+app.use('/api/itinerary-items', authenticate, itineraryItemsController);
 
 // Premium routes (webhook não precisa de autenticação)
 app.use('/api/premium', (req, res, next) => {
@@ -94,12 +94,7 @@ app.use('/api/premium', (req, res, next) => {
 }, premiumController);
 
 // Itinerary Items Routes
-app.post('/api/itinerary-items', authenticate, (req, res) => itineraryItemsController.createItem(req, res));
-app.get('/api/itinerary-items/itinerary/:itineraryId', authenticate, (req, res) => itineraryItemsController.getItemsByDay(req, res));
-app.get('/api/itinerary-items/:id', authenticate, (req, res) => itineraryItemsController.getItemById(req, res));
-app.put('/api/itinerary-items/:id', authenticate, (req, res) => itineraryItemsController.updateItem(req, res));
-app.delete('/api/itinerary-items/:id', authenticate, (req, res) => itineraryItemsController.deleteItem(req, res));
-app.post('/api/itinerary-items/reorder/:itineraryId', authenticate, (req, res) => itineraryItemsController.reorderItems(req, res));
+app.use('/api/itinerary-items', authenticate, itineraryItemsController);
 
 // 404 Handler
 app.use((_req, res) => {
