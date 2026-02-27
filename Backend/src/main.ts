@@ -38,6 +38,14 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // In Docker, public folder is in the root alongside dist
 const publicPath = path.join(__dirname, '../public');
 app.use('/auth', express.static(publicPath));
+// Public delete-account page (Play Console link expects a public URL)
+app.get('/delete-account', (_req, res) => {
+  res.sendFile(path.join(publicPath, 'delete-account.html'));
+});
+// Also expose the raw html path for direct links used in emails
+app.get('/delete-account.html', (_req, res) => {
+  res.sendFile(path.join(publicPath, 'delete-account.html'));
+});
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

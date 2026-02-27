@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authService } from './auth.service';
+import { authenticate } from '../../middlewares';
 
 const router = Router();
 
@@ -265,3 +266,41 @@ router.post('/google', async (req: Request, res: Response) => {
 });
 
 export const authController = router;
+
+// Account deletion endpoints
+// POST /api/auth/delete-request { email }
+router.post('/delete-request', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email não fornecido' });
+    const result = await authService.requestAccountDeletion(email);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erro ao processar pedido' });
+  }
+});
+
+// POST /api/auth/delete-confirm { token }
+router.post('/delete-confirm', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token não fornecido' });
+    const result = await authService.confirmAccountDeletion(token);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Token inválido' });
+  }
+});
+
+// DELETE /api/auth/me -> in-app authenticated deletion
+router.delete('/me', authenticate, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Não autenticado' });
+    const userId = req.user.id;
+    await authService.deleteUserById(userId);
+    try { await import('../../services/email.service').then(s => s.EmailService.sendAccountDeletedNotification(req.user!.email)); } catch(_){}
+    res.json({ success: true, message: 'Conta eliminada com sucesso' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erro ao eliminar conta' });
+  }
+});

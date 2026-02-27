@@ -413,6 +413,90 @@ export class AuthService {
     return { user: userWithoutPassword, token, isNewUser };
   }
 
+  /**
+   * Create an account deletion request and send confirmation email
+   */
+  async requestAccountDeletion(email: string): Promise<{ success: boolean; message: string }> {
+    // Find user by email
+    const result = await query<User>('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
+      // Do not reveal whether user exists
+      return { success: true, message: 'Se o email existir, receberás um link para confirmar a eliminação' };
+    }
+
+    const user = result.rows[0];
+
+    // Ensure account_deletion_requests table exists (simple migration-on-demand)
+    await query(`
+      CREATE TABLE IF NOT EXISTS account_deletion_requests (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        email VARCHAR(255) NOT NULL,
+        token VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const token = EmailService.generateToken();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    await query(
+      `INSERT INTO account_deletion_requests (user_id, email, token, expires_at) VALUES ($1, $2, $3, $4)`,
+      [user.id, email, token, expiresAt]
+    );
+
+    // Send email with confirmation link
+    try {
+      await EmailService.sendAccountDeletionEmail(email, token, user.full_name);
+    } catch (e) {
+      console.error('Failed to send account deletion email:', e);
+    }
+
+    return { success: true, message: 'Se o email existir, receberás um link para confirmar a eliminação' };
+  }
+
+  /**
+   * Confirm account deletion using token and remove the user
+   */
+  async confirmAccountDeletion(token: string): Promise<{ success: boolean; message: string }> {
+    // Find request
+    const result = await query(`SELECT * FROM account_deletion_requests WHERE token = $1 AND expires_at > NOW()`, [token]);
+    if (result.rows.length === 0) {
+      throw new Error('Token inválido ou expirado');
+    }
+
+    const reqRow = result.rows[0];
+    const userId = reqRow.user_id as string;
+    const email = reqRow.email as string;
+
+    // Delete user (cascades will remove trips and related data)
+    await this.deleteUserById(userId);
+
+    // Clean up request
+    await query('DELETE FROM account_deletion_requests WHERE id = $1', [reqRow.id]);
+
+    // Send notification
+    try { await EmailService.sendAccountDeletedNotification(email); } catch (_) {}
+
+    return { success: true, message: 'Conta eliminada com sucesso' };
+  }
+
+  /**
+   * Delete a user by id (permanent) - cascades will remove related data
+   */
+  async deleteUserById(userId: string): Promise<void> {
+    // Perform a delete inside a transaction for safety
+    await query('BEGIN');
+    try {
+      await query('DELETE FROM users WHERE id = $1', [userId]);
+      await query('COMMIT');
+    } catch (e) {
+      await query('ROLLBACK');
+      throw e;
+    }
+  }
+
   private generateToken(userId: string): string {
     return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   }

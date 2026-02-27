@@ -276,4 +276,70 @@ export class EmailService {
 
     await transporter.sendMail(mailOptions);
   }
+
+  /**
+   * Send account deletion confirmation email with a link to confirm
+   */
+  static async sendAccountDeletionEmail(email: string, token: string, userName: string): Promise<void> {
+    const deleteUrl = `${BASE_URL}/delete-account.html?token=${token}`;
+
+    const mailOptions = {
+      from: `"${APP_NAME}" <${EMAIL_FROM}>`,
+      to: email,
+      subject: `Account deletion request for ${APP_NAME}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 40px auto; padding: 0; }
+            .header { background: linear-gradient(135deg, #7ED9C8 0%, #2B7A6E 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+            .content { background: white; padding: 24px 20px; border-radius: 0 0 12px 12px; }
+            .button { display: inline-block; padding: 12px 28px; background: #d9534f; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; }
+            .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; word-break: break-all; color: #d9534f; margin: 12px 0; border: 1px solid #e0e0e0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2 style="margin:0;">Pedido de eliminação de conta</h2>
+            </div>
+            <div class="content">
+              <p>Olá ${userName || ''},</p>
+              <p>Recebemos um pedido para eliminar a tua conta. Se realmente quiseres prosseguir, clica no botão abaixo para confirmar a eliminação.</p>
+              <p style="text-align:center; margin: 18px 0;">
+                <a class="button" href="${deleteUrl}">Confirmar eliminação da conta</a>
+              </p>
+              <p>Ou copia e cola este link no navegador:</p>
+              <div class="link-box">${deleteUrl}</div>
+              <p style="color:#666; font-size:12px;">Este link expira em 24 horas.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `Account deletion link: ${deleteUrl}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+  }
+
+  static async sendAccountDeletedNotification(email: string, userName?: string): Promise<void> {
+    const mailOptions = {
+      from: `"${APP_NAME}" <${EMAIL_FROM}>`,
+      to: email,
+      subject: `Your ${APP_NAME} account has been deleted`,
+      html: `
+        <p>Olá ${userName || ''},</p>
+        <p>A tua conta foi removida conforme o pedido.</p>
+        <p>Se foi um engano, cria uma nova conta a qualquer momento.</p>
+      `,
+      text: `Your account has been deleted.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+  }
 }
