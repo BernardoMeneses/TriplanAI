@@ -321,12 +321,12 @@ export class EmailService {
               <p class="muted" style="font-size:13px; margin-top:8px">This link will expire in 24 hours.</p>
               <p class="muted" style="font-size:13px; margin-top:8px">After confirmation the page will redirect you back to the app. The app uses this deep link to clear local data and show the login screen.</p>
             </div>
-            <div style="text-align:center; color:#999; font-size:12px; padding:16px">© 2026 ${APP_NAME} — Planeamento de viagens com IA</div>
+            <div style="text-align:center; color:#999; font-size:12px; padding:16px">© 2026 ${APP_NAME} — AI-powered trip planning</div>
           </div>
         </body>
         </html>
       `,
-      text: `Pedido de eliminação de conta\n\nOlá ${userName || ''},\n\nPara confirmar a eliminação da tua conta, acede ao link: ${deleteUrl}\n\nEste link expira em 24 horas.`,
+      text: `Account deletion request\n\nHi ${userName || ''},\n\nTo confirm deletion of your account, open the link: ${deleteUrl}\n\nThis link will expire in 24 hours.`,
     };
 
     await transporter.sendMail(mailOptions);
@@ -336,7 +336,7 @@ export class EmailService {
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,
       to: email,
-      subject: `Conta removida — ${APP_NAME}`,
+      subject: `Account removed — ${APP_NAME}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -353,18 +353,18 @@ export class EmailService {
         </head>
         <body>
           <div class="box">
-            <div style="background:linear-gradient(135deg,#7ED9C8 0%,#2B7A6E 100%);padding:20px;text-align:center;color:#fff"><h2 style="margin:0">Conta Removida</h2></div>
+            <div style="background:linear-gradient(135deg,#7ED9C8 0%,#2B7A6E 100%);padding:20px;text-align:center;color:#fff"><h2 style="margin:0">Account removed</h2></div>
             <div class="content">
-              <p><strong>Olá ${userName || ''},</strong></p>
-              <p class="muted">A tua conta foi removida conforme o pedido. Todos os dados associados foram apagados.</p>
-              <p class="muted">Se foi um engano, podes criar uma nova conta a qualquer momento.</p>
+              <p><strong>Hi ${userName || ''},</strong></p>
+              <p class="muted">Your account has been removed as requested. All associated data has been deleted.</p>
+              <p class="muted">If this was a mistake, you can create a new account at any time.</p>
             </div>
             <div class="footer">© 2026 ${APP_NAME}</div>
           </div>
         </body>
         </html>
       `,
-      text: `A tua conta foi removida. Se foi um engano, cria uma nova conta.`,
+      text: `Your account has been removed. If this was a mistake, you can create a new account.`,
     };
 
     await transporter.sendMail(mailOptions);
