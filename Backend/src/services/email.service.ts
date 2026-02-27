@@ -286,7 +286,7 @@ export class EmailService {
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,
       to: email,
-      subject: `Account deletion request for ${APP_NAME}`,
+      subject: `Pedido de eliminação de conta — ${APP_NAME}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -294,34 +294,38 @@ export class EmailService {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 40px auto; padding: 0; }
-            .header { background: linear-gradient(135deg, #7ED9C8 0%, #2B7A6E 100%); color: white; padding: 24px 20px; text-align: center; border-radius: 12px 12px 0 0; }
-            .content { background: white; padding: 24px 20px; border-radius: 0 0 12px 12px; }
-            .button { display: inline-block; padding: 12px 28px; background: #d9534f; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; }
-            .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; word-break: break-all; color: #d9534f; margin: 12px 0; border: 1px solid #e0e0e0; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height:1.6; color:#333; background:#f5f5f5; margin:0; padding:0 }
+            .container { max-width:600px; margin:40px auto; }
+            .header { background: linear-gradient(135deg,#7ED9C8 0%,#2B7A6E 100%); color:#fff; padding:32px 20px; text-align:center; border-radius:12px 12px 0 0 }
+            .logo { width:56px; height:56px; border-radius:12px; display:inline-block; margin-bottom:12px }
+            .content { background:#fff; padding:28px 24px; border-radius:0 0 12px 12px; box-shadow:0 4px 12px rgba(0,0,0,0.08) }
+            .btn { display:inline-block; padding:14px 36px; background:#d9534f; color:#fff; text-decoration:none; border-radius:10px; font-weight:600 }
+            .link-box { background:#f8f9fa; padding:14px; border-radius:8px; word-break:break-all; color:#d9534f; margin:12px 0; border:1px solid #eaeaea }
+            .muted { color:#666; font-size:14px }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h2 style="margin:0;">Pedido de eliminação de conta</h2>
+              <img class="logo" src="https://github.com/BernardoMeneses/TriplanAI/blob/main/Backend/public/triplan_ai_logo.png?raw=true" alt="${APP_NAME}" />
+              <h1 style="margin:8px 0 0 0; font-size:20px">Pedido de eliminação de conta</h1>
             </div>
             <div class="content">
-              <p>Olá ${userName || ''},</p>
-              <p>Recebemos um pedido para eliminar a tua conta. Se realmente quiseres prosseguir, clica no botão abaixo para confirmar a eliminação.</p>
-              <p style="text-align:center; margin: 18px 0;">
-                <a class="button" href="${deleteUrl}">Confirmar eliminação da conta</a>
+              <p style="font-size:15px"><strong>Olá ${userName || ''},</strong></p>
+              <p class="muted">Recebemos um pedido para eliminar a tua conta. Se realmente quiseres prosseguir, confirma clicando no botão abaixo. Esta ação é permanente e irá remover todos os teus dados.</p>
+              <p style="text-align:center; margin-top:18px">
+                <a class="btn" href="${deleteUrl}">Confirmar eliminação da conta</a>
               </p>
-              <p>Ou copia e cola este link no navegador:</p>
+              <p class="muted" style="margin-top:12px">Ou copia e cola este link no navegador:</p>
               <div class="link-box">${deleteUrl}</div>
-              <p style="color:#666; font-size:12px;">Este link expira em 24 horas.</p>
+              <p class="muted" style="font-size:13px; margin-top:8px">Este link expira em 24 horas.</p>
             </div>
+            <div style="text-align:center; color:#999; font-size:12px; padding:16px">© 2026 ${APP_NAME} — Planeamento de viagens com IA</div>
           </div>
         </body>
         </html>
       `,
-      text: `Account deletion link: ${deleteUrl}`,
+      text: `Pedido de eliminação de conta\n\nOlá ${userName || ''},\n\nPara confirmar a eliminação da tua conta, acede ao link: ${deleteUrl}\n\nEste link expira em 24 horas.`,
     };
 
     await transporter.sendMail(mailOptions);
@@ -331,13 +335,35 @@ export class EmailService {
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,
       to: email,
-      subject: `Your ${APP_NAME} account has been deleted`,
+      subject: `Conta removida — ${APP_NAME}`,
       html: `
-        <p>Olá ${userName || ''},</p>
-        <p>A tua conta foi removida conforme o pedido.</p>
-        <p>Se foi um engano, cria uma nova conta a qualquer momento.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <style>
+            body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ubuntu,Arial,sans-serif;background:#f5f5f5;margin:0;padding:0}
+            .box{max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.08)}
+            .content{padding:28px}
+            .muted{color:#666}
+            .footer{padding:16px;text-align:center;color:#999;font-size:12px}
+          </style>
+        </head>
+        <body>
+          <div class="box">
+            <div style="background:linear-gradient(135deg,#7ED9C8 0%,#2B7A6E 100%);padding:20px;text-align:center;color:#fff"><h2 style="margin:0">Conta Removida</h2></div>
+            <div class="content">
+              <p><strong>Olá ${userName || ''},</strong></p>
+              <p class="muted">A tua conta foi removida conforme o pedido. Todos os dados associados foram apagados.</p>
+              <p class="muted">Se foi um engano, podes criar uma nova conta a qualquer momento.</p>
+            </div>
+            <div class="footer">© 2026 ${APP_NAME}</div>
+          </div>
+        </body>
+        </html>
       `,
-      text: `Your account has been deleted.`,
+      text: `A tua conta foi removida. Se foi um engano, cria uma nova conta.`,
     };
 
     await transporter.sendMail(mailOptions);

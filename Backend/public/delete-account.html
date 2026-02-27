@@ -1,127 +1,156 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Eliminar Conta - TriplanAI</title>
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;color:#222}
-    .container{max-width:760px;margin:40px auto;padding:20px;background:#fff;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,0.06)}
-    .btn{display:inline-block;padding:10px 18px;border-radius:8px;text-decoration:none;color:#fff;background:#d9534f;border:none;cursor:pointer}
-    .btn.secondary{background:#6c757d}
-    .row{display:flex;gap:12px}
-    input,button{font-size:16px}
-    .hidden{display:none}
-    .success{color:green}
-    .error{color:#d9534f}
+    * { margin:0; padding:0; box-sizing:border-box }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: linear-gradient(135deg,#7ED9C8 0%,#2B7A6E 100%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px }
+    .container { max-width:520px; width:100%; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,0.15); overflow:hidden }
+    .header { padding:28px 20px; text-align:center; background:linear-gradient(135deg,#7ED9C8 0%,#2B7A6E 100%); color:#fff }
+    .logo { display:inline-flex; align-items:center; gap:12px }
+    .logo img { width:56px; height:56px; border-radius:12px }
+    .header h1 { font-size:22px; margin-top:8px }
+    .content { padding:24px }
+    .muted { color:#666; font-size:14px; margin-bottom:12px }
+    input[type=email], input[type=password] { width:100%; padding:12px 14px; border:1px solid #e6e6e6; border-radius:8px; margin-top:8px }
+    .row { display:flex; gap:10px }
+    .btn { display:inline-block; padding:12px 18px; border-radius:10px; border:0; cursor:pointer; font-weight:600 }
+    .btn.primary { background:#d9534f; color:#fff }
+    .btn.ghost { background:#6c757d;color:#fff }
+    .spacer { height:12px }
+    .message { margin-top:12px; font-size:14px }
+    .message.success { color: #1b7a3a }
+    .message.error { color: #d9534f }
+    .actions { display:flex; gap:8px; margin-top:8px }
+    .center { text-align:center }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Eliminar Conta</h1>
-    <p>Esta página permite iniciar um pedido de eliminação de conta (por email) ou entrar e eliminar a conta diretamente (in-app flow).</p>
-
-    <div id="token-flow" class="hidden">
-      <p>Confirmação via link recebido por email. Queres mesmo eliminar a conta?</p>
-      <button id="confirm-delete" class="btn">Confirmar Eliminação</button>
-      <div id="token-msg"></div>
-    </div>
-
-    <div id="email-request-flow">
-      <h3>Pedir eliminação por email</h3>
-      <p>Introduz o teu email e enviaremos um link para confirmar a eliminação.</p>
-      <input id="email" type="email" placeholder="teu@email.com" />
-      <button id="request-delete" class="btn">Enviar Link</button>
-      <div id="request-msg"></div>
-    </div>
-
-    <hr />
-
-    <div id="login-flow">
-      <h3>Entrar com Email/Password e eliminar imediatamente</h3>
-      <p>Podes também autenticar-te com email e password e eliminar a conta diretamente.</p>
-      <input id="login-email" type="email" placeholder="Email" />
-      <input id="login-password" type="password" placeholder="Password" />
-      <div class="row" style="margin-top:8px">
-        <button id="login-btn" class="btn secondary">Entrar</button>
-        <button id="delete-while-logged" class="btn">Eliminar Conta (autenticado)</button>
+    <div class="header">
+      <div class="logo">
+        <img src="/triplan_ai_logo.png" alt="TriplanAI">
+        <div style="text-align:left">
+          <div style="font-size:12px;opacity:0.9">TriplanAI</div>
+          <h1>Eliminar Conta</h1>
+        </div>
       </div>
-      <div id="login-msg"></div>
     </div>
 
-    <div id="result"></div>
+    <div class="content">
+      <div id="token-section" style="display:none">
+        <p class="muted">Confirmação via link recebido por email. Esta ação é permanente.</p>
+        <div class="center">
+          <button id="confirm-delete" class="btn primary">Confirmar eliminação</button>
+        </div>
+        <div id="token-msg" class="message"></div>
+      </div>
+
+      <div id="email-section">
+        <h3>Pedir eliminação por email</h3>
+        <p class="muted">Introduz o teu email e enviaremos um link para confirmares a eliminação.</p>
+        <input id="email" type="email" placeholder="teu@email.com" />
+        <div class="spacer"></div>
+        <div class="center">
+          <button id="request-delete" class="btn primary">Enviar link</button>
+        </div>
+        <div id="request-msg" class="message"></div>
+      </div>
+
+      <hr style="margin:18px 0" />
+
+      <div id="login-section">
+        <h3>Entrar e eliminar imediatamente</h3>
+        <p class="muted">Autentica-te com email/password e elimina a conta diretamente.</p>
+        <input id="login-email" type="email" placeholder="Email" />
+        <div class="spacer"></div>
+        <input id="login-password" type="password" placeholder="Password" />
+        <div class="spacer"></div>
+        <div class="row">
+          <button id="login-btn" class="btn ghost">Entrar</button>
+          <button id="delete-while-logged" class="btn primary">Eliminar conta (autenticado)</button>
+        </div>
+        <div id="login-msg" class="message"></div>
+      </div>
+
+      <div id="result" class="message"></div>
+    </div>
   </div>
 
   <script>
-    const qs = new URLSearchParams(location.search);
-    const token = qs.get('token');
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
 
-    const tokenFlow = document.getElementById('token-flow');
-    const emailRequestFlow = document.getElementById('email-request-flow');
-    const loginFlow = document.getElementById('login-flow');
+    const tokenSection = document.getElementById('token-section');
+    const emailSection = document.getElementById('email-section');
+    const loginSection = document.getElementById('login-section');
 
     if (token) {
-      tokenFlow.classList.remove('hidden');
-      emailRequestFlow.classList.add('hidden');
-      loginFlow.classList.add('hidden');
+      tokenSection.style.display = 'block';
+      emailSection.style.display = 'none';
+      loginSection.style.display = 'none';
 
       document.getElementById('confirm-delete').addEventListener('click', async () => {
-        document.getElementById('token-msg').textContent = 'A processar...';
+        const msg = document.getElementById('token-msg');
+        msg.textContent = 'A processar...';
         try {
           const res = await fetch('/api/auth/delete-confirm', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token })
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token })
           });
-          const j = await res.json();
+          const j = await res.json().catch(() => ({}));
           if (res.ok) {
-            document.getElementById('token-msg').innerHTML = '<span class="success">Conta eliminada com sucesso.</span>';
+            msg.className = 'message success';
+            msg.textContent = 'Conta eliminada com sucesso. Podes fechar esta página e abrir a app.';
+            setTimeout(() => { window.location.href = 'triplanai://app/login'; }, 2000);
           } else {
-            document.getElementById('token-msg').innerHTML = '<span class="error">'+(j.error||'Erro')+'</span>';
+            msg.className = 'message error';
+            msg.textContent = j.error || 'Erro ao eliminar a conta';
           }
         } catch (e) {
-          document.getElementById('token-msg').innerHTML = '<span class="error">Erro de rede</span>';
+          msg.className = 'message error';
+          msg.textContent = 'Erro de rede. Tenta novamente.';
         }
       });
-      
     }
 
     document.getElementById('request-delete').addEventListener('click', async () => {
       const email = document.getElementById('email').value;
-      document.getElementById('request-msg').textContent = 'A processar...';
+      const msg = document.getElementById('request-msg');
+      msg.textContent = 'A processar...';
       try {
-        const res = await fetch('/api/auth/delete-request', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email }) });
-        const j = await res.json();
-        if (res.ok) document.getElementById('request-msg').innerHTML = '<span class="success">'+(j.message||'Pedido enviado.')+'</span>';
-        else document.getElementById('request-msg').innerHTML = '<span class="error">'+(j.error||'Erro')+'</span>';
-      } catch (e) { document.getElementById('request-msg').innerHTML = '<span class="error">Erro de rede</span>'; }
+        const res = await fetch('/api/auth/delete-request', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
+        const j = await res.json().catch(() => ({}));
+        if (res.ok) { msg.className = 'message success'; msg.textContent = j.message || 'Pedido enviado. Verifica o teu email.'; }
+        else { msg.className = 'message error'; msg.textContent = j.error || 'Erro ao enviar pedido'; }
+      } catch (e) { msg.className = 'message error'; msg.textContent = 'Erro de rede'; }
     });
 
     let authToken = null;
     document.getElementById('login-btn').addEventListener('click', async () => {
       const email = document.getElementById('login-email').value;
       const password = document.getElementById('login-password').value;
-      document.getElementById('login-msg').textContent = 'A processar...';
+      const msg = document.getElementById('login-msg');
+      msg.textContent = 'A processar...';
       try {
         const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
-        const j = await res.json();
-        if (res.ok && j.token) {
-          authToken = j.token;
-          document.getElementById('login-msg').innerHTML = '<span class="success">Entrado com sucesso. Agora podes eliminar a conta.</span>';
-        } else {
-          document.getElementById('login-msg').innerHTML = '<span class="error">'+(j.error||'Credenciais inválidas')+'</span>';
-        }
-      } catch (e) { document.getElementById('login-msg').innerHTML = '<span class="error">Erro de rede</span>'; }
+        const j = await res.json().catch(() => ({}));
+        if (res.ok && j.token) { authToken = j.token; msg.className = 'message success'; msg.textContent = 'Entrado com sucesso. Agora podes eliminar a conta.'; }
+        else { msg.className = 'message error'; msg.textContent = j.error || 'Credenciais inválidas'; }
+      } catch (e) { msg.className = 'message error'; msg.textContent = 'Erro de rede'; }
     });
 
     document.getElementById('delete-while-logged').addEventListener('click', async () => {
-      if (!authToken) { document.getElementById('result').innerHTML = '<span class="error">Necessitas de entrar primeiro.</span>'; return; }
-      document.getElementById('result').textContent = 'A processar...';
+      const out = document.getElementById('result');
+      if (!authToken) { out.className='message error'; out.textContent = 'Necessitas de entrar primeiro.'; return; }
+      out.className='message'; out.textContent = 'A processar...';
       try {
         const res = await fetch('/api/auth/me', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + authToken } });
-        const j = await res.json();
-        if (res.ok) document.getElementById('result').innerHTML = '<span class="success">Conta eliminada com sucesso.</span>';
-        else document.getElementById('result').innerHTML = '<span class="error">'+(j.error||'Erro')+'</span>';
-      } catch (e) { document.getElementById('result').innerHTML = '<span class="error">Erro de rede</span>'; }
+        const j = await res.json().catch(() => ({}));
+        if (res.ok) { out.className='message success'; out.textContent = 'Conta eliminada com sucesso.'; setTimeout(() => { window.location.href = 'triplanai://app/login'; }, 1500); }
+        else { out.className='message error'; out.textContent = j.error || 'Erro ao eliminar a conta'; }
+      } catch (e) { out.className='message error'; out.textContent = 'Erro de rede'; }
     });
   </script>
 </body>
