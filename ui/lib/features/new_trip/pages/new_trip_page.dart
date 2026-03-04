@@ -1,0 +1,540 @@
+import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../common/app_colors.dart';
+import '../../../common/constants/app_constants.dart';
+import '../../../services/destinations_service.dart';
+import '../../../services/trips_service.dart';
+import '../../../services/subscription_service.dart';
+import '../../../services/trip_cache_service.dart';
+import '../../../shared/widgets/destination_search_modal.dart';
+import '../../../shared/widgets/upgrade_dialog.dart';
+import '../../trip_details/my_trip_page.dart';
+import 'dart:async';
+
+/// =======================================================
+/// MODELOS / WIDGETS AUXILIARES (DEVEM VIR ANTES DA PAGE)
+/// =======================================================
+
+class _DestinationCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String? imageUrl;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  const _DestinationCard({
+    required this.title,
+    required this.subtitle,
+    this.imageUrl,
+    this.startDate,
+    this.endDate,
+  });
+
+  String _formatDateRange() {
+    if (startDate == null || endDate == null) return '';
+
+    final months = [
+      AppConstants.jan.tr(), AppConstants.feb.tr(), AppConstants.mar.tr(),
+      AppConstants.apr.tr(), AppConstants.may.tr(), AppConstants.jun.tr(),
+      AppConstants.jul.tr(), AppConstants.aug.tr(), AppConstants.sep.tr(),
+      AppConstants.oct.tr(), AppConstants.nov.tr(), AppConstants.dec.tr()
+    ];
+
+    final startDay = startDate!.day;
+    final endDay = endDate!.day;
+    final month = months[startDate!.month - 1];
+    final year = startDate!.year;
+
+    return '$startDay - $endDay $month $year';
+  }
+
+  int _calculateDays() {
+    if (startDate == null || endDate == null) return 0;
+    return endDate!.difference(startDate!).inDays + 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasDate = startDate != null && endDate != null;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          if (imageUrl != null)
+            CachedNetworkImage(
+              imageUrl: imageUrl!,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                height: 180,
+                color: isDark ? AppColors.grey800 : AppColors.grey200,
+                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              errorWidget: (context, url, error) => Container(
+                height: 180,
+                color: isDark ? AppColors.grey800 : AppColors.grey200,
+                child: const Center(
+                  child: Icon(Icons.landscape, size: 64, color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            Container(
+              height: 180,
+              color: isDark ? AppColors.grey800 : AppColors.grey200,
+              child: const Center(
+                child: Icon(Icons.landscape, size: 64, color: Colors.grey),
+              ),
+            ),
+          Container(
+            height: 180,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black54],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+                if (hasDate) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_formatDateRange()} • ${_calculateDays()} ${AppConstants.days.tr()}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// =======================================================
+/// NEW TRIP PAGE
+/// =======================================================
+
+class NewTripPage extends StatefulWidget {
+  final Trip? existingTrip; // Para edição
+  final DestinationResult? initialDestination; // Para nova viagem com destino pré-selecionado
+
+  const NewTripPage({super.key, this.existingTrip, this.initialDestination});
+
+  @override
+  State<NewTripPage> createState() => _NewTripPageState();
+}
+
+class _NewTripPageState extends State<NewTripPage> {
+  final TextEditingController _destinationController = TextEditingController();
+  final TripsService _tripsService = TripsService();
+
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  String? _destinationPlaceId;
+  String? _destinationImageUrl;
+  String? _destinationSubtitle;
+  String? _destinationCity;
+  String? _destinationCountry;
+
+  bool _isLoading = false;
+  bool _isEditMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Se estiver editando uma viagem existente, preencher os campos
+    if (widget.existingTrip != null) {
+      _isEditMode = true;
+      final trip = widget.existingTrip!;
+      _destinationController.value = TextEditingValue(
+        text: trip.title,
+        selection: TextSelection.collapsed(offset: trip.title.length),
+      );
+      _startDate = trip.startDate;
+      _endDate = trip.endDate;
+      _destinationSubtitle = '${trip.destinationCity}, ${trip.destinationCountry}';
+    }
+    // Se vier de uma pesquisa, preencher o destino
+    else if (widget.initialDestination != null) {
+      final dest = widget.initialDestination!;
+      _destinationController.value = TextEditingValue(
+        text: dest.title,
+        selection: TextSelection.collapsed(offset: dest.title.length),
+      );
+      _destinationPlaceId = dest.placeId;
+      _destinationSubtitle = dest.subtitle;
+      _destinationImageUrl = dest.imageUrl;
+    }
+  }
+
+  bool get _isFormValid =>
+      _destinationController.text.trim().isNotEmpty &&
+          _startDate != null &&
+          _endDate != null;
+
+  String _getDateRangeText() {
+    if (_startDate == null && _endDate == null) {
+      return AppConstants.pickDates.tr();
+    }
+    return
+      '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
+          ' - '
+          '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}';
+  }
+
+  Future<void> _selectDateRange() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: (isDark ? ThemeData.dark() : ThemeData.light()).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppColors.primary,
+              brightness: isDark ? Brightness.dark : Brightness.light,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+    }
+  }
+
+  Future<void> _openDestinationSearch() async {
+    final result = await showModalBottomSheet<DestinationResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const DestinationSearchModal(),
+    );
+
+    if (result != null) {
+      setState(() {
+        _destinationController.text = result.title;
+        _destinationPlaceId = result.placeId;
+        _destinationSubtitle = result.subtitle;
+        _destinationImageUrl = result.imageUrl;
+        _destinationCity = result.city;
+        _destinationCountry = result.country;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _destinationController.dispose();
+    super.dispose();
+  }
+  String _buildTripTitle() {
+    final city = _destinationCity?.trim();
+    final country = _destinationCountry?.trim();
+    final fallback = _destinationController.text.trim();
+
+    if (city != null && city.isNotEmpty && country != null && country.isNotEmpty) {
+      return '${AppConstants.tripTo.tr()} $city, $country';
+    }
+
+    if (city != null && city.isNotEmpty) {
+      return '${AppConstants.tripTo.tr()} $city';
+    }
+
+    if (country != null && country.isNotEmpty) {
+      return '${AppConstants.tripTo.tr()} $country';
+    }
+
+    return '${AppConstants.tripTo.tr()} $fallback';
+  }
+
+  Future<void> _handleStartPlanning() async {
+    if (!_isFormValid) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Check subscription limits for new trips (skip for edit mode)
+      if (!_isEditMode) {
+        final status = await SubscriptionService().getStatus();
+        final trips = await TripCacheService().getTrips();
+        if (!status.canCreateTrip(trips.length)) {
+          if (mounted) {
+            setState(() => _isLoading = false);
+            showUpgradeDialog(
+              context: context,
+              feature: AppConstants.tripLimitTitle.tr(),
+              description: AppConstants.tripLimitDesc.tr(),
+            );
+          }
+          return;
+        }
+      }
+
+      // Usar cidade e país do resultado da pesquisa
+      final city = _destinationCity ?? _destinationController.text;
+      final country = _destinationCountry ?? '';
+
+      // Criar título descritivo para a viagem
+      final tripTitle = _buildTripTitle();
+
+      Trip trip;
+
+      if (_isEditMode && widget.existingTrip != null) {
+        // Atualizar viagem existente
+        trip = await _tripsService.updateTrip(
+          tripId: widget.existingTrip!.id,
+          title: tripTitle,
+          destinationCity: city,
+          destinationCountry: country,
+          startDate: _startDate!,
+          endDate: _endDate!,
+        );
+      } else {
+        // Criar nova viagem
+        trip = await _tripsService.createTrip(
+          title: tripTitle,
+          destinationCity: city,
+          destinationCountry: country,
+          startDate: _startDate!,
+          endDate: _endDate!,
+        );
+      }
+
+      if (mounted) {
+        if (_isEditMode) {
+          // Se estiver editando, voltar para MyTripPage com a viagem atualizada
+          Navigator.pop(context, trip);
+        } else {
+          // Se for nova viagem, substituir a rota atual pela página de detalhes
+          // Isso garante que o botão voltar vá para home
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MyTripPage(trip: trip),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isEditMode 
+              ? '${AppConstants.errorUpdatingTrip.tr()}: $e'
+              : '${AppConstants.errorCreatingTrip.tr()}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _isEditMode ? AppConstants.editYourTrip.tr() : AppConstants.yourNextTrip.tr(),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            /// DESTINATION FIELD
+            GestureDetector(
+              onTap: _openDestinationSearch,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.grey800 : AppColors.grey100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _destinationController.text.isEmpty
+                            ? AppConstants.toCountryOrCity.tr()
+                            : _destinationController.text,
+                        style: TextStyle(
+                          color: _destinationController.text.isEmpty
+                              ? (isDark ? AppColors.textHintDark : AppColors.textHintLight)
+                              : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.search, color: AppColors.primary),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            /// DATE RANGE
+            GestureDetector(
+              onTap: _selectDateRange,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.grey800 : AppColors.grey100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _getDateRangeText(),
+                        style: TextStyle(
+                          color: (_startDate == null && _endDate == null)
+                              ? (isDark ? AppColors.textHintDark : AppColors.textHintLight)
+                              : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.calendar_today_outlined,
+                        color: AppColors.primary),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            /// DESTINATION CARD
+            if (_destinationController.text.isNotEmpty)
+              _DestinationCard(
+                title: _destinationController.text,
+                subtitle: _destinationSubtitle ?? '',
+                imageUrl: _destinationImageUrl,
+                startDate: _startDate,
+                endDate: _endDate,
+              ),
+
+            const Spacer(),
+
+            /// CTA
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (_isFormValid && !_isLoading) ? _handleStartPlanning : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isFormValid
+                      ? AppColors.primary
+                      : (isDark ? AppColors.grey800 : AppColors.grey200),
+                  disabledBackgroundColor: isDark ? AppColors.grey800 : AppColors.grey200,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+                    : Text(
+                  _isEditMode ? AppConstants.saveChanges.tr() : AppConstants.startPlanning.tr(),
+                  style: TextStyle(
+                    color: _isFormValid
+                        ? Colors.white
+                        : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+}
