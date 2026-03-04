@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { aiService } from './ai.service';
+import { PremiumService } from '../premium/premium.service';
 import { authenticate } from '../../middlewares';
 
 const router = Router();
+const premiumService = new PremiumService();
 
 // POST /api/ai/suggestions - Gerar sugestões de lugares para chat AI
 router.post('/suggestions', authenticate, async (req: Request, res: Response) => {
@@ -12,6 +14,19 @@ router.post('/suggestions', authenticate, async (req: Request, res: Response) =>
     
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
+    }
+
+    // Check AI generation limits
+    if (userId) {
+      const aiCheck = await premiumService.canUseAI(userId);
+      if (!aiCheck.allowed) {
+        return res.status(403).json({
+          error: 'AI generation limit reached',
+          code: 'AI_LIMIT_REACHED',
+          used: aiCheck.used,
+          limit: aiCheck.limit,
+        });
+      }
     }
 
     const result = await aiService.generatePlaceSuggestions({
@@ -48,6 +63,15 @@ router.post('/suggestions', authenticate, async (req: Request, res: Response) =>
     } catch (convError) {
       console.error('⚠️ Error saving conversation (non-critical):', convError);
       // Don't fail the request if conversation saving fails
+    }
+
+    // Increment AI generation counter after successful response
+    if (userId) {
+      try {
+        await premiumService.incrementAIGenerations(userId);
+      } catch (e) {
+        console.error('⚠️ Error incrementing AI counter (non-critical):', e);
+      }
     }
     
     res.json(result);

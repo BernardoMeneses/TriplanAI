@@ -64,12 +64,33 @@ export class ItineraryItemsService {
     // Se não tem placeId mas tem googlePlaceId, criar/buscar o place primeiro
     if (!placeId && data.googlePlaceId) {
       const existingPlace = await query(
-        'SELECT id FROM places WHERE google_place_id = $1',
+        'SELECT id, images FROM places WHERE google_place_id = $1',
         [data.googlePlaceId]
       );
 
       if (existingPlace.rows.length > 0) {
         placeId = existingPlace.rows[0].id;
+        
+        // Refresh images if the existing place has no photos stored
+        const existingImages = existingPlace.rows[0].images;
+        const hasImages = existingImages && Array.isArray(existingImages) && existingImages.length > 0;
+        if (!hasImages) {
+          try {
+            console.log(`🖼️ [createItineraryItem] Place ${placeId} has no images, refreshing from Google API...`);
+            const refreshDetails = await mapsService.getPlaceDetails(data.googlePlaceId);
+            if (refreshDetails?.photos && refreshDetails.photos.length > 0) {
+              await query(
+                'UPDATE places SET images = $1, updated_at = NOW() WHERE id = $2',
+                [JSON.stringify(refreshDetails.photos), placeId]
+              );
+              console.log(`✅ [createItineraryItem] Refreshed images for place ${placeId}: ${refreshDetails.photos.length} photos`);
+            } else {
+              console.log(`⚠️ [createItineraryItem] Google API returned no photos for place ${data.googlePlaceId}`);
+            }
+          } catch (e) {
+            console.error('Error refreshing place images:', e);
+          }
+        }
       } else {
         // Buscar trip_id através do itinerary
         const itineraryResult = await query(
@@ -84,9 +105,12 @@ export class ItineraryItemsService {
         const tripId = itineraryResult.rows[0].trip_id;
         
         // Buscar detalhes completos do Google Places API
+        console.log(`🔍 [createItineraryItem] Fetching place details for googlePlaceId: ${data.googlePlaceId}`);
         const placeDetails = await mapsService.getPlaceDetails(data.googlePlaceId);
         
         if (placeDetails) {
+          console.log(`📍 [createItineraryItem] Place: ${placeDetails.name}, photos: ${placeDetails.photos?.length ?? 0}`);
+          
           // Determinar place_type baseado nos types do Google
           let placeType = 'attraction'; // default
           if (placeDetails.types.includes('museum')) placeType = 'museum';
@@ -130,7 +154,7 @@ export class ItineraryItemsService {
               placeDetails.location.lat,
               placeDetails.location.lng,
               placeDetails.rating || null,
-              placeDetails.photos ? JSON.stringify(placeDetails.photos) : '[]',
+              placeDetails.photos && placeDetails.photos.length > 0 ? JSON.stringify(placeDetails.photos) : '[]',
               placeType,
               placeDetails.openingHours ? JSON.stringify(placeDetails.openingHours) : null,
               placeDetails.priceLevel || null,
@@ -145,12 +169,13 @@ export class ItineraryItemsService {
             data.durationMinutes = estimatedDuration;
           }
         } else {
+          console.warn(`⚠️ [createItineraryItem] getPlaceDetails returned null for ${data.googlePlaceId}, using fallback`);
           // Fallback: criar place básico se não conseguir buscar detalhes
           const newPlace = await query(
-            `INSERT INTO places (name, google_place_id, description)
-             VALUES ($1, $2, $3)
+            `INSERT INTO places (trip_id, name, google_place_id, description, place_type)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING id`,
-            [data.title, data.googlePlaceId, data.description || null]
+            [tripId, data.title, data.googlePlaceId, data.description || null, 'attraction']
           );
           placeId = newPlace.rows[0].id;
         }

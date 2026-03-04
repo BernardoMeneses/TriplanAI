@@ -198,36 +198,6 @@ router.get('/autocomplete', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/maps/destinations/search - Pesquisar destinos (cidades, países, regiões)
-router.get('/destinations/search', async (req: Request, res: Response) => {
-  try {
-    const { query } = req.query;
-    if (!query || typeof query !== 'string') {
-      return res.status(400).json({ error: 'Query é obrigatória' });
-    }
-    
-    const destinations = await mapsService.searchDestinations(query);
-    res.json(destinations);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao pesquisar destinos' });
-  }
-});
-
-// GET /api/maps/destinations/:placeId - Obter detalhes de um destino com foto
-router.get('/destinations/:placeId', async (req: Request, res: Response) => {
-  try {
-    const { placeId } = req.params;
-    
-    const destination = await mapsService.getDestinationDetails(placeId);
-    if (!destination) {
-      return res.status(404).json({ error: 'Destino não encontrado' });
-    }
-    res.json(destination);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao obter detalhes do destino' });
-  }
-});
-
 // POST /api/maps/static - Gerar URL de mapa estático
 router.post('/static', async (req: Request, res: Response) => {
   try {

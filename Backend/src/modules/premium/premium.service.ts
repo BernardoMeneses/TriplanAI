@@ -94,18 +94,22 @@ export class PremiumService {
   /**
    * Verificar status de subscrição de um utilizador
    */
-  async getSubscriptionStatus(userId: string): Promise<UserSubscriptionStatus> {
+  async getSubscriptionStatus(userId: string): Promise<UserSubscriptionStatus & { ai_generations_used: number }> {
     const result = await query<{
       user_id: string;
       subscription_plan: SubscriptionPlan;
       premium_since: Date;
       premium_expires_at: Date;
+      ai_generations_this_month: number;
+      ai_generations_reset_at: Date;
     }>(
       `SELECT 
         id as user_id,
         COALESCE(subscription_plan::text, CASE WHEN is_premium THEN 'premium' ELSE 'free' END)::text as subscription_plan,
         premium_since,
-        premium_expires_at
+        premium_expires_at,
+        COALESCE(ai_generations_this_month, 0) as ai_generations_this_month,
+        ai_generations_reset_at
        FROM users 
        WHERE id = $1`,
       [userId]
@@ -128,12 +132,56 @@ export class PremiumService {
       }
     }
 
+    // Reset monthly AI counter if needed
+    let aiUsed = user.ai_generations_this_month || 0;
+    if (user.ai_generations_reset_at) {
+      const resetDate = new Date(user.ai_generations_reset_at);
+      const now = new Date();
+      if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+        // New month — reset the counter
+        await query(
+          `UPDATE users SET ai_generations_this_month = 0, ai_generations_reset_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [userId]
+        );
+        aiUsed = 0;
+      }
+    }
+
     return {
       user_id: userId,
       plan,
       subscription_since: user.premium_since,
       subscription_expires_at: user.premium_expires_at,
       limits: PLAN_LIMITS[plan],
+      ai_generations_used: aiUsed,
+    };
+  }
+
+  /**
+   * Incrementar contador de gerações de IA
+   */
+  async incrementAIGenerations(userId: string): Promise<void> {
+    await query(
+      `UPDATE users 
+       SET ai_generations_this_month = COALESCE(ai_generations_this_month, 0) + 1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [userId]
+    );
+    // Clear cached status so next getStatus reflects the new count
+  }
+
+  /**
+   * Check if user can use AI (within their plan limits)
+   */
+  async canUseAI(userId: string): Promise<{ allowed: boolean; used: number; limit: number }> {
+    const status = await this.getSubscriptionStatus(userId);
+    const limit = status.limits.aiGenerationsPerMonth;
+    if (limit === -1) return { allowed: true, used: status.ai_generations_used, limit: -1 };
+    return {
+      allowed: status.ai_generations_used < limit,
+      used: status.ai_generations_used,
+      limit,
     };
   }
 

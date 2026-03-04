@@ -33,6 +33,7 @@ router.get('/status', async (req: Request, res: Response) => {
       subscription_since: status.subscription_since,
       subscription_expires_at: status.subscription_expires_at,
       limits: status.limits,
+      ai_generations_used: status.ai_generations_used,
       // Retrocompatibilidade
       is_premium: status.plan !== 'free',
     });
