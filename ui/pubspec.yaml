@@ -44,6 +44,7 @@ dependencies:
   encrypt: ^5.0.3
   receive_sharing_intent: ^1.8.1
   google_sign_in: ^6.1.5
+  sign_in_with_apple: ^6.1.4
   googleapis: ^14.0.0
   extension_google_sign_in_as_googleapis_auth: ^2.0.12
   app_links: ^6.2.0

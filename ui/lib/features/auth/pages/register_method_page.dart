@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:triplan_ai_front/common/constants/app_constants.dart';
 import '../../../common/app_colors.dart';
 import '../../../services/auth_service.dart';
@@ -16,6 +18,9 @@ class RegisterMethodPage extends StatefulWidget {
 class _RegisterMethodPageState extends State<RegisterMethodPage> {
   final _authService = AuthService();
   bool _isLoading = false;
+
+  bool get _showAppleSignIn =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   Future<void> _googleSignIn() async {
     setState(() {
@@ -112,6 +117,70 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('auth.google_register_error'.tr(args: [errorMsg.replaceAll('AuthException: ', '')])),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _appleSignIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final displayName = [
+        credential.givenName,
+        credential.familyName,
+      ].where((part) => part != null && part.trim().isNotEmpty).join(' ').trim();
+
+      await _authService.appleLogin(
+        appleId: credential.userIdentifier ?? '',
+        identityToken: credential.identityToken ?? '',
+        authorizationCode: credential.authorizationCode,
+        email: credential.email,
+        name: displayName.isEmpty ? null : displayName,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('auth.account_created_success'.tr()),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Erro ao registar com Apple: ${e.toString().replaceAll('AuthException: ', '')}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -224,6 +293,35 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
                   ),
                 ),
               ),
+
+              if (_showAppleSignIn) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _appleSignIn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: isDark ? AppColors.grey100 : AppColors.grey300,
+                        ),
+                      ),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.apple, size: 24),
+                    label: const Text(
+                      'Sign in via Apple',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 16),
 

@@ -292,6 +292,41 @@ class AuthService {
     }
   }
 
+  /// Login/Register with Apple OAuth
+  Future<Map<String, dynamic>> appleLogin({
+    required String appleId,
+    required String identityToken,
+    String? email,
+    String? name,
+    String? authorizationCode,
+  }) async {
+    try {
+      final response = await _api.post('/auth/apple', body: {
+        'appleId': appleId,
+        'identityToken': identityToken,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (name != null && name.isNotEmpty) 'name': name,
+        if (authorizationCode != null && authorizationCode.isNotEmpty)
+          'authorizationCode': authorizationCode,
+      });
+
+      _token = response['token'];
+      _currentUser = User.fromJson(response['user']);
+
+      // Guardar token e cache localmente
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, _token!);
+      await _saveUserToCache(prefs);
+
+      // Configurar token no API service
+      _api.setAuthToken(_token);
+
+      return response;
+    } catch (e) {
+      throw AuthException(e.toString());
+    }
+  }
+
   /// Logout - limpar dados de sessão e cache
   Future<void> logout() async {
     _token = null;

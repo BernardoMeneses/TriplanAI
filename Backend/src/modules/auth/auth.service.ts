@@ -25,6 +25,9 @@ export interface User {
   google_id?: string;
   google_access_token?: string;
   google_refresh_token?: string;
+  apple_id?: string;
+  apple_identity_token?: string;
+  apple_authorization_code?: string;
   created_at: Date;
   updated_at: Date;
   last_login?: Date;
@@ -408,6 +411,94 @@ export class AuthService {
     // Generate JWT token
     const token = this.generateToken(user.id);
 
+    const { password_hash, ...userWithoutPassword } = user;
+
+    return { user: userWithoutPassword, token, isNewUser };
+  }
+
+  async appleLogin(appleData: {
+    appleId: string;
+    identityToken: string;
+    email?: string;
+    name?: string;
+    authorizationCode?: string;
+  }): Promise<{ user: Omit<User, 'password_hash'>; token: string; isNewUser: boolean }> {
+    // Keep auth resilient on databases that were not migrated yet.
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id VARCHAR(255)');
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_identity_token TEXT');
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_authorization_code TEXT');
+
+    if (appleData.email) {
+      const emailCheck = await query<User>('SELECT * FROM users WHERE email = $1', [appleData.email]);
+
+      if (emailCheck.rows.length > 0 && emailCheck.rows[0].auth_provider !== 'apple') {
+        const provider = emailCheck.rows[0].auth_provider;
+        const providerLabel = provider === 'google' ? 'Google' : provider;
+        throw new Error(
+          `EMAIL_EXISTS_${provider.toUpperCase()}|Este email já está associado a uma conta ${providerLabel}. Usa o método de login correspondente para entrar.`,
+        );
+      }
+    }
+
+    let result = await query<User>(
+      'SELECT * FROM users WHERE apple_id = $1 OR (email = $2 AND auth_provider = $3)',
+      [appleData.appleId, appleData.email || null, 'apple'],
+    );
+
+    let user: User;
+    let isNewUser = false;
+
+    if (result.rows.length === 0) {
+      if (!appleData.email) {
+        throw new Error('Não foi possível obter o email do Apple ID. Remove a app da secção Apple ID e tenta novamente.');
+      }
+
+      const username =
+        appleData.email.split('@')[0] + '_' + Math.random().toString(36).substring(7);
+
+      const insertResult = await query<User>(
+        `INSERT INTO users (
+          email, username, full_name,
+          auth_provider, email_verified, apple_id, apple_identity_token, apple_authorization_code
+        )
+         VALUES ($1, $2, $3, 'apple', true, $4, $5, $6)
+         RETURNING id, email, username, full_name, phone, profile_picture_url, preferences,
+                   auth_provider, email_verified, created_at, updated_at, is_active`,
+        [
+          appleData.email,
+          username,
+          (appleData.name && appleData.name.trim().length > 0)
+            ? appleData.name
+            : appleData.email.split('@')[0],
+          appleData.appleId,
+          appleData.identityToken,
+          appleData.authorizationCode || null,
+        ],
+      );
+
+      user = insertResult.rows[0];
+      isNewUser = true;
+
+      try {
+        await EmailService.sendWelcomeEmail(user.email, user.full_name);
+      } catch (error) {
+        console.error('Failed to send welcome email:', error);
+      }
+    } else {
+      user = result.rows[0];
+
+      await query(
+        `UPDATE users SET
+          apple_identity_token = $1,
+          apple_authorization_code = COALESCE($2, apple_authorization_code),
+          last_login = CURRENT_TIMESTAMP,
+          full_name = COALESCE($3, full_name)
+         WHERE id = $4`,
+        [appleData.identityToken, appleData.authorizationCode, appleData.name, user.id],
+      );
+    }
+
+    const token = this.generateToken(user.id);
     const { password_hash, ...userWithoutPassword } = user;
 
     return { user: userWithoutPassword, token, isNewUser };

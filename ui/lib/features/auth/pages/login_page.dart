@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../common/app_colors.dart';
 import '../../../common/constants/app_constants.dart';
 import '../../../services/auth_service.dart';
@@ -26,6 +28,9 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   String? _errorMessage;
+
+  bool get _showAppleSignIn =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void dispose() {
@@ -176,6 +181,71 @@ class _LoginPageState extends State<LoginPage> {
 
       setState(() {
         _errorMessage = 'Erro ao fazer login com Google: ${errorMsg.replaceAll('AuthException: ', '')}';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _appleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final displayName = [
+        credential.givenName,
+        credential.familyName,
+      ].where((part) => part != null && part.trim().isNotEmpty).join(' ').trim();
+
+      final response = await _authService.appleLogin(
+        appleId: credential.userIdentifier ?? '',
+        identityToken: credential.identityToken ?? '',
+        authorizationCode: credential.authorizationCode,
+        email: credential.email,
+        name: displayName.isEmpty ? null : displayName,
+      );
+
+      if (mounted) {
+        final isNewUser = response['isNewUser'] ?? false;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(isNewUser
+                    ? AppConstants.accountCreatedSuccess.tr()
+                    : AppConstants.loginSuccess.tr()),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        widget.onLoginSuccess();
+      }
+    } catch (e) {
+      final errorMsg = e.toString();
+
+      setState(() {
+        _errorMessage =
+            'Erro ao fazer login com Apple: ${errorMsg.replaceAll('AuthException: ', '')}';
       });
     } finally {
       if (mounted) {
@@ -440,7 +510,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   height: 56,
                   child: OutlinedButton.icon(
-                    onPressed: _googleSignIn,
+                    onPressed: _isLoading ? null : _googleSignIn,
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
                         color: isDark ? AppColors.grey100 : AppColors.grey300,
@@ -467,6 +537,41 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
+
+                if (_showAppleSignIn) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _appleSignIn,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: isDark ? AppColors.grey100 : AppColors.grey300,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.apple,
+                        size: 24,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
+                      label: Text(
+                        'Continuar com Apple',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 16),
 

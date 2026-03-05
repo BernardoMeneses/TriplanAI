@@ -265,6 +265,36 @@ router.post('/google', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/apple:
+ *   post:
+ *     summary: Login com Apple
+ *     tags: [Auth]
+ *     security: []
+ */
+router.post('/apple', async (req: Request, res: Response) => {
+  try {
+    const { appleId, identityToken, email, name, authorizationCode } = req.body;
+
+    if (!appleId || !identityToken) {
+      return res.status(400).json({ error: 'Dados do Apple incompletos' });
+    }
+
+    const result = await authService.appleLogin({
+      appleId,
+      identityToken,
+      email,
+      name,
+      authorizationCode,
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro no login com Apple' });
+  }
+});
+
 export const authController = router;
 
 // Account deletion endpoints
