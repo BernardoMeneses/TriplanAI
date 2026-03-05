@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../common/app_colors.dart';
 import '../../common/constants/app_constants.dart';
-
-/// Converte um código de país ISO 3166‑1 alpha‑2 (e.g. "PT")
-/// nos Regional Indicator Symbols correspondentes ao emoji de bandeira.
-String _countryCodeToFlag(String countryCode) {
-  return countryCode.toUpperCase().runes.map((code) {
-    return String.fromCharCode(code - 0x41 + 0x1F1E6);
-  }).join();
-}
 
 class LanguageSelectorDialog extends StatelessWidget {
   const LanguageSelectorDialog({super.key});
@@ -20,15 +13,15 @@ class LanguageSelectorDialog extends StatelessWidget {
     final currentLocale = context.locale;
 
     final languages = [
-      {'code': 'pt', 'name': AppConstants.portuguese, 'country': 'PT'},
-      {'code': 'en', 'name': AppConstants.english, 'country': 'GB'},
-      {'code': 'es', 'name': AppConstants.spanish, 'country': 'ES'},
-      {'code': 'fr', 'name': AppConstants.french, 'country': 'FR'},
-      {'code': 'de', 'name': AppConstants.german, 'country': 'DE'},
-      {'code': 'it', 'name': AppConstants.italian, 'country': 'IT'},
-      {'code': 'ja', 'name': AppConstants.japanese, 'country': 'JP'},
-      {'code': 'zh', 'name': AppConstants.chinese, 'country': 'CN'},
-      {'code': 'ko', 'name': AppConstants.korean, 'country': 'KR'},
+      {'code': 'pt', 'name': AppConstants.portuguese, 'country': 'pt'},
+      {'code': 'en', 'name': AppConstants.english, 'country': 'gb'},
+      {'code': 'es', 'name': AppConstants.spanish, 'country': 'es'},
+      {'code': 'fr', 'name': AppConstants.french, 'country': 'fr'},
+      {'code': 'de', 'name': AppConstants.german, 'country': 'de'},
+      {'code': 'it', 'name': AppConstants.italian, 'country': 'it'},
+      {'code': 'ja', 'name': AppConstants.japanese, 'country': 'jp'},
+      {'code': 'zh', 'name': AppConstants.chinese, 'country': 'cn'},
+      {'code': 'ko', 'name': AppConstants.korean, 'country': 'kr'},
     ];
 
     return Dialog(
@@ -82,15 +75,16 @@ class LanguageSelectorDialog extends StatelessWidget {
                     : null,
                 ),
                 child: ListTile(
-                  leading: SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Center(
-                      child: MediaQuery(
-                        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-                        child: Text(
-                          _countryCodeToFlag(lang['country']!),
-                          style: const TextStyle(fontSize: 28),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: SizedBox(
+                      width: 36,
+                      height: 26,
+                      child: SvgPicture.network(
+                        'https://flagcdn.com/${lang['country']}.svg',
+                        fit: BoxFit.cover,
+                        placeholderBuilder: (_) => Container(
+                          color: isDark ? AppColors.grey800 : AppColors.grey200,
                         ),
                       ),
                     ),
