@@ -184,6 +184,11 @@ class _NewTripPageState extends State<NewTripPage> {
   bool _isLoading = false;
   bool _isEditMode = false;
 
+  /// Quando não tem existingTrip nem initialDestination, está embutido no tab
+  /// e não deve mostrar seta de voltar (senão faz pop da raiz → ecrã preto).
+  bool get _isEmbeddedInTab =>
+      widget.existingTrip == null && widget.initialDestination == null;
+
   @override
   void initState() {
     super.initState();
@@ -396,13 +401,16 @@ class _NewTripPageState extends State<NewTripPage> {
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: _isEmbeddedInTab
+            ? null
+            : IconButton(
+                icon: Icon(
+                  Icons.arrow_back,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+        automaticallyImplyLeading: !_isEmbeddedInTab,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),

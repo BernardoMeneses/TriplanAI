@@ -560,7 +560,7 @@ class _LoginPageState extends State<LoginPage> {
                             : AppColors.textPrimaryLight,
                       ),
                       label: Text(
-                        'Continuar com Apple',
+                        AppConstants.continueWithApple.tr(),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,

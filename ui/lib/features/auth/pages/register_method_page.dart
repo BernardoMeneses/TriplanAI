@@ -312,9 +312,9 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
                       elevation: 0,
                     ),
                     icon: const Icon(Icons.apple, size: 24),
-                    label: const Text(
-                      'Sign in via Apple',
-                      style: TextStyle(
+                    label: Text(
+                      AppConstants.signInViaApple.tr(),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),

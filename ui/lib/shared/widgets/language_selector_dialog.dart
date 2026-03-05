@@ -3,6 +3,14 @@ import 'package:easy_localization/easy_localization.dart';
 import '../../common/app_colors.dart';
 import '../../common/constants/app_constants.dart';
 
+/// Converte um código de país ISO 3166‑1 alpha‑2 (e.g. "PT")
+/// nos Regional Indicator Symbols correspondentes ao emoji de bandeira.
+String _countryCodeToFlag(String countryCode) {
+  return countryCode.toUpperCase().runes.map((code) {
+    return String.fromCharCode(code - 0x41 + 0x1F1E6);
+  }).join();
+}
+
 class LanguageSelectorDialog extends StatelessWidget {
   const LanguageSelectorDialog({super.key});
 
@@ -12,15 +20,15 @@ class LanguageSelectorDialog extends StatelessWidget {
     final currentLocale = context.locale;
 
     final languages = [
-      {'code': 'pt', 'name': AppConstants.portuguese, 'flag': '🇵🇹'},
-      {'code': 'en', 'name': AppConstants.english, 'flag': '🇬🇧'},
-      {'code': 'es', 'name': AppConstants.spanish, 'flag': '🇪🇸'},
-      {'code': 'fr', 'name': AppConstants.french, 'flag': '🇫🇷'},
-      {'code': 'de', 'name': AppConstants.german, 'flag': '🇩🇪'},
-      {'code': 'it', 'name': AppConstants.italian, 'flag': '🇮🇹'},
-      {'code': 'ja', 'name': AppConstants.japanese, 'flag': '🇯🇵'},
-      {'code': 'zh', 'name': AppConstants.chinese, 'flag': '🇨🇳'},
-      {'code': 'ko', 'name': AppConstants.korean, 'flag': '🇰🇷'},
+      {'code': 'pt', 'name': AppConstants.portuguese, 'country': 'PT'},
+      {'code': 'en', 'name': AppConstants.english, 'country': 'GB'},
+      {'code': 'es', 'name': AppConstants.spanish, 'country': 'ES'},
+      {'code': 'fr', 'name': AppConstants.french, 'country': 'FR'},
+      {'code': 'de', 'name': AppConstants.german, 'country': 'DE'},
+      {'code': 'it', 'name': AppConstants.italian, 'country': 'IT'},
+      {'code': 'ja', 'name': AppConstants.japanese, 'country': 'JP'},
+      {'code': 'zh', 'name': AppConstants.chinese, 'country': 'CN'},
+      {'code': 'ko', 'name': AppConstants.korean, 'country': 'KR'},
     ];
 
     return Dialog(
@@ -74,9 +82,18 @@ class LanguageSelectorDialog extends StatelessWidget {
                     : null,
                 ),
                 child: ListTile(
-                  leading: Text(
-                    lang['flag']!,
-                    style: const TextStyle(fontSize: 32),
+                  leading: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Center(
+                      child: MediaQuery(
+                        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+                        child: Text(
+                          _countryCodeToFlag(lang['country']!),
+                          style: const TextStyle(fontSize: 28),
+                        ),
+                      ),
+                    ),
                   ),
                   title: Text(
                     (lang['name']! as String).tr(),

@@ -59,6 +59,8 @@ class AppConstants {
   static const String signIn = 'auth.sign_in';
   static const String authChooseMethod = 'auth.choose_how_to_create';
   static const String signInViaGoogle = 'auth.sign_in_via_google';
+  static const String continueWithApple = 'auth.continue_with_apple';
+  static const String signInViaApple = 'auth.sign_in_via_apple';
   static const String signInViaEmailPassword = 'auth.sign_in_via_email_password';
   static const String chooseHowToCreate = 'auth.choose_how_to_create';
   static const String fullName = 'auth.full_name';
