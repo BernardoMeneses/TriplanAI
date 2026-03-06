@@ -11,6 +11,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onFavoritesTap;
   final List<Widget>? actions;
   final VoidCallback? onNotesTap;
+  final bool isPremium;
 
   const CustomAppBar({
     super.key,
@@ -19,6 +20,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onFavoritesTap,
     this.actions,
     this.onNotesTap,
+    this.isPremium = false,
   });
 
   @override
@@ -45,10 +47,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         // Botão de Favoritos
         if (onFavoritesTap != null)
           IconButton(
-            icon: Icon(
-              Icons.bookmark_border,
-              color: AppColors.primary,
-            ),
+            icon: isPremium
+                ? Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(Icons.bookmark_border, color: AppColors.primary),
+                      Positioned(
+                        right: -6,
+                        top: -4,
+                        child: Icon(
+                          Icons.workspace_premium,
+                          size: 14,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ],
+                  )
+                : Icon(Icons.bookmark_border, color: AppColors.primary),
             onPressed: onFavoritesTap,
             tooltip: AppConstants.favorites.tr(),
           ),

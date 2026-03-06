@@ -13,6 +13,7 @@ import '../../profile/pages/profile_page.dart';
 import '../../trip_details/my_trip_page.dart';
 import '../../favorites/favorites_page.dart';
 import '../../notes/notes_page.dart';
+import '../../../services/subscription_service.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback? onLogout;
@@ -31,6 +32,7 @@ class _HomePageState extends State<HomePage> {
   List<Trip> _pastTrips = [];
   bool _isLoading = true;
   bool _isOfflineMode = false;
+  bool _isPremium = false;
 
   final Map<String, String?> _tripImages = {};
 
@@ -38,6 +40,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadTrips(forceRefresh: true);
+    _checkPremiumStatus();
     // Atualizar automaticamente quando houver mudanca nas trips
     AppEvents.onTripsChanged.listen((_) {
       if (mounted) _loadTrips(forceRefresh: true);
@@ -45,6 +48,13 @@ class _HomePageState extends State<HomePage> {
     AppEvents.onTripImported.listen((_) {
       if (mounted) _loadTrips(forceRefresh: true);
     });
+  }
+
+  Future<void> _checkPremiumStatus() async {
+    try {
+      final status = await SubscriptionService().getStatus();
+      if (mounted) setState(() => _isPremium = status.isPremium);
+    } catch (_) {}
   }
 
   Future<void> _loadTrips({bool forceRefresh = false}) async {
@@ -162,6 +172,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: CustomAppBar(
         title: AppConstants.homeTitle.tr(),
+        isPremium: _isPremium,
         onFavoritesTap: () {
           Navigator.push(
             context,
