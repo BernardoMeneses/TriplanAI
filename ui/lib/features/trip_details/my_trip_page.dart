@@ -11,6 +11,8 @@ import '../../services/destinations_service.dart';
 import 'package:flutter/services.dart';
 import '../../services/trip_cache_service.dart';
 import '../../services/connectivity_service.dart';
+import '../../services/notes_service.dart';
+import '../notes/notes_page.dart';
 import 'day_details_page.dart';
 
 class MyTripPage extends StatefulWidget {
@@ -323,6 +325,11 @@ class _MyTripPageState extends State<MyTripPage> {
       final tripsService = TripsService();
       await tripsService.deleteTrip(_trip.id);
 
+      // Also remove notes for this trip
+      try {
+        await NotesService.deleteAllForTrip(_trip.id);
+      } catch (_) {}
+
       // Also remove from local cache immediately so lists update optimistically
       try {
         await _cacheService.removeTripFromCache(_trip.id);
@@ -407,6 +414,22 @@ class _MyTripPageState extends State<MyTripPage> {
                     ],
                   ),
                 ),
+              ListTile(
+                leading: Icon(
+                  Icons.sticky_note_2,
+                  color: AppColors.primary,
+                ),
+                title: Text(AppConstants.notesTitle.tr()),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotesPage(tripId: _trip.id),
+                    ),
+                  );
+                },
+              ),
               ListTile(
                 leading: Icon(
                   Icons.vpn_key,

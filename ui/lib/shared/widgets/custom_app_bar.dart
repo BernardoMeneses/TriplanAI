@@ -11,7 +11,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onProfileTap;
   final VoidCallback? onFavoritesTap;
   final List<Widget>? actions;
-  final VoidCallback? onNotesTap;
   final SubscriptionStatus? subscriptionStatus;
 
   const CustomAppBar({
@@ -20,7 +19,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onProfileTap,
     this.onFavoritesTap,
     this.actions,
-    this.onNotesTap,
     this.subscriptionStatus,
   });
 
@@ -65,13 +63,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             onPressed: onFavoritesTap,
             tooltip: AppConstants.favorites.tr(),
-          ),
-        // Notes button (optional)
-        if (onNotesTap != null)
-          IconButton(
-            icon: Icon(Icons.sticky_note_2, color: AppColors.primary),
-            onPressed: onNotesTap,
-            tooltip: AppConstants.notesTitle.tr(),
           ),
         // Botão de Theme
         IconButton(
@@ -212,13 +203,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 'subscription.cloud_backup'.tr(),
                 isDark,
                 enabled: status.limits.canBackupCloud,
-              ),
-              const SizedBox(height: 10),
-              _planInfoRow(
-                Icons.block,
-                'subscription.no_ads'.tr(),
-                isDark,
-                enabled: !status.limits.hasAds,
               ),
               const SizedBox(height: 20),
               // Botão fechar

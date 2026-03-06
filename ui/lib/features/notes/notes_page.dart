@@ -5,14 +5,15 @@ import 'package:triplan_ai_front/common/constants/app_constants.dart';
 import '../../services/notes_service.dart';
 
 class NotesPage extends StatefulWidget {
-  const NotesPage({super.key});
+  final String tripId;
+  const NotesPage({super.key, required this.tripId});
 
   @override
   State<NotesPage> createState() => _NotesPageState();
 }
 
 class _NotesPageState extends State<NotesPage> {
-  final NotesService _service = NotesService();
+  late final NotesService _service = NotesService(tripId: widget.tripId);
   List<Note> _notes = [];
   bool _loading = true;
 

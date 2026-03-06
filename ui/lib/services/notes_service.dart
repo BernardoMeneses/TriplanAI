@@ -34,7 +34,11 @@ class Note {
 }
 
 class NotesService {
-  static const _key = 'user_notes';
+  final String tripId;
+
+  NotesService({required this.tripId});
+
+  String get _key => 'trip_notes_$tripId';
 
   Future<List<Note>> loadNotes() async {
     final prefs = await SharedPreferences.getInstance();
@@ -83,5 +87,11 @@ class NotesService {
     final notes = await loadNotes();
     notes.removeWhere((n) => n.id == id);
     await saveNotes(notes);
+  }
+
+  /// Remove all notes for a trip (e.g. when trip is deleted)
+  static Future<void> deleteAllForTrip(String tripId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('trip_notes_$tripId');
   }
 }

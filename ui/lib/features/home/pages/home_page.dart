@@ -12,7 +12,6 @@ import '../../../services/destinations_service.dart';
 import '../../profile/pages/profile_page.dart';
 import '../../trip_details/my_trip_page.dart';
 import '../../favorites/favorites_page.dart';
-import '../../notes/notes_page.dart';
 import '../../../services/subscription_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -188,12 +187,6 @@ class _HomePageState extends State<HomePage> {
               builder: (_) =>
                   ProfilePage(onLogout: widget.onLogout),
             ),
-          );
-        },
-        onNotesTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const NotesPage()),
           );
         },
       ),

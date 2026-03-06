@@ -17,7 +17,6 @@ class PlanLimits {
   final bool canBackupCloud; // Pode fazer backup manual para cloud
   final bool canAutoBackup; // Backup automático ativado
   final bool canShareTrips;
-  final bool hasAds;
 
   const PlanLimits({
     required this.maxTrips,
@@ -27,7 +26,6 @@ class PlanLimits {
     required this.canBackupCloud,
     required this.canAutoBackup,
     required this.canShareTrips,
-    required this.hasAds,
   });
 
   bool get isUnlimitedTrips => maxTrips == -1;
@@ -45,7 +43,6 @@ class PlanLimitsConfig {
     canBackupCloud: false,
     canAutoBackup: false, // Backup manual apenas
     canShareTrips: false,
-    hasAds: true,
   );
 
   static const PlanLimits basic = PlanLimits(
@@ -56,7 +53,6 @@ class PlanLimitsConfig {
     canBackupCloud: true, // Pode fazer backup para cloud
     canAutoBackup: true, // Backup automático
     canShareTrips: true,
-    hasAds: true,
   );
 
   static const PlanLimits premium = PlanLimits(
@@ -67,7 +63,6 @@ class PlanLimitsConfig {
     canBackupCloud: true,
     canAutoBackup: true, // Backup automático
     canShareTrips: true,
-    hasAds: false,
   );
 
   static PlanLimits forPlan(SubscriptionPlan plan) {
@@ -193,8 +188,6 @@ class SubscriptionService {
         return status.limits.canAutoBackup;
       case 'share_trips':
         return status.limits.canShareTrips;
-      case 'no_ads':
-        return !status.limits.hasAds;
       case 'ai_generation':
         return status.canUseAI;
       default:
@@ -222,7 +215,7 @@ class SubscriptionService {
       case SubscriptionPlan.basic:
         return 'Mais viagens, PDF e backup automático';
       case SubscriptionPlan.premium:
-        return 'Tudo ilimitado, sem anúncios';
+        return 'Tudo ilimitado';
     }
   }
 }
