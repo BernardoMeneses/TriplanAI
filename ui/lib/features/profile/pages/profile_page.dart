@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../../common/app_colors.dart';
 import '../../../common/constants/app_constants.dart';
 import '../../../services/auth_service.dart';
@@ -30,6 +31,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _notificationsEnabled = true;
   bool _isLoadingNotifications = true;
   bool _isBackingUp = false;
+  bool _hasAutoBackup = false;
+  bool _canManualBackup = false;
   final GoogleDriveBackupService _backupService = GoogleDriveBackupService();
   final TripCacheService _cacheService = TripCacheService();
 
@@ -37,6 +40,17 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _loadNotificationSettings();
+    _loadSubscriptionStatus();
+  }
+
+  Future<void> _loadSubscriptionStatus() async {
+    final status = await SubscriptionService().getStatus();
+    if (mounted) {
+      setState(() {
+        _hasAutoBackup = status.limits.canAutoBackup;
+        _canManualBackup = status.limits.canBackupCloud && !status.limits.canAutoBackup;
+      });
+    }
   }
 
   Future<void> _loadNotificationSettings() async {
@@ -203,16 +217,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
           const SizedBox(height: 16),
 
-          // Backup Section
-          _buildSection(
-            context,
-            title: 'backup.title'.tr(),
-            items: [
-              _buildBackupTile(context),
-            ],
-          ),
-
-          const SizedBox(height: 16),
+          // Backup Section (only show for Basic plan - manual backup)
+          if (_canManualBackup) ...[
+            _buildSection(
+              context,
+              title: 'backup.title'.tr(),
+              items: [
+                _buildBackupTile(context),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Definições da App
           _buildSection(
@@ -242,10 +257,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 icon: Icons.lock_outline,
                 title: AppConstants.privacy.tr(),
                 subtitle: AppConstants.privacySubtitle.tr(),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppConstants.inDevelopment.tr())),
-                  );
+                onTap: () async {
+                  final uri = Uri.parse(AppConstants.privacyPolicyUrl);
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
                 },
               ),
             ],
@@ -271,7 +285,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 context,
                 icon: Icons.info_outline,
                 title: AppConstants.about.tr(),
-                subtitle: AppConstants.version.tr(),
+                subtitle: AppConstants.version.tr(namedArgs: {'version': AppConstants.appVersion}),
                 onTap: () {
                   _showAboutDialog(context);
                 },
@@ -735,27 +749,16 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildFAQItem(
-                AppConstants.faqQuestion1.tr(),
-                AppConstants.faqAnswer1.tr(),
-              ),
-              const SizedBox(height: 16),
-              _buildFAQItem(
-                AppConstants.faqQuestion2.tr(),
-                AppConstants.faqAnswer2.tr(),
-              ),
-              const SizedBox(height: 16),
-              _buildFAQItem(
-                AppConstants.faqQuestion3.tr(),
-                AppConstants.faqAnswer3.tr(),
-              ),
-              const SizedBox(height: 16),
-              _buildFAQItem(
-                AppConstants.faqQuestion4.tr(),
-                AppConstants.faqAnswer4.tr(),
-              ),
-            ],
+            children: List.generate(10, (i) {
+              final n = i + 1;
+              return Padding(
+                padding: EdgeInsets.only(bottom: i < 9 ? 16.0 : 0),
+                child: _buildFAQItem(
+                  'profile.faq_question_$n'.tr(),
+                  'profile.faq_answer_$n'.tr(),
+                ),
+              );
+            }),
           ),
         ),
         actions: [
@@ -805,7 +808,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(AppConstants.version.tr()),
+            Text(AppConstants.version.tr(namedArgs: {'version': AppConstants.appVersion})),
             const SizedBox(height: 16),
             Text(
               AppConstants.aboutDescription.tr(),

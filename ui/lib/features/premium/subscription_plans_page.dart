@@ -111,7 +111,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                       _PlanFeature('10 ${'subscription.activities_per_day'.tr()}', true),
                       _PlanFeature('20 ${'subscription.ai_month'.tr()}', true),
                       _PlanFeature('subscription.export_pdf'.tr(), true),
-                      _PlanFeature('subscription.cloud_backup'.tr(), true),
+                      _PlanFeature('subscription.manual_backup'.tr(), true, iconColor: Colors.amber),
                       _PlanFeature('subscription.share_trips'.tr(), true),
                     ],
                     color: Colors.blue,
@@ -130,7 +130,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                       _PlanFeature('subscription.unlimited_activities'.tr(), true),
                       _PlanFeature('subscription.unlimited_ai'.tr(), true),
                       _PlanFeature('subscription.export_pdf'.tr(), true),
-                      _PlanFeature('subscription.cloud_backup'.tr(), true),
+                      _PlanFeature('subscription.auto_backup'.tr(), true),
                       _PlanFeature('subscription.share_trips'.tr(), true),
                     ],
                     color: Colors.amber[700]!,
@@ -400,7 +400,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                 children: [
                   Icon(
                     feature.included ? Icons.check_circle : Icons.cancel,
-                    color: feature.included ? Colors.green : Colors.red.withOpacity(0.5),
+                    color: feature.included
+                        ? (feature.iconColor ?? Colors.green)
+                        : Colors.red.withOpacity(0.5),
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -534,6 +536,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
 class _PlanFeature {
   final String text;
   final bool included;
+  final Color? iconColor;
 
-  _PlanFeature(this.text, this.included);
+  _PlanFeature(this.text, this.included, {this.iconColor});
 }

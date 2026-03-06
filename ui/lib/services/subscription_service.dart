@@ -50,8 +50,8 @@ class PlanLimitsConfig {
     maxActivitiesPerDay: 10,
     aiGenerationsPerMonth: 20,
     canExportPdf: true,
-    canBackupCloud: true, // Pode fazer backup para cloud
-    canAutoBackup: true, // Backup automático
+    canBackupCloud: true, // Pode fazer backup manual para cloud
+    canAutoBackup: false, // Backup manual apenas
     canShareTrips: true,
   );
 

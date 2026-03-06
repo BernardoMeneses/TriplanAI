@@ -1,6 +1,9 @@
 /// Classe com todas as chaves de tradução da aplicação
 /// Use AppConstants.key.tr() para obter o texto traduzido
 class AppConstants {
+  // ===== APP =====
+  static const String appVersion = '4.0.0';
+
   // ===== COMUM =====
   static const String appName = 'app_name';
   static const String ok = 'common.ok';
@@ -268,6 +271,7 @@ class AppConstants {
   static const String notificationsSubtitle = 'profile.notifications_subtitle';
   static const String privacy = 'profile.privacy';
   static const String privacySubtitle = 'profile.privacy_subtitle';
+  static const String privacyPolicyUrl = 'https://redadviser.com/?page_id=316';
   static const String helpSupport = 'profile.help_support';
   static const String faqs = 'profile.faqs';
   static const String faqsSubtitle = 'profile.faqs_subtitle';
@@ -285,6 +289,18 @@ class AppConstants {
   static const String faqAnswer3 = 'profile.faq_answer_3';
   static const String faqQuestion4 = 'profile.faq_question_4';
   static const String faqAnswer4 = 'profile.faq_answer_4';
+  static const String faqQuestion5 = 'profile.faq_question_5';
+  static const String faqAnswer5 = 'profile.faq_answer_5';
+  static const String faqQuestion6 = 'profile.faq_question_6';
+  static const String faqAnswer6 = 'profile.faq_answer_6';
+  static const String faqQuestion7 = 'profile.faq_question_7';
+  static const String faqAnswer7 = 'profile.faq_answer_7';
+  static const String faqQuestion8 = 'profile.faq_question_8';
+  static const String faqAnswer8 = 'profile.faq_answer_8';
+  static const String faqQuestion9 = 'profile.faq_question_9';
+  static const String faqAnswer9 = 'profile.faq_answer_9';
+  static const String faqQuestion10 = 'profile.faq_question_10';
+  static const String faqAnswer10 = 'profile.faq_answer_10';
   static const String requestDelete = 'profile.request_delete';
   static const String deleteRequestSent = 'profile.delete_request_sent';
   static const String deleteAccount = 'profile.delete_account';
