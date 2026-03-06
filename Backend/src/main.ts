@@ -13,6 +13,7 @@ import { testConnection, query } from './config/database';
 
 // Middleware
 import { authenticate } from './middlewares';
+import { globalRateLimit, authRateLimit, aiRateLimit } from './middlewares';
 
 // Controllers
 import { authController } from './modules/auth';
@@ -29,10 +30,16 @@ import { itineraryItemsController } from './modules/iteneraries/itinerary_items.
 const app: Express = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+// Trust proxy (CapRover / nginx) para obter IP real do cliente
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Rate limiting global — aplica-se a TODOS os endpoints
+app.use(globalRateLimit);
 
 // Serve static files for password reset and email verification pages
 // In Docker, public folder is in the root alongside dist
@@ -78,8 +85,8 @@ app.get('/health', async (_req: Request, res: Response) => {
   });
 });
 
-// Public Routes
-app.use('/api/auth', authController);
+// Public Routes (com rate limit extra para auth)
+app.use('/api/auth', authRateLimit, authController);
 
 // Protected Routes
 app.use('/api/trips', authenticate, tripsController);
@@ -87,7 +94,7 @@ app.use('/api/itineraries', authenticate, itinerariesController);
 app.use('/api/places', authenticate, placesController);
 app.use('/api/routes', authenticate, routesController);
 app.use('/api/maps', authenticate, mapsController);
-app.use('/api/ai', authenticate, aiController);
+app.use('/api/ai', authenticate, aiRateLimit, aiController);
 app.use('/api/favorites', authenticate, favoritesController);
 app.use('/api/itinerary-items', authenticate, itineraryItemsController);
 
