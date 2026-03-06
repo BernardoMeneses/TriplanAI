@@ -27,15 +27,10 @@ router.get('/status', async (req: Request, res: Response) => {
 
     const status = await premiumService.getSubscriptionStatus(userId);
     
-    // Retornar formato completo com limites
     res.json({
       plan: status.plan,
-      subscription_since: status.subscription_since,
-      subscription_expires_at: status.subscription_expires_at,
       limits: status.limits,
       ai_generations_used: status.ai_generations_used,
-      // Retrocompatibilidade
-      is_premium: status.plan !== 'free',
     });
   } catch (error) {
     console.error('Error checking subscription status:', error);
@@ -110,15 +105,14 @@ router.post('/activate', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { expiresAt } = req.body;
-    const expiresDate = expiresAt ? new Date(expiresAt) : undefined;
+    const { plan } = req.body;
+    const targetPlan = plan === 'basic' ? 'basic' : 'premium';
 
-    await premiumService.activatePremium(userId, expiresDate);
+    await premiumService.setUserPlan(userId, targetPlan);
     
     res.json({ 
       success: true, 
-      message: 'Premium activated',
-      expires_at: expiresDate,
+      message: `${targetPlan} plan activated`,
     });
   } catch (error) {
     console.error('Error activating premium:', error);
@@ -145,11 +139,11 @@ router.post('/deactivate', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    await premiumService.deactivatePremium(userId);
+    await premiumService.setUserPlan(userId, 'free');
     
     res.json({ 
       success: true, 
-      message: 'Premium deactivated',
+      message: 'Plan set to free',
     });
   } catch (error) {
     console.error('Error deactivating premium:', error);
@@ -215,22 +209,8 @@ router.post('/sync', async (req: Request, res: Response) => {
       }
     }
 
-    // Calcular data de expiração
-    let expiresDate: Date | undefined;
-    if (expiresAt) {
-      expiresDate = new Date(expiresAt);
-    } else if (productId) {
-      // Se não tiver expiresAt, calcular baseado no tipo de subscrição
-      expiresDate = new Date();
-      if (productId.includes('yearly') || productId.includes('annual')) {
-        expiresDate.setFullYear(expiresDate.getFullYear() + 1);
-      } else {
-        expiresDate.setMonth(expiresDate.getMonth() + 1);
-      }
-    }
-
     // Ativar o plano
-    await premiumService.setUserPlan(userId, plan, expiresDate);
+    await premiumService.setUserPlan(userId, plan);
 
     // Obter status atualizado
     const status = await premiumService.getSubscriptionStatus(userId);
@@ -239,7 +219,6 @@ router.post('/sync', async (req: Request, res: Response) => {
       success: true, 
       message: `${plan} plan activated`,
       plan: status.plan,
-      expires_at: status.subscription_expires_at,
       limits: status.limits,
     });
   } catch (error) {

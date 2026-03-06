@@ -85,16 +85,12 @@ class PlanLimitsConfig {
 /// Status da subscrição do utilizador
 class SubscriptionStatus {
   final SubscriptionPlan plan;
-  final DateTime? subscriptionSince;
-  final DateTime? subscriptionExpiresAt;
   final PlanLimits limits;
   final int aiGenerationsUsed;
   final int aiGenerationsRemaining;
 
   SubscriptionStatus({
     required this.plan,
-    this.subscriptionSince,
-    this.subscriptionExpiresAt,
     required this.limits,
     this.aiGenerationsUsed = 0,
   }) : aiGenerationsRemaining = limits.isUnlimitedAI 
@@ -154,12 +150,6 @@ class SubscriptionService {
 
       _cachedStatus = SubscriptionStatus(
         plan: plan,
-        subscriptionSince: response['subscription_since'] != null 
-            ? DateTime.parse(response['subscription_since']) 
-            : null,
-        subscriptionExpiresAt: response['subscription_expires_at'] != null 
-            ? DateTime.parse(response['subscription_expires_at']) 
-            : null,
         limits: PlanLimitsConfig.forPlan(plan),
         aiGenerationsUsed: response['ai_generations_used'] ?? 0,
       );

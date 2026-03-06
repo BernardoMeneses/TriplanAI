@@ -10,8 +10,8 @@ export const PLAN_LIMITS = {
     maxActivitiesPerDay: 5,
     aiGenerationsPerMonth: 3,
     canExportPdf: false,
-    canBackupCloud: false, // Sem backup cloud
-    canAutoBackup: false,  // Backup manual local apenas
+    canBackupCloud: false,
+    canAutoBackup: false,
     canShareTrips: false,
     hasAds: true,
   },
@@ -20,18 +20,18 @@ export const PLAN_LIMITS = {
     maxActivitiesPerDay: 10,
     aiGenerationsPerMonth: 20,
     canExportPdf: true,
-    canBackupCloud: true,  // Pode fazer backup para cloud
-    canAutoBackup: true,   // Backup automático ativado
+    canBackupCloud: true,
+    canAutoBackup: true,
     canShareTrips: true,
     hasAds: true,
   },
   premium: {
-    maxTrips: -1, // ilimitado
-    maxActivitiesPerDay: -1, // ilimitado
-    aiGenerationsPerMonth: -1, // ilimitado
+    maxTrips: -1,
+    maxActivitiesPerDay: -1,
+    aiGenerationsPerMonth: -1,
     canExportPdf: true,
     canBackupCloud: true,
-    canAutoBackup: true,   // Backup automático ativado
+    canAutoBackup: true,
     canShareTrips: true,
     hasAds: false,
   },
@@ -40,74 +40,36 @@ export const PLAN_LIMITS = {
 export interface UserSubscriptionStatus {
   user_id: string;
   plan: SubscriptionPlan;
-  subscription_since?: Date;
-  subscription_expires_at?: Date;
   limits: typeof PLAN_LIMITS.free;
-}
-
-// Manter compatibilidade com código antigo
-export interface UserPremiumStatus {
-  user_id: string;
-  is_premium: boolean;
-  premium_since?: Date;
-  premium_expires_at?: Date;
 }
 
 export class PremiumService {
   /**
-   * Ativar/atualizar plano de um utilizador
+   * Definir plano de um utilizador
    */
-  async setUserPlan(userId: string, plan: SubscriptionPlan, expiresAt?: Date): Promise<void> {
+  async setUserPlan(userId: string, plan: SubscriptionPlan): Promise<void> {
     await query(
       `UPDATE users 
        SET subscription_plan = $2,
-           is_premium = $3,
-           premium_since = CASE WHEN $2 != 'free' THEN COALESCE(premium_since, CURRENT_TIMESTAMP) ELSE premium_since END,
-           premium_expires_at = $4,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
-      [userId, plan, plan !== 'free', expiresAt || null]
+      [userId, plan]
     );
   }
 
   /**
-   * Ativar premium para um utilizador (retrocompatibilidade)
-   */
-  async activatePremium(userId: string, expiresAt?: Date): Promise<void> {
-    await this.setUserPlan(userId, 'premium', expiresAt);
-  }
-
-  /**
-   * Ativar plano basic para um utilizador
-   */
-  async activateBasic(userId: string, expiresAt?: Date): Promise<void> {
-    await this.setUserPlan(userId, 'basic', expiresAt);
-  }
-
-  /**
-   * Desativar plano pago (voltar para free)
-   */
-  async deactivatePremium(userId: string): Promise<void> {
-    await this.setUserPlan(userId, 'free');
-  }
-
-  /**
-   * Verificar status de subscrição de um utilizador
+   * Obter status de subscrição de um utilizador
    */
   async getSubscriptionStatus(userId: string): Promise<UserSubscriptionStatus & { ai_generations_used: number }> {
     const result = await query<{
       user_id: string;
       subscription_plan: SubscriptionPlan;
-      premium_since: Date;
-      premium_expires_at: Date;
       ai_generations_this_month: number;
       ai_generations_reset_at: Date;
     }>(
       `SELECT 
         id as user_id,
-        COALESCE(subscription_plan::text, CASE WHEN is_premium THEN 'premium' ELSE 'free' END)::text as subscription_plan,
-        premium_since,
-        premium_expires_at,
+        COALESCE(subscription_plan::text, 'free')::text as subscription_plan,
         COALESCE(ai_generations_this_month, 0) as ai_generations_this_month,
         ai_generations_reset_at
        FROM users 
@@ -120,25 +82,14 @@ export class PremiumService {
     }
 
     const user = result.rows[0];
-    let plan: SubscriptionPlan = user.subscription_plan || 'free';
+    const plan: SubscriptionPlan = user.subscription_plan || 'free';
 
-    // Verificar se subscrição expirou
-    if (plan !== 'free' && user.premium_expires_at) {
-      const now = new Date();
-      if (new Date(user.premium_expires_at) < now) {
-        // Expirado, voltar para free
-        await this.setUserPlan(userId, 'free');
-        plan = 'free';
-      }
-    }
-
-    // Reset monthly AI counter if needed
+    // Reset mensal do contador de IA
     let aiUsed = user.ai_generations_this_month || 0;
     if (user.ai_generations_reset_at) {
       const resetDate = new Date(user.ai_generations_reset_at);
       const now = new Date();
       if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
-        // New month — reset the counter
         await query(
           `UPDATE users SET ai_generations_this_month = 0, ai_generations_reset_at = CURRENT_TIMESTAMP WHERE id = $1`,
           [userId]
@@ -150,8 +101,6 @@ export class PremiumService {
     return {
       user_id: userId,
       plan,
-      subscription_since: user.premium_since,
-      subscription_expires_at: user.premium_expires_at,
       limits: PLAN_LIMITS[plan],
       ai_generations_used: aiUsed,
     };
@@ -168,11 +117,10 @@ export class PremiumService {
        WHERE id = $1`,
       [userId]
     );
-    // Clear cached status so next getStatus reflects the new count
   }
 
   /**
-   * Check if user can use AI (within their plan limits)
+   * Verificar se utilizador pode usar IA (dentro dos limites do plano)
    */
   async canUseAI(userId: string): Promise<{ allowed: boolean; used: number; limit: number }> {
     const status = await this.getSubscriptionStatus(userId);
@@ -182,19 +130,6 @@ export class PremiumService {
       allowed: status.ai_generations_used < limit,
       used: status.ai_generations_used,
       limit,
-    };
-  }
-
-  /**
-   * Verificar status premium de um utilizador (retrocompatibilidade)
-   */
-  async checkPremiumStatus(userId: string): Promise<UserPremiumStatus> {
-    const status = await this.getSubscriptionStatus(userId);
-    return {
-      user_id: status.user_id,
-      is_premium: status.plan !== 'free',
-      premium_since: status.subscription_since,
-      premium_expires_at: status.subscription_expires_at,
     };
   }
 
@@ -219,7 +154,6 @@ export class PremiumService {
     if (productId?.includes('premium')) {
       return 'premium';
     }
-    // Default para premium se não identificar
     return 'premium';
   }
 
@@ -227,9 +161,8 @@ export class PremiumService {
    * Processar evento de webhook Adapty
    */
   async processAdaptyWebhook(event: any): Promise<void> {
-    const { event_type, profile_email, subscription_expires_at, product_id } = event;
+    const { event_type, profile_email, product_id } = event;
 
-    // Encontrar utilizador pelo email
     const user = await this.getUserByEmail(profile_email);
     if (!user) {
       console.warn(`User not found for Adapty webhook: ${profile_email}`);
@@ -241,8 +174,7 @@ export class PremiumService {
     switch (event_type) {
       case 'subscription_started':
       case 'subscription_renewed':
-        const expiresAt = subscription_expires_at ? new Date(subscription_expires_at) : undefined;
-        await this.setUserPlan(user.id, plan, expiresAt);
+        await this.setUserPlan(user.id, plan);
         console.log(`✅ Plan ${plan} activated for user ${user.email}`);
         break;
 

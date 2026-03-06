@@ -220,17 +220,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 isDark,
                 enabled: !status.limits.hasAds,
               ),
-              // Data de expiração
-              if (status.subscriptionExpiresAt != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  '${AppConstants.premiumExpires.tr()} ${_formatDate(status.subscriptionExpiresAt!)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ],
               const SizedBox(height: 20),
               // Botão fechar
               SizedBox(
@@ -287,9 +276,5 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ],
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }
