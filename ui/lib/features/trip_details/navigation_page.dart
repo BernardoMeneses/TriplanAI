@@ -282,7 +282,7 @@ class _NavigationPageState extends State<NavigationPage> {
           position: LatLng(_departureAirport!.latitude, _departureAirport!.longitude),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           infoWindow: InfoWindow(
-            title: '✈️ ${_departureAirport!.code}',
+            title: _departureAirport!.code,
             snippet: _departureAirport!.name,
           ),
         ),
@@ -297,7 +297,7 @@ class _NavigationPageState extends State<NavigationPage> {
           position: LatLng(_arrivalAirport!.latitude, _arrivalAirport!.longitude),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
           infoWindow: InfoWindow(
-            title: '🛬 ${_arrivalAirport!.code}',
+            title: _arrivalAirport!.code,
             snippet: _arrivalAirport!.name,
           ),
         ),

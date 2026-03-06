@@ -167,7 +167,7 @@
     "get_directions": "Route anzeigen",
     "directions": "Wegbeschreibung",
     "navigation": "Navigation",
-    "tap_to_open_maps": "🗺️ ➤ Tippen, um in Karten zu öffnen",
+    "tap_to_open_maps": "➤ Tippen, um in Karten zu öffnen",
     "transport_mode": "Transportmittel",
     "transport_mode_updated": "Transportmittel aktualisiert",
     "transport": {
@@ -429,5 +429,13 @@
     "viewing_cached": "Offline-Modus - Zwischengespeicherte Daten werden angezeigt",
     "read_only_mode": "Nur-Lese-Modus. Verbinden Sie sich mit dem Internet, um zu bearbeiten.",
     "cannot_edit": "Offline nicht bearbeitbar"
+  },
+  "notification_messages": {
+    "day_before_title": "Reise Morgen!",
+    "day_before_body": "Pack deine Koffer! Deine Reise nach {destination} beginnt morgen. Gute Reise!",
+    "trip_day_title": "Das Abenteuer beginnt HEUTE!",
+    "trip_day_body": "Heute ist der große Tag! Deine Reise nach {destination} beginnt jetzt. Öffne die App und schau dir deine Route an!",
+    "channel_name": "Reise-Erinnerungen",
+    "channel_description": "Benachrichtigungen für bevorstehende Reisen"
   }
 }

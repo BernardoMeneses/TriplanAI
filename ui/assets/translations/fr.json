@@ -169,7 +169,7 @@
     "get_directions": "Obtenir Directions",
     "directions": "Directions",
     "navigation": "Navigation",
-    "tap_to_open_maps": "🗺️ ➤ Appuyez pour ouvrir dans Maps",
+    "tap_to_open_maps": "➤ Appuyez pour ouvrir dans Maps",
     "transport_mode": "Mode de transport",
     "transport_mode_updated": "Mode de transport mis à jour",
     "transport": {
@@ -433,5 +433,13 @@
     "viewing_cached": "Mode hors ligne - affichage des données en cache",
     "read_only_mode": "Mode lecture seule. Connectez-vous à internet pour modifier.",
     "cannot_edit": "Impossible de modifier hors ligne"
+  },
+  "notification_messages": {
+    "day_before_title": "Voyage Demain !",
+    "day_before_body": "Prépare tes valises ! Ton voyage à {destination} commence demain. Bon voyage !",
+    "trip_day_title": "L'aventure commence AUJOURD'HUI !",
+    "trip_day_body": "C'est le grand jour ! Ton voyage à {destination} commence maintenant. Ouvre l'appli et consulte ton itinéraire complet !",
+    "channel_name": "Rappels de Voyage",
+    "channel_description": "Notifications pour rappeler les voyages à venir"
   }
 }

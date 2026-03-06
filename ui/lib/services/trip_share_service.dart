@@ -67,7 +67,7 @@ class TripShareService {
       await Share.shareXFiles(
         [XFile(filePath)],
         subject: 'Viagem: $tripTitle',
-        text: 'Confere esta viagem que criei no TriplanAI! 🌍✈️',
+        text: 'Confere esta viagem que criei no TriplanAI!',
       );
     } catch (e) {
       debugPrint('Erro ao partilhar viagem: $e');

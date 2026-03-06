@@ -567,7 +567,7 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
                           mainAxisSize: pw.MainAxisSize.min,
                           children: [
                             pw.Text(
-                              '➡️ ${_getTransportLabel(item.transportMode)} - ${item.travelTimeFromPreviousText}',
+                              '→ ${_getTransportLabel(item.transportMode)} - ${item.travelTimeFromPreviousText}',
                               style: pw.TextStyle(
                                 fontSize: 11,
                                 color: PdfColor.fromHex('#2E7D32'),

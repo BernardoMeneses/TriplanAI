@@ -104,7 +104,7 @@ class _AIChatModalState extends State<AIChatModal> {
   void _addWelcomeMessage() {
     final location = widget.cityFilter != null ? widget.cityFilter! : 'your destination';
     _messages.add(ChatMessage(
-      text: 'Hi there! 👋\n\nEnter a place name or type of location (museum, park, restaurant, etc.), and I\'ll help you find the best results!',
+      text: 'Hi there!\n\nEnter a place name or type of location (museum, park, restaurant, etc.), and I\'ll help you find the best results!',
       isUser: false,
     ));
 

@@ -995,7 +995,7 @@ class _TripMapPageState extends State<TripMapPage> {
                           mainAxisSize: pw.MainAxisSize.min,
                           children: [
                             pw.Text(
-                              '➡️ ${_getTransportLabel(nextItem.transportMode)} - ${nextItem.travelTimeFromPreviousText}',
+                              '→ ${_getTransportLabel(nextItem.transportMode)} - ${nextItem.travelTimeFromPreviousText}',
                               style: pw.TextStyle(
                                 fontSize: 11,
                                 color: PdfColor.fromHex('#2E7D32'),

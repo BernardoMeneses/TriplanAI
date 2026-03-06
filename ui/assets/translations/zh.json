@@ -165,7 +165,7 @@
     "get_directions": "获取路线",
     "directions": "路线",
     "navigation": "导航",
-    "tap_to_open_maps": "🗺️ ➤ 点击在地图中打开",
+    "tap_to_open_maps": "➤ 点击在地图中打开",
     "transport_mode": "交通方式",
     "transport_mode_updated": "交通方式已更新",
     "transport": {
@@ -299,11 +299,11 @@
     "faq_question_4": "如何修改个人资料？",
     "faq_answer_4": "通过右上角的图标进入个人资料页面。",
     "request_delete": "请求删除",
-    "delete_request_sent": "请检查您的电子邮件以获取删除说明"
-      "delete_account": "删除账户",
-      "delete_account_subtitle": "永久删除您的账户",
-      "delete_confirm": "删除账户？",
-      "delete_message": "此操作将永久删除您的账户及所有数据，无法撤销。"
+    "delete_request_sent": "请检查您的电子邮件以获取删除说明",
+    "delete_account": "删除账户",
+    "delete_account_subtitle": "永久删除您的账户",
+    "delete_confirm": "删除账户？",
+    "delete_message": "此操作将永久删除您的账户及所有数据，无法撤销。"
   },
   "languages": {
     "portuguese": "Português",
@@ -428,5 +428,13 @@
     "viewing_cached": "离线模式 - 正在查看缓存数据",
     "read_only_mode": "只读模式。连接互联网后可编辑。",
     "cannot_edit": "离线无法编辑"
+  },
+  "notification_messages": {
+    "day_before_title": "明天出发！",
+    "day_before_body": "收拾行李吧！你的{destination}之旅明天开始。祝旅途愉快！",
+    "trip_day_title": "冒险今天开始！",
+    "trip_day_body": "今天是大日子！你的{destination}之旅现在开始。打开App查看你的完整行程！",
+    "channel_name": "旅行提醒",
+    "channel_description": "即将到来的旅行提醒通知"
   }
 }

@@ -53,6 +53,7 @@ dependencies:
   easy_localization: ^3.0.7
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
   adapty_flutter: ^3.4.3
   pdf: ^3.11.1
   printing: ^5.13.4

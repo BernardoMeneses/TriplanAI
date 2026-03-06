@@ -172,7 +172,7 @@
     "get_directions": "Get Directions",
     "directions": "Directions",
     "navigation": "Navigation",
-    "tap_to_open_maps": "🗺️ ➤ Tap to open in Maps",
+    "tap_to_open_maps": "➤ Tap to open in Maps",
     "transport_mode": "Transport mode",
     "transport_mode_updated": "Transport mode updated",
     "transport": {
@@ -433,5 +433,13 @@
     "viewing_cached": "Offline mode - viewing cached data",
     "read_only_mode": "Read-only mode. Connect to the internet to edit.",
     "cannot_edit": "Cannot edit offline"
+  },
+  "notification_messages": {
+    "day_before_title": "Trip Tomorrow!",
+    "day_before_body": "Pack your bags! Your trip to {destination} starts tomorrow. Bon voyage!",
+    "trip_day_title": "The adventure starts TODAY!",
+    "trip_day_body": "Today is the big day! Your trip to {destination} starts now. Open the app and check your full itinerary!",
+    "channel_name": "Trip Reminders",
+    "channel_description": "Notifications to remind you of upcoming trips"
   }
 }

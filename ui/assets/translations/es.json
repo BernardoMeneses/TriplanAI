@@ -166,7 +166,7 @@
     "get_directions": "Obtener Direcciones",
     "directions": "Direcciones",
     "navigation": "Navegación",
-    "tap_to_open_maps": "🗺️ ➤ Toca para abrir en Maps",
+    "tap_to_open_maps": "➤ Toca para abrir en Maps",
     "transport_mode": "Modo de transporte",
     "transport_mode_updated": "Modo de transporte actualizado",
     "transport": {
@@ -416,8 +416,8 @@
     "viewing_cached": "Modo sin conexión - viendo datos en caché",
     "read_only_mode": "Modo de solo lectura. Conéctate a internet para editar.",
     "cannot_edit": "No se puede editar sin conexión"
-  }
-    "notes": {
+  },
+  "notes": {
       "title": "Notas",
       "new_note": "Nueva nota",
       "no_notes": "Aún no hay notas",
@@ -427,5 +427,13 @@
       "delete_message": "¿Estás seguro de que deseas eliminar esta nota? Esta acción no se puede deshacer.",
       "note_placeholder": "Escribe tu nota aquí...",
       "save": "Guardar"
-    }
+    },
+  "notification_messages": {
+    "day_before_title": "¡Viaje Mañana!",
+    "day_before_body": "¡Prepara las maletas! Tu viaje a {destination} empieza mañana. ¡Buen viaje!",
+    "trip_day_title": "¡La aventura empieza HOY!",
+    "trip_day_body": "¡Hoy es el gran día! Tu viaje a {destination} empieza ahora. ¡Abre la app y revisa tu itinerario completo!",
+    "channel_name": "Recordatorios de Viaje",
+    "channel_description": "Notificaciones para recordar viajes próximos"
+  }
 }

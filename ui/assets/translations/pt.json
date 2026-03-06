@@ -169,7 +169,7 @@
     "get_directions": "Obter Direções",
     "directions": "Direções",
     "navigation": "Navegação",
-    "tap_to_open_maps": "🗺️ ➤ Toque para abrir no Maps",
+    "tap_to_open_maps": "➤ Toque para abrir no Maps",
     "transport_mode": "Modo de transporte",
     "transport_mode_updated": "Modo de transporte atualizado",
     "transport": {
@@ -432,5 +432,13 @@
     "viewing_cached": "Modo offline - a visualizar dados em cache",
     "read_only_mode": "Modo de leitura apenas. Liga-te à internet para editar.",
     "cannot_edit": "Não é possível editar offline"
+  },
+  "notification_messages": {
+    "day_before_title": "Viagem Amanhã!",
+    "day_before_body": "Prepara as malas! A tua viagem a {destination} começa amanhã. Boas viagens!",
+    "trip_day_title": "A aventura começa HOJE!",
+    "trip_day_body": "Hoje é o grande dia! A tua viagem a {destination} começa agora. Abre a app e confere o teu roteiro completo!",
+    "channel_name": "Lembretes de Viagem",
+    "channel_description": "Notificações para lembrar de viagens próximas"
   }
 }

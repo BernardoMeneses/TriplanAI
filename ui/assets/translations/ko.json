@@ -167,7 +167,7 @@
     "get_directions": "경로 안내",
     "directions": "경로",
     "navigation": "내비게이션",
-    "tap_to_open_maps": "🗺️ ➤ 지도에서 열려면 탭하세요",
+    "tap_to_open_maps": "➤ 지도에서 열려면 탭하세요",
     "transport_mode": "교통수단",
     "transport_mode_updated": "교통수단이 업데이트되었습니다",
     "transport": {
@@ -429,5 +429,13 @@
     "viewing_cached": "오프라인 모드 - 캐시된 데이터 보기",
     "read_only_mode": "읽기 전용 모드입니다. 편집하려면 인터넷에 연결하세요.",
     "cannot_edit": "오프라인에서는 편집할 수 없습니다"
+  },
+  "notification_messages": {
+    "day_before_title": "내일 출발!",
+    "day_before_body": "짐을 챙기세요! {destination} 여행이 내일 시작됩니다. 좋은 여행 되세요!",
+    "trip_day_title": "모험이 오늘 시작됩니다!",
+    "trip_day_body": "오늘이 바로 그 날입니다! {destination} 여행이 시작됩니다. 앱을 열고 전체 일정을 확인하세요!",
+    "channel_name": "여행 알림",
+    "channel_description": "다가오는 여행을 알려주는 알림"
   }
 }

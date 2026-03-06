@@ -166,7 +166,7 @@
     "get_directions": "経路を取得",
     "directions": "経路",
     "navigation": "ナビゲーション",
-    "tap_to_open_maps": "🗺️ ➤ タップしてマップで開く",
+    "tap_to_open_maps": "➤ タップしてマップで開く",
     "transport_mode": "交通手段",
     "transport_mode_updated": "交通手段が更新されました",
     "transport": {
@@ -430,5 +430,13 @@
     "viewing_cached": "オフラインモード - キャッシュデータを表示中",
     "read_only_mode": "読み取り専用モード。編集するにはインターネットに接続してください。",
     "cannot_edit": "オフラインでは編集できません"
+  },
+  "notification_messages": {
+    "day_before_title": "明日出発！",
+    "day_before_body": "荷造りを！{destination}への旅が明日始まります。良い旅を！",
+    "trip_day_title": "冒険は今日始まる！",
+    "trip_day_body": "今日がその日です！{destination}への旅が始まります。アプリを開いて旅程を確認しよう！",
+    "channel_name": "旅行リマインダー",
+    "channel_description": "旅行の予定を通知するリマインダー"
   }
 }

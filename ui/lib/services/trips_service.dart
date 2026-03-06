@@ -36,19 +36,19 @@ class TripsService {
     final response = await _apiService.post('/trips', body: body);
     final trip = Trip.fromJson(response);
     
-    // Agendar notificação 1 dia antes da viagem
+    // Agendar notificações para a viagem
     try {
-      await _notificationService.scheduleTripNotification(
-        tripId: int.parse(trip.id),
+      await _notificationService.scheduleTripNotifications(
+        tripId: trip.id,
         destination: destinationCity,
         startDate: startDate,
       );
       if (kDebugMode) {
-        print('✅ Notificação agendada para viagem: $title');
+        print('✅ Notificações agendadas para viagem: $title');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ Erro ao agendar notificação: $e');
+        print('⚠️ Erro ao agendar notificações: $e');
       }
     }
     
@@ -99,23 +99,21 @@ class TripsService {
     final response = await _apiService.put('/trips/$tripId', body: body);
     final trip = Trip.fromJson(response);
     
-    // Se a data de início mudou, reagendar notificação
+    // Se a data de início mudou, reagendar notificações
     if (startDate != null && destinationCity != null) {
       try {
-        // Cancelar notificação antiga
-        await _notificationService.cancelTripNotification(int.parse(trip.id));
-        // Agendar nova notificação
-        await _notificationService.scheduleTripNotification(
-          tripId: int.parse(trip.id),
+        await _notificationService.cancelTripNotifications(trip.id);
+        await _notificationService.scheduleTripNotifications(
+          tripId: trip.id,
           destination: destinationCity,
           startDate: startDate,
         );
         if (kDebugMode) {
-          print('✅ Notificação reagendada para viagem: ${trip.id}');
+          print('✅ Notificações reagendadas para viagem: ${trip.id}');
         }
       } catch (e) {
         if (kDebugMode) {
-          print('⚠️ Erro ao reagendar notificação: $e');
+          print('⚠️ Erro ao reagendar notificações: $e');
         }
       }
     }
@@ -125,16 +123,15 @@ class TripsService {
 
   // Deletar viagem
   Future<void> deleteTrip(String tripId) async {
-    // Cancelar notificação antes de deletar
+    // Cancelar notificações antes de deletar
     try {
-      final tripIdInt = int.parse(tripId);
-      await _notificationService.cancelTripNotification(tripIdInt);
+      await _notificationService.cancelTripNotifications(tripId);
       if (kDebugMode) {
-        print('✅ Notificação cancelada para viagem: $tripId');
+        print('✅ Notificações canceladas para viagem: $tripId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ Erro ao cancelar notificação: $e');
+        print('⚠️ Erro ao cancelar notificações: $e');
       }
     }
     

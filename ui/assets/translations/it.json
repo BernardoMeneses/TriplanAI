@@ -167,7 +167,7 @@
     "get_directions": "indicazioni",
     "directions": "Indicazioni",
     "navigation": "Navigazione",
-    "tap_to_open_maps": "🗺️ ➤ Tocca per aprire in Mappe",
+    "tap_to_open_maps": "➤ Tocca per aprire in Mappe",
     "transport_mode": "Mezzo di trasporto",
     "transport_mode_updated": "Mezzo di trasporto aggiornato",
     "transport": {
@@ -429,5 +429,13 @@
     "viewing_cached": "Modalità offline - Visualizzazione dati memorizzati",
     "read_only_mode": "Modalità sola lettura. Connettiti a internet per modificare.",
     "cannot_edit": "Impossibile modificare offline"
+  },
+  "notification_messages": {
+    "day_before_title": "Viaggio Domani!",
+    "day_before_body": "Prepara le valigie! Il tuo viaggio a {destination} inizia domani. Buon viaggio!",
+    "trip_day_title": "L'avventura inizia OGGI!",
+    "trip_day_body": "Oggi è il grande giorno! Il tuo viaggio a {destination} inizia ora. Apri l'app e controlla il tuo itinerario completo!",
+    "channel_name": "Promemoria di Viaggio",
+    "channel_description": "Notifiche per ricordare i viaggi in arrivo"
   }
 }

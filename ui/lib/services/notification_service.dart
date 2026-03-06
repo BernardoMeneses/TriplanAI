@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -15,13 +17,31 @@ class NotificationService {
   static const String _notificationsEnabledKey = 'notifications_enabled';
   bool _isInitialized = false;
 
+  /// Converte um UUID string num int estável para usar como notification ID
+  static int tripIdToNotificationId(String tripId) {
+    return tripId.hashCode & 0x7FFFFFFF; // garante positivo
+  }
+
   /// Inicializa o serviço de notificações
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // Inicializar timezone
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Europe/Lisbon'));
+    // Inicializar timezone data
+    tzdata.initializeTimeZones();
+
+    // Detetar timezone do dispositivo
+    try {
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      if (kDebugMode) {
+        print('🕐 Timezone detetada: $timeZoneName');
+      }
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation('Europe/Lisbon'));
+      if (kDebugMode) {
+        print('🕐 Fallback timezone: Europe/Lisbon');
+      }
+    }
 
     // Configurações para Android
     const AndroidInitializationSettings androidSettings =
@@ -52,14 +72,12 @@ class NotificationService {
     if (kDebugMode) {
       print('Notificação clicada: ${response.payload}');
     }
-    // Aqui pode navegar para a página da viagem usando o payload (trip_id)
   }
 
   /// Pedir permissões para notificações (iOS e Android 13+)
   Future<bool> requestPermissions() async {
     if (!_isInitialized) await initialize();
 
-    // Pedir permissões para iOS
     final iosImplementation = _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>();
@@ -73,13 +91,11 @@ class NotificationService {
       return result ?? false;
     }
 
-    // Pedir permissões para Android 13+ (API 33+)
     final androidImplementation = _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
     
     if (androidImplementation != null) {
-      // Request POST_NOTIFICATIONS permission for Android 13+
       final bool? result = await androidImplementation.requestNotificationsPermission();
       return result ?? true;
     }
@@ -90,7 +106,7 @@ class NotificationService {
   /// Verifica se as notificações estão ativas
   Future<bool> areNotificationsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_notificationsEnabledKey) ?? true; // Por padrão ativo
+    return prefs.getBool(_notificationsEnabledKey) ?? true;
   }
 
   /// Ativa/desativa notificações
@@ -99,87 +115,111 @@ class NotificationService {
     await prefs.setBool(_notificationsEnabledKey, enabled);
 
     if (!enabled) {
-      // Se desativar, cancela todas as notificações agendadas
       await cancelAllNotifications();
     }
   }
 
-  /// Agenda notificação 1 dia antes da viagem
-  Future<void> scheduleTripNotification({
-    required int tripId,
+  /// Agenda notificações para uma viagem:
+  /// - 1 dia antes às 09:00 ("Viagem Amanhã!")
+  /// - No próprio dia às 08:00 ("A aventura começa hoje!")
+  Future<void> scheduleTripNotifications({
+    required String tripId,
     required String destination,
     required DateTime startDate,
   }) async {
     if (!_isInitialized) await initialize();
 
-    // Verificar se notificações estão ativas
     final enabled = await areNotificationsEnabled();
     if (!enabled) return;
 
-    // Calcular data da notificação (1 dia antes às 9:00 da manhã)
-    final notificationDate = DateTime(
+    final baseId = tripIdToNotificationId(tripId);
+    final now = tz.TZDateTime.now(tz.local);
+
+    // ── Notificação 1: Dia anterior às 09:00 ──
+    final scheduledDayBefore = tz.TZDateTime(
+      tz.local,
       startDate.year,
       startDate.month,
       startDate.day - 1,
-      9, // 9:00 AM
-      0,
+      9, 0,
     );
 
-    // Não agendar se a data já passou
-    if (notificationDate.isBefore(DateTime.now())) {
+    if (scheduledDayBefore.isAfter(now)) {
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        baseId,
+        'notification_messages.day_before_title'.tr(),
+        'notification_messages.day_before_body'.tr(namedArgs: {'destination': destination}),
+        scheduledDayBefore,
+        _buildNotificationDetails(),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'trip_$tripId',
+      );
+
       if (kDebugMode) {
-        print('Data da notificação já passou: $notificationDate');
+        print('📅 Notificação dia anterior agendada: $scheduledDayBefore - $destination');
       }
-      return;
+    } else if (kDebugMode) {
+      print('⏭️ Notificação dia anterior ignorada (já passou): $scheduledDayBefore');
     }
 
-    final tz.TZDateTime scheduledDate = tz.TZDateTime.from(
-      notificationDate,
+    // ── Notificação 2: No próprio dia às 08:00 ──
+    final scheduledTripDay = tz.TZDateTime(
       tz.local,
+      startDate.year,
+      startDate.month,
+      startDate.day,
+      8, 0,
     );
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'trip_reminders',
-      'Lembretes de Viagem',
-      channelDescription: 'Notificações para lembrar de viagens próximas',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    );
+    if (scheduledTripDay.isAfter(now)) {
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        baseId + 1,
+        'notification_messages.trip_day_title'.tr(),
+        'notification_messages.trip_day_body'.tr(namedArgs: {'destination': destination}),
+        scheduledTripDay,
+        _buildNotificationDetails(),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'trip_$tripId',
+      );
 
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const NotificationDetails details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _flutterLocalNotificationsPlugin.zonedSchedule(
-      tripId, // ID único baseado no trip_id
-      'Viagem Amanhã! ✈️',
-      'A sua viagem a $destination irá começar amanhã',
-      scheduledDate,
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: 'trip_$tripId', // Para identificar a viagem quando clicar
-    );
-
-    if (kDebugMode) {
-      print('Notificação agendada para $scheduledDate - Viagem: $destination');
+      if (kDebugMode) {
+        print('🌅 Notificação dia da viagem agendada: $scheduledTripDay - $destination');
+      }
+    } else if (kDebugMode) {
+      print('⏭️ Notificação dia da viagem ignorada (já passou): $scheduledTripDay');
     }
   }
 
-  /// Cancela notificação de uma viagem específica
-  Future<void> cancelTripNotification(int tripId) async {
-    await _flutterLocalNotificationsPlugin.cancel(tripId);
+  /// Constrói detalhes de notificação com textos traduzidos
+  NotificationDetails _buildNotificationDetails() {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        'trip_reminders',
+        'notification_messages.channel_name'.tr(),
+        channelDescription: 'notification_messages.channel_description'.tr(),
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+  }
+
+  /// Cancela todas as notificações de uma viagem (dia anterior + próprio dia)
+  Future<void> cancelTripNotifications(String tripId) async {
+    final baseId = tripIdToNotificationId(tripId);
+    await _flutterLocalNotificationsPlugin.cancel(baseId);     // dia anterior
+    await _flutterLocalNotificationsPlugin.cancel(baseId + 1); // próprio dia
     if (kDebugMode) {
-      print('Notificação cancelada para viagem ID: $tripId');
+      print('🗑️ Notificações canceladas para viagem: $tripId');
     }
   }
 
@@ -187,7 +227,7 @@ class NotificationService {
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
     if (kDebugMode) {
-      print('Todas as notificações foram canceladas');
+      print('🗑️ Todas as notificações foram canceladas');
     }
   }
 
@@ -218,7 +258,7 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.show(
       0,
       'Teste de Notificação',
-      'As notificações estão a funcionar! 🎉',
+      'As notificações estão a funcionar!',
       details,
     );
   }
