@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../common/app_colors.dart';
 import '../../services/theme_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/subscription_service.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../common/constants/app_constants.dart';
 
@@ -11,7 +12,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onFavoritesTap;
   final List<Widget>? actions;
   final VoidCallback? onNotesTap;
-  final bool isPremium;
+  final SubscriptionStatus? subscriptionStatus;
 
   const CustomAppBar({
     super.key,
@@ -20,7 +21,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onFavoritesTap,
     this.actions,
     this.onNotesTap,
-    this.isPremium = false,
+    this.subscriptionStatus,
   });
 
   @override
@@ -44,26 +45,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         // Custom actions if provided
         if (actions != null) ...actions!,
+        // Medalha Premium (separada, à esquerda dos favoritos)
+        if (subscriptionStatus != null && subscriptionStatus!.isPaid)
+          IconButton(
+            icon: Icon(
+              Icons.workspace_premium,
+              color: Colors.amber,
+              size: 28,
+            ),
+            onPressed: () => _showPlanInfoModal(context),
+            tooltip: AppConstants.premium.tr(),
+          ),
         // Botão de Favoritos
         if (onFavoritesTap != null)
           IconButton(
-            icon: isPremium
-                ? Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Icon(Icons.bookmark_border, color: AppColors.primary),
-                      Positioned(
-                        right: -6,
-                        top: -4,
-                        child: Icon(
-                          Icons.workspace_premium,
-                          size: 14,
-                          color: Colors.amber,
-                        ),
-                      ),
-                    ],
-                  )
-                : Icon(Icons.bookmark_border, color: AppColors.primary),
+            icon: Icon(
+              Icons.bookmark_border,
+              color: AppColors.primary,
+            ),
             onPressed: onFavoritesTap,
             tooltip: AppConstants.favorites.tr(),
           ),
@@ -130,5 +129,167 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             : null,
       ),
     );
+  }
+
+  void _showPlanInfoModal(BuildContext context) {
+    final status = subscriptionStatus!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final planName = status.isPremium
+        ? 'subscription.premium'.tr()
+        : status.isBasic
+            ? 'subscription.basic'.tr()
+            : 'subscription.free'.tr();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Ícone do plano
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.amber.withValues(alpha: 0.15),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.amber,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Nome do plano
+              Text(
+                planName,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'subscription.current_plan'.tr(),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Detalhes do plano
+              _planInfoRow(
+                Icons.card_travel,
+                status.limits.isUnlimitedTrips
+                    ? 'subscription.unlimited_trips'.tr()
+                    : '${status.limits.maxTrips} ${'subscription.trips'.tr()}',
+                isDark,
+              ),
+              const SizedBox(height: 10),
+              _planInfoRow(
+                Icons.auto_awesome,
+                status.limits.isUnlimitedAI
+                    ? 'subscription.unlimited_ai'.tr()
+                    : '${status.aiGenerationsRemaining}/${status.limits.aiGenerationsPerMonth} ${'subscription.ai_month'.tr()}',
+                isDark,
+              ),
+              const SizedBox(height: 10),
+              _planInfoRow(
+                Icons.picture_as_pdf,
+                'subscription.export_pdf'.tr(),
+                isDark,
+                enabled: status.limits.canExportPdf,
+              ),
+              const SizedBox(height: 10),
+              _planInfoRow(
+                Icons.cloud_upload,
+                'subscription.cloud_backup'.tr(),
+                isDark,
+                enabled: status.limits.canBackupCloud,
+              ),
+              const SizedBox(height: 10),
+              _planInfoRow(
+                Icons.block,
+                'subscription.no_ads'.tr(),
+                isDark,
+                enabled: !status.limits.hasAds,
+              ),
+              // Data de expiração
+              if (status.subscriptionExpiresAt != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  '${AppConstants.premiumExpires.tr()} ${_formatDate(status.subscriptionExpiresAt!)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              // Botão fechar
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    'OK',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _planInfoRow(IconData icon, String label, bool isDark, {bool enabled = true}) {
+    return Row(
+      children: [
+        Icon(
+          enabled ? icon : Icons.lock_outline,
+          size: 20,
+          color: enabled ? AppColors.primary : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: enabled
+                  ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+            ),
+          ),
+        ),
+        Icon(
+          enabled ? Icons.check_circle : Icons.cancel,
+          size: 18,
+          color: enabled ? Colors.green : Colors.red.shade300,
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

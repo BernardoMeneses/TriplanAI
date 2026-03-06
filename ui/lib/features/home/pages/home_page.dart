@@ -32,7 +32,7 @@ class _HomePageState extends State<HomePage> {
   List<Trip> _pastTrips = [];
   bool _isLoading = true;
   bool _isOfflineMode = false;
-  bool _isPremium = false;
+  SubscriptionStatus? _subscriptionStatus;
 
   final Map<String, String?> _tripImages = {};
 
@@ -53,7 +53,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkPremiumStatus() async {
     try {
       final status = await SubscriptionService().getStatus();
-      if (mounted) setState(() => _isPremium = status.isPremium);
+      if (mounted) setState(() => _subscriptionStatus = status);
     } catch (_) {}
   }
 
@@ -172,7 +172,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: CustomAppBar(
         title: AppConstants.homeTitle.tr(),
-        isPremium: _isPremium,
+        subscriptionStatus: _subscriptionStatus,
         onFavoritesTap: () {
           Navigator.push(
             context,
