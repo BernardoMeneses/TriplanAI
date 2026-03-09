@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:triplan_ai_front/common/constants/app_constants.dart';
+import 'package:triplan_ai_front/shared/widgets/snackbar_helper.dart';
 import '../../../common/app_colors.dart';
 import '../../../services/auth_service.dart';
 import 'register_page.dart';
@@ -114,12 +115,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('auth.google_register_error'.tr(args: [errorMsg.replaceAll('AuthException: ', '')])),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, 'auth.google_register_error'.tr(args: [errorMsg.replaceAll('AuthException: ', '')]));
       }
     } finally {
       if (mounted) {
@@ -176,14 +172,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Erro ao registar com Apple: ${e.toString().replaceAll('AuthException: ', '')}',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, AppConstants.appleRegisterError.tr(args: [e.toString().replaceAll('AuthException: ', '')]));
       }
     } finally {
       if (mounted) {

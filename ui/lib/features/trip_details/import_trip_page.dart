@@ -10,6 +10,7 @@ import '../../services/trips_service.dart';
 import '../../services/encryption_service.dart';
 import '../../common/app_events.dart';
 import '../../services/trip_cache_service.dart';
+import '../../shared/widgets/snackbar_helper.dart';
 
 class ImportTripPage extends StatefulWidget {
   const ImportTripPage({super.key});
@@ -90,24 +91,14 @@ class _ImportTripPageState extends State<ImportTripPage> {
           });
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                    content: Text('${AppConstants.fileInvalidOrCorrupted.tr()}: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-            );
+            SnackBarHelper.showError(context, '${AppConstants.fileInvalidOrCorrupted.tr()}: $e');
           }
           return;
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppConstants.errorReadingFile.tr()}: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorReadingFile.tr()}: $e');
       }
     }
   }
@@ -115,9 +106,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
   Future<void> _fetchByCode() async {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppConstants.enterCodePrompt.tr()), backgroundColor: Colors.red),
-      );
+      if (mounted) SnackBarHelper.showError(context, AppConstants.enterCodePrompt.tr());
       return;
     }
 
@@ -132,9 +121,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
 
       // If backend signals that the trip is owned by this user, prevent import
       if (data is Map<String, dynamic> && data['owned'] == true) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppConstants.tripAlreadyOwned.tr()), backgroundColor: Colors.orange),
-        );
+        if (mounted) SnackBarHelper.showWarning(context, AppConstants.tripAlreadyOwned.tr());
         setState(() {
           _tripPreview = null;
           _selectedFilePath = null;
@@ -157,13 +144,9 @@ class _ImportTripPageState extends State<ImportTripPage> {
       if (mounted) {
         // If API returned not found, show a friendly message
           if (msg.contains('Viagem não encontrada') || msg.toLowerCase().contains('not found')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppConstants.errorNotFound.tr()), backgroundColor: Colors.red),
-          );
+          SnackBarHelper.showError(context, AppConstants.errorNotFound.tr());
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${AppConstants.errorImportingTrip.tr()}: $e'), backgroundColor: Colors.red),
-          );
+          SnackBarHelper.showError(context, '${AppConstants.errorImportingTrip.tr()}: $e');
         }
       }
     } finally {
@@ -220,12 +203,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppConstants.tripImportedSuccess.tr()),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.tripImportedSuccess.tr());
 
         // Add to cache immediately so list views update without waiting for background refresh
         try {
@@ -245,13 +223,9 @@ class _ImportTripPageState extends State<ImportTripPage> {
       final msg = e.toString();
       if (mounted) {
         if (msg.contains('Viagem já importada') || msg.toLowerCase().contains('already imported')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppConstants.tripAlreadyImported.tr()), backgroundColor: Colors.orange),
-          );
+          SnackBarHelper.showWarning(context, AppConstants.tripAlreadyImported.tr());
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${AppConstants.errorImportingTrip.tr()}: $e'), backgroundColor: Colors.red),
-          );
+          SnackBarHelper.showError(context, '${AppConstants.errorImportingTrip.tr()}: $e');
         }
       }
     } finally {

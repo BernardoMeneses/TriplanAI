@@ -17,6 +17,7 @@ import '../../../services/location_service.dart';
 import '../../../shared/widgets/language_selector_dialog.dart';
 import '../../../shared/widgets/upgrade_dialog.dart';
 import '../../premium/subscription_plans_page.dart';
+import '../../../shared/widgets/snackbar_helper.dart';
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback? onLogout;
@@ -81,8 +82,8 @@ class _ProfilePageState extends State<ProfilePage> {
               Expanded(
                 child: Text(
                   value
-                      ? 'Notificações ativadas'
-                      : 'Notificações desativadas',
+                      ? AppConstants.notificationsEnabled.tr()
+                      : AppConstants.notificationsDisabled.tr(),
                 ),
               ),
             ],
@@ -314,12 +315,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: () async {
                     await NotificationService().showTestNotification();
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Notificação de teste enviada!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
+                      SnackBarHelper.showSuccess(context, AppConstants.testNotificationSent.tr());
                     }
                   },
                 ),
@@ -490,9 +486,7 @@ class _ProfilePageState extends State<ProfilePage> {
               title: Text(AppConstants.chooseFromGallery.tr()),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppConstants.inDevelopment.tr())),
-                );
+                SnackBarHelper.showInfo(context, AppConstants.inDevelopment.tr());
               },
             ),
             ListTile(
@@ -500,9 +494,7 @@ class _ProfilePageState extends State<ProfilePage> {
               title: Text(AppConstants.takePhoto.tr()),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppConstants.inDevelopment.tr())),
-                );
+                SnackBarHelper.showInfo(context, AppConstants.inDevelopment.tr());
               },
             ),
             if (AuthService().currentUser?.profilePictureUrl != null)
@@ -511,9 +503,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 title: Text(AppConstants.removePhoto.tr(), style: const TextStyle(color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppConstants.inDevelopment.tr())),
-                  );
+                  SnackBarHelper.showInfo(context, AppConstants.inDevelopment.tr());
                 },
               ),
           ],
@@ -580,12 +570,7 @@ class _ProfilePageState extends State<ProfilePage> {
       final signedIn = await _backupService.signIn();
       if (!signedIn) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('backup.sign_in_failed'.tr()),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          SnackBarHelper.showError(context, 'backup.sign_in_failed'.tr());
         }
         return;
       }
@@ -618,12 +603,7 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('backup.error'.tr(args: [e.toString()])),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        SnackBarHelper.showError(context, 'backup.error'.tr(args: [e.toString()]));
       }
     } finally {
       if (mounted) {
@@ -715,18 +695,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       await ApiService().post('/auth/delete-request', body: {'email': userEmail});
                       if (mounted) {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(
-                            content: Text(AppConstants.deleteRequestSent.tr()),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
+                        SnackBarHelper.showSuccess(this.context, AppConstants.deleteRequestSent.tr());
                       }
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(content: Text('Error: ${e.toString()}')),
-                        );
+                        SnackBarHelper.showError(this.context, '${AppConstants.errorGeneric.tr()}: $e');
                       }
                     }
                   },

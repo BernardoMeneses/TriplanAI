@@ -83,6 +83,7 @@ class _TravelingPageState extends State<TravelingPage> with SingleTickerProvider
               ),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }

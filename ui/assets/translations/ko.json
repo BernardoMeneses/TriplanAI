@@ -82,6 +82,13 @@
     "email_already_registered": "이 이메일은 이미 등록되어 있습니다",
     "verify_email": "이메일 인증",
     "check_email_to_activate": "계정을 활성화하려면 이메일을 확인하세요",
+    "forgot_password_title": "비밀번호를 잊으셨나요?",
+    "email_sent_title": "이메일이 전송되었습니다!",
+    "email_sent_description": "비밀번호 재설정 안내 이메일을 보냈습니다. 받은편지함을 확인하세요.",
+    "forgot_password_description": "걱정 마세요! 이메일을 입력하면 비밀번호 재설정 안내를 보내드립니다.",
+    "send_email": "이메일 보내기",
+    "back_to_login": "로그인으로 돌아가기",
+    "didnt_receive_resend": "받지 못했나요? 다시 보내기",
     "validation": {
       "email_required": "이메일 또는 사용자명이 필요합니다",
       "email_invalid": "잘못된 이메일",
@@ -90,7 +97,8 @@
       "name_required": "이름이 필요합니다",
       "username_required": "사용자명이 필요합니다"
     },
-    "email": "이메일"
+    "email": "이메일",
+    "apple_register_error": "Apple 등록 오류: {0}"
   },
   "home": {
     "title": "홈",
@@ -128,7 +136,9 @@
     "day": "일",
     "day_label": "일차",
     "no_past_trips": "지난 여행이 없습니다",
-    "no_past_trips_subtitle": "아래 플러스 버튼을 눌러 탐험을 시작하고\n새로운 추억을 만들어보세요!"
+    "no_past_trips_subtitle": "아래 플러스 버튼을 눌러 탐험을 시작하고\n새로운 추억을 만들어보세요!",
+    "only_triplan_supported": ".triplan 파일만 지원됩니다",
+    "importing_trip": "여행 가져오는 중..."
   },
   "new_trip": {
     "plan_your_trip": "여행 계획하기",
@@ -242,7 +252,10 @@
     "duration": "시간",
     "current": "현재",
     "move_to_another_day": "다른 날짜로 이동",
-    "duplicate_favorite_message": "이 장소는 이미 즐겨찾기에 있습니다"
+    "duplicate_favorite_message": "이 장소는 이미 즐겨찾기에 있습니다",
+    "place_moved_to_day": "장소가 {}일차로 이동되었습니다",
+    "could_not_open_maps": "Google 지도를 열 수 없습니다",
+    "error_opening_maps": "Google 지도 열기 오류"
   },
   "favorites": {
     "title": "즐겨찾기",
@@ -251,7 +264,8 @@
     "no_favorites_description": "여행을 계획하면서 장소를 즐겨찾기에 추가하세요",
     "remove_favorite": "즐겨찾기에서 제거",
     "removed_from_favorites": "즐겨찾기에서 제거되었습니다",
-    "error_removing_favorite": "즐겨찾기 제거 오류"
+    "error_removing_favorite": "즐겨찾기 제거 오류",
+    "confirm_remove_favorite": "즐겨찾기에서 \"{}\" 을(를) 제거하시겠습니까?"
   },
   "map": {
     "show_route": "경로 표시",
@@ -316,7 +330,10 @@
     "faq_answer_7": "네! 각 여행에는 전용 메모장이 있습니다. 여행 내 메뉴에서 '메모'를 탭하여 메모를 만들고 관리하세요.",
     "faq_answer_8": "프로필의 '언어' 섹션에서 9개의 사용 가능한 언어 중 선택하세요. 변경은 즉시 적용됩니다.",
     "faq_answer_9": "홈페이지 상단 바의 해/달 아이콘을 탭하여 라이트 모드와 다크 모드를 전환합니다.",
-    "faq_answer_10": "프로필의 '계정' 섹션에서 '계정 삭제'를 탭하세요. 이메일로 안내를 받게 됩니다. 이 작업은 영구적이며 모든 데이터가 삭제됩니다."
+    "faq_answer_10": "프로필의 '계정' 섹션에서 '계정 삭제'를 탭하세요. 이메일로 안내를 받게 됩니다. 이 작업은 영구적이며 모든 데이터가 삭제됩니다.",
+    "notifications_enabled": "알림이 활성화되었습니다",
+    "notifications_disabled": "알림이 비활성화되었습니다",
+    "test_notification_sent": "테스트 알림이 전송되었습니다!"
   },
   "languages": {
     "portuguese": "Português",

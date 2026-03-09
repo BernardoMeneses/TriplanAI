@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../common/app_colors.dart';
 import '../../common/constants/app_constants.dart';
+import 'snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../services/subscription_service.dart';
 import 'upgrade_dialog.dart';
@@ -239,13 +240,7 @@ class _AIChatModalState extends State<AIChatModal> {
 
     if (finalPlaceId == null || finalPlaceId.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppConstants.aiChatPlaceNotFound.tr()),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        SnackBarHelper.showError(context, AppConstants.aiChatPlaceNotFound.tr());
       }
       return;
     }

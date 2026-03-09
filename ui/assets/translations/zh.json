@@ -81,13 +81,21 @@
     "email_already_registered": "此邮箱已注册",
     "verify_email": "验证邮箱",
     "check_email_to_activate": "请检查您的邮箱以激活账号",
+    "forgot_password_title": "忘记密码了？",
+    "email_sent_title": "邮件已发送！",
+    "email_sent_description": "我们已发送一封包含重置密码说明的邮件。请检查您的收件箱。",
+    "forgot_password_description": "别担心！输入您的邮箱，我们将发送重置密码的说明。",
+    "send_email": "发送邮件",
+    "back_to_login": "返回登录",
+    "didnt_receive_resend": "没收到？重新发送",
     "validation": {
       "email_required": "需要邮箱或用户名",
       "email_invalid": "无效的邮箱",
       "password_required": "需要密码",
       "password_min_6": "密码至少需要6个字符",
       "name_required": "需要姓名",
-      "username_required": "需要用户名"
+      "username_required": "需要用户名",
+    "apple_register_error": "Apple注册错误：{0}"
     }
   },
   "home": {
@@ -126,7 +134,9 @@
     "day": "天",
     "day_label": "第",
     "no_past_trips": "没有过往旅行",
-    "no_past_trips_subtitle": "点击下面的加号按钮开始探索\n创造新的回忆！"
+    "no_past_trips_subtitle": "点击下面的加号按钮开始探索\n创造新的回忆！",
+    "only_triplan_supported": "仅支持.triplan文件",
+    "importing_trip": "正在导入旅行..."
   },
   "new_trip": {
     "plan_your_trip": "计划您的旅行",
@@ -241,7 +251,10 @@
     "duration": "持续时间",
     "current": "当前",
     "move_to_another_day": "移动到其他日期",
-    "duplicate_favorite_message": "此地点已在收藏中"
+    "duplicate_favorite_message": "此地点已在收藏中",
+    "place_moved_to_day": "地点已移至第{}天",
+    "could_not_open_maps": "无法打开Google地图",
+    "error_opening_maps": "打开Google地图时出错"
   },
   "favorites": {
     "title": "收藏",
@@ -250,7 +263,8 @@
     "no_favorites_description": "在计划旅行时将地点添加到收藏",
     "remove_favorite": "从收藏中移除",
     "removed_from_favorites": "已从收藏中移除",
-    "error_removing_favorite": "移除收藏错误"
+    "error_removing_favorite": "移除收藏错误",
+    "confirm_remove_favorite": "从收藏中移除\"{}\" ？"
   },
   "map": {
     "show_route": "显示路线",
@@ -315,7 +329,10 @@
     "faq_answer_7": "可以！每个旅行都有自己的笔记本。进入旅行的菜单，点击'笔记'即可创建和管理笔记。",
     "faq_answer_8": "前往个人资料，'语言'部分，从9种可用语言中选择。更改立即生效。",
     "faq_answer_9": "点击首页顶部栏的太阳/月亮图标即可在亮色和暗色模式之间切换。",
-    "faq_answer_10": "前往个人资料，'账户'部分，点击'删除账户'。您将通过邮件收到操作指引。此操作不可逆，将永久删除所有数据。"
+    "faq_answer_10": "前往个人资料，'账户'部分，点击'删除账户'。您将通过邮件收到操作指引。此操作不可逆，将永久删除所有数据。",
+    "notifications_enabled": "通知已启用",
+    "notifications_disabled": "通知已禁用",
+    "test_notification_sent": "测试通知已发送！"
   },
   "languages": {
     "portuguese": "Português",

@@ -12,6 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../common/app_colors.dart';
 import '../../common/constants/app_constants.dart';
+import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
 
@@ -709,9 +710,7 @@ class _NavigationPageState extends State<NavigationPage> {
   // Gerar e compartilhar rota em PDF
   Future<void> _downloadRoute() async {
     if (_steps.isEmpty && !_isFlightMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('trip_details.pdf.no_route_available'.tr())),
-      );
+      SnackBarHelper.showWarning(context, 'trip_details.pdf.no_route_available'.tr());
       return;
     }
 
@@ -1029,9 +1028,7 @@ class _NavigationPageState extends State<NavigationPage> {
       if (mounted) Navigator.pop(context);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'trip_details.pdf.error_generating_pdf'.tr()}: $e')),
-        );
+        SnackBarHelper.showError(context, '${'trip_details.pdf.error_generating_pdf'.tr()}: $e');
       }
     }
   }
@@ -1099,13 +1096,7 @@ class _NavigationPageState extends State<NavigationPage> {
 
         // Show success feedback
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppConstants.transportModeUpdated.tr()),
-              backgroundColor: AppColors.primary,
-              duration: const Duration(seconds: 1),
-            ),
-          );
+          SnackBarHelper.showSuccess(context, AppConstants.transportModeUpdated.tr());
         }
       } catch (e) {
         print('Error saving transport mode: $e');
@@ -1176,23 +1167,13 @@ class _NavigationPageState extends State<NavigationPage> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Não foi possível abrir o Google Maps'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarHelper.showError(context, AppConstants.couldNotOpenMaps.tr());
         }
       }
     } catch (e) {
       print('Error opening Google Maps: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao abrir Google Maps: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorOpeningMaps.tr()}: $e');
       }
     }
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../common/app_colors.dart';
+import '../../../common/constants/app_constants.dart';
 import '../../../services/auth_service.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -101,7 +103,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                 // Título
                 Text(
-                  _emailSent ? 'Email enviado!' : 'Esqueceste a password?',
+                  _emailSent ? AppConstants.emailSentTitle.tr() : AppConstants.forgotPasswordTitle.tr(),
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -115,8 +117,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 // Descrição
                 Text(
                   _emailSent
-                      ? 'Enviámos um email com instruções para redefinir a tua password. Verifica a tua caixa de entrada.'
-                      : 'Não te preocupes! Introduz o teu email e vamos enviar-te instruções para redefinir a tua password.',
+                      ? AppConstants.emailSentDescription.tr()
+                      : AppConstants.forgotPasswordDescription.tr(),
                   style: TextStyle(
                     fontSize: 15,
                     color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
@@ -160,7 +162,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     ),
                     decoration: InputDecoration(
-                      labelText: 'Email',
+                      labelText: AppConstants.email.tr(),
                       labelStyle: TextStyle(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
@@ -177,10 +179,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Email é obrigatório';
+                        return AppConstants.emailRequired.tr();
                       }
                       if (!value.contains('@')) {
-                        return 'Email inválido';
+                        return AppConstants.emailInvalid.tr();
                       }
                       return null;
                     },
@@ -210,8 +212,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                          : const Text(
-                        'Enviar email',
+                          : Text(
+                        AppConstants.sendEmail.tr(),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -249,8 +251,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Voltar ao Login',
+                      child: Text(
+                        AppConstants.backToLogin.tr(),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -269,8 +271,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         _emailSent = false;
                       });
                     },
-                    child: const Text(
-                      'Não recebeste? Enviar novamente',
+                    child: Text(
+                      AppConstants.didntReceiveResend.tr(),
                       style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,

@@ -14,6 +14,7 @@ import '../../services/connectivity_service.dart';
 import '../../services/notes_service.dart';
 import '../notes/notes_page.dart';
 import 'day_details_page.dart';
+import '../../shared/widgets/snackbar_helper.dart';
 
 class MyTripPage extends StatefulWidget {
   final Trip trip;
@@ -270,9 +271,7 @@ class _MyTripPageState extends State<MyTripPage> {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: code));
                 Navigator.pop(context);
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(content: Text(AppConstants.codeCopied.tr())),
-                );
+                SnackBarHelper.showSuccess(this.context, AppConstants.codeCopied.tr());
               },
               child: Text(AppConstants.copy.tr()),
             ),
@@ -285,9 +284,7 @@ class _MyTripPageState extends State<MyTripPage> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppConstants.errorSharingTrip.tr()}: $e'), backgroundColor: Colors.red),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorSharingTrip.tr()}: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -336,12 +333,7 @@ class _MyTripPageState extends State<MyTripPage> {
       } catch (_) {}
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppConstants.tripDeletedSuccess.tr()),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.tripDeletedSuccess.tr());
         // Emit event to inform other pages
         try { AppEvents.emitTripsChanged(); } catch (_) {}
         // Voltar para home após apagar
@@ -349,12 +341,7 @@ class _MyTripPageState extends State<MyTripPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppConstants.errorDeletingTrip.tr()}: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorDeletingTrip.tr()}: $e');
       }
     } finally {
       if (mounted) {

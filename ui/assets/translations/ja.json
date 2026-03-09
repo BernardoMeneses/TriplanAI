@@ -72,6 +72,13 @@
     "email_already_registered": "このメールアドレスは既に登録されています",
     "verify_email": "メール認証",
     "check_email_to_activate": "アカウントを有効化するためにメールを確認してください",
+    "forgot_password_title": "パスワードをお忘れですか？",
+    "email_sent_title": "メールを送信しました！",
+    "email_sent_description": "パスワードリセットの手順を記載したメールを送信しました。受信トレイをご確認ください。",
+    "forgot_password_description": "ご安心ください！メールアドレスを入力してください。パスワードリセットの手順をお送りします。",
+    "send_email": "メールを送信",
+    "back_to_login": "ログインに戻る",
+    "didnt_receive_resend": "届かない？再送信",
     "validation": {
       "email_required": "メールアドレスまたはユーザー名が必要です",
       "email_invalid": "無効なメールアドレス",
@@ -80,7 +87,8 @@
       "name_required": "名前が必要です",
       "username_required": "ユーザー名が必要です"
     },
-    "email": "メールアドレス"
+    "email": "メールアドレス",
+    "apple_register_error": "Appleでの登録エラー: {0}"
   },
   "home": {
     "title": "ホーム",
@@ -127,7 +135,9 @@
     "day": "日",
     "day_label": "日目",
     "no_past_trips": "過去の旅行はありません",
-    "no_past_trips_subtitle": "下のプラスボタンを押して探索を開始し\n新しい思い出を作りましょう！"
+    "no_past_trips_subtitle": "下のプラスボタンを押して探索を開始し\n新しい思い出を作りましょう！",
+    "only_triplan_supported": ".triplanファイルのみサポートされています",
+    "importing_trip": "旅行をインポート中..."
   },
   "new_trip": {
     "plan_your_trip": "旅行を計画",
@@ -243,7 +253,10 @@
     "duration": "時間",
     "current": "現在",
     "move_to_another_day": "別の日付に移動",
-    "duplicate_favorite_message": "この場所は既にお気に入りにあります"
+    "duplicate_favorite_message": "この場所は既にお気に入りにあります",
+    "place_moved_to_day": "場所を{}日目に移動しました",
+    "could_not_open_maps": "Googleマップを開けませんでした",
+    "error_opening_maps": "Googleマップを開く際にエラーが発生しました"
   },
   "favorites": {
     "title": "お気に入り",
@@ -252,7 +265,8 @@
     "no_favorites_description": "旅行を計画しながら場所をお気に入りに追加しましょう",
     "remove_favorite": "お気に入りから削除",
     "removed_from_favorites": "お気に入りから削除されました",
-    "error_removing_favorite": "お気に入り削除エラー"
+    "error_removing_favorite": "お気に入り削除エラー",
+    "confirm_remove_favorite": "\"{}\" をお気に入りから削除しますか？"
   },
   "map": {
     "show_route": "ルートを表示",
@@ -317,7 +331,10 @@
     "faq_answer_7": "はい！各旅行には専用のメモ帳があります。旅行内のメニューから'メモ'をタップして、メモを作成・管理できます。",
     "faq_answer_8": "プロフィールの'言語'セクションで、9つの利用可能な言語から選択します。変更は即座に反映されます。",
     "faq_answer_9": "ホームページ上部バーの太陽/月アイコンをタップして、ライトモードとダークモードを切り替えます。",
-    "faq_answer_10": "プロフィールの'アカウント'セクションで'アカウント削除'をタップします。メールで手順が届きます。この操作は永久的で、すべてのデータが削除されます。"
+    "faq_answer_10": "プロフィールの'アカウント'セクションで'アカウント削除'をタップします。メールで手順が届きます。この操作は永久的で、すべてのデータが削除されます。",
+    "notifications_enabled": "通知が有効になりました",
+    "notifications_disabled": "通知が無効になりました",
+    "test_notification_sent": "テスト通知を送信しました！"
   },
   "languages": {
     "portuguese": "Português",

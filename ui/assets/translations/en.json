@@ -84,7 +84,15 @@
     "go_to_login": "Go to Login",
     "email_already_registered": "This email is already registered",
     "verify_email": "Verify Email",
-    "check_email_to_activate": "Check your email to activate your account"
+    "check_email_to_activate": "Check your email to activate your account",
+    "apple_register_error": "Error registering with Apple: {0}",
+    "forgot_password_title": "Forgot your password?",
+    "email_sent_title": "Email sent!",
+    "email_sent_description": "We sent an email with instructions to reset your password. Check your inbox.",
+    "forgot_password_description": "Don't worry! Enter your email and we'll send you instructions to reset your password.",
+    "send_email": "Send email",
+    "back_to_login": "Back to Login",
+    "didnt_receive_resend": "Didn't receive it? Send again"
   },
   "home": {
     "title": "Home",
@@ -133,7 +141,9 @@
     "day": "day",
     "day_label": "Day",
     "no_past_trips": "No past trips",
-    "no_past_trips_subtitle": "Press the plus button below to start exploring\nand create new memories!"
+    "no_past_trips_subtitle": "Press the plus button below to start exploring\nand create new memories!",
+    "only_triplan_supported": "Only .triplan files are supported",
+    "importing_trip": "Importing trip..."
   },
   "new_trip": {
     "plan_your_trip": "Plan your trip",
@@ -247,7 +257,10 @@
     "duration": "Duration,",
     "current": "Current",
     "move_to_another_day": "Move to another day",
-    "duplicate_favorite_message": "This place is already in favorites"
+    "duplicate_favorite_message": "This place is already in favorites",
+    "place_moved_to_day": "Place moved to Day {}",
+    "could_not_open_maps": "Could not open Google Maps",
+    "error_opening_maps": "Error opening Google Maps"
   },
   "favorites": {
     "title": "Favorites",
@@ -256,7 +269,8 @@
     "no_favorites_description": "Add places to favorites while planning your trips",
     "remove_favorite": "Remove from favorites",
     "removed_from_favorites": "Removed from favorites",
-    "error_removing_favorite": "Error removing favorite"
+    "error_removing_favorite": "Error removing favorite",
+    "confirm_remove_favorite": "Remove \"{}\" from favorites?"
   },
   "map": {
     "show_route": "Show route",
@@ -321,7 +335,10 @@
     "faq_answer_7": "Yes! Each trip has its own notepad. Access the menu inside a trip and tap 'Notes' to create and manage your notes.",
     "faq_answer_8": "Go to your profile, 'Language' section, and choose from 9 available languages. The change is applied immediately.",
     "faq_answer_9": "Tap the sun/moon icon on the top bar of the home page to toggle between light and dark modes.",
-    "faq_answer_10": "Go to your profile, 'Account' section, and tap 'Delete account'. You'll receive instructions via email. This action is permanent and will erase all your data."
+    "faq_answer_10": "Go to your profile, 'Account' section, and tap 'Delete account'. You'll receive instructions via email. This action is permanent and will erase all your data.",
+    "notifications_enabled": "Notifications enabled",
+    "notifications_disabled": "Notifications disabled",
+    "test_notification_sent": "Test notification sent!"
   },
   "languages": {
     "portuguese": "Português",

@@ -72,6 +72,13 @@
     "email_already_registered": "Questa email è già registrata",
     "verify_email": "Verifica Email",
     "check_email_to_activate": "Controlla la tua email per attivare il tuo account",
+    "forgot_password_title": "Hai dimenticato la password?",
+    "email_sent_title": "Email inviata!",
+    "email_sent_description": "Abbiamo inviato un'email con le istruzioni per reimpostare la password. Controlla la tua casella di posta.",
+    "forgot_password_description": "Non preoccuparti! Inserisci la tua email e ti invieremo le istruzioni per reimpostare la password.",
+    "send_email": "Invia email",
+    "back_to_login": "Torna al Login",
+    "didnt_receive_resend": "Non l'hai ricevuta? Invia di nuovo",
     "validation": {
       "email_required": "Email o nome utente richiesto",
       "email_invalid": "Email non valida",
@@ -80,7 +87,8 @@
       "name_required": "Nome richiesto",
       "username_required": "Nome utente richiesto"
     },
-    "email": "Email"
+    "email": "Email",
+    "apple_register_error": "Errore nella registrazione con Apple: {0}"
   },
   "home": {
     "title": "Home",
@@ -127,7 +135,9 @@
     "day": "giorno",
     "day_label": "Giorno",
     "no_past_trips": "Nessun viaggio passato",
-    "no_past_trips_subtitle": "Premi il pulsante più sotto per iniziare a esplorare\ne creare nuovi ricordi!"
+    "no_past_trips_subtitle": "Premi il pulsante più sotto per iniziare a esplorare\ne creare nuovi ricordi!",
+    "only_triplan_supported": "Sono supportati solo i file .triplan",
+    "importing_trip": "Importazione viaggio..."
   },
   "new_trip": {
     "plan_your_trip": "Pianifica il tuo viaggio",
@@ -241,7 +251,10 @@
     "duration": "Durata",
     "current": "Corrente",
     "move_to_another_day": "Sposta verso un altro giorno",
-    "duplicate_favorite_message": "Questo luogo è già nei preferiti"
+    "duplicate_favorite_message": "Questo luogo è già nei preferiti",
+    "place_moved_to_day": "Luogo spostato al Giorno {}",
+    "could_not_open_maps": "Impossibile aprire Google Maps",
+    "error_opening_maps": "Errore nell'apertura di Google Maps"
   },
   "favorites": {
     "title": "Preferiti",
@@ -250,7 +263,8 @@
     "no_favorites_description": "Aggiungi luoghi ai preferiti mentre pianifichi i tuoi viaggi",
     "remove_favorite": "Rimuovi dai preferiti",
     "removed_from_favorites": "Rimosso dai preferiti",
-    "error_removing_favorite": "Errore nella rimozione dai preferiti"
+    "error_removing_favorite": "Errore nella rimozione dai preferiti",
+    "confirm_remove_favorite": "Rimuovere \"{}\" dai preferiti?"
   },
   "map": {
     "show_route": "Mostra percorso",
@@ -315,7 +329,10 @@
     "faq_answer_7": "Sì! Ogni viaggio ha il suo blocco note. Accedi al menu dentro il viaggio e tocca 'Note' per creare e gestire le tue note.",
     "faq_answer_8": "Vai al tuo profilo, sezione 'Lingua', e scegli tra le 9 lingue disponibili. La modifica viene applicata immediatamente.",
     "faq_answer_9": "Tocca l'icona sole/luna nella barra superiore della pagina principale per alternare tra modalità chiara e scura.",
-    "faq_answer_10": "Vai al tuo profilo, sezione 'Account', e tocca 'Elimina account'. Riceverai istruzioni via email. Questa azione è permanente e cancellerà tutti i tuoi dati."
+    "faq_answer_10": "Vai al tuo profilo, sezione 'Account', e tocca 'Elimina account'. Riceverai istruzioni via email. Questa azione è permanente e cancellerà tutti i tuoi dati.",
+    "notifications_enabled": "Notifiche attivate",
+    "notifications_disabled": "Notifiche disattivate",
+    "test_notification_sent": "Notifica di prova inviata!"
   },
   "languages": {
     "portuguese": "Português",

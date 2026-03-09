@@ -71,6 +71,13 @@
     "go_to_login": "Aller à la Connexion",
     "check_email_to_activate": "Vérifiez votre email pour activer votre compte",
     "google_register_error": "Erreur lors de l'inscription avec Google: {0}",
+    "forgot_password_title": "Mot de passe oublié ?",
+    "email_sent_title": "Email envoyé !",
+    "email_sent_description": "Nous avons envoyé un email avec des instructions pour réinitialiser votre mot de passe. Vérifiez votre boîte de réception.",
+    "forgot_password_description": "Pas de souci ! Entrez votre email et nous vous enverrons des instructions pour réinitialiser votre mot de passe.",
+    "send_email": "Envoyer l'email",
+    "back_to_login": "Retour à la connexion",
+    "didnt_receive_resend": "Pas reçu ? Renvoyer",
     "or": "ou",
     "validation": {
       "email_required": "L'email est obligatoire",
@@ -79,7 +86,8 @@
       "password_min_6": "Le mot de passe doit contenir au moins 6 caractères",
       "username_required": "Le nom d'utilisateur est obligatoire",
       "username_min_3": "Le nom d'utilisateur doit contenir au moins 3 caractères",
-      "name_required": "Le nom est obligatoire"
+      "name_required": "Le nom est obligatoire",
+    "apple_register_error": "Erreur lors de l'inscription avec Apple : {0}"
     }
   },
   "home": {
@@ -129,7 +137,9 @@
     "day": "jour",
     "day_label": "Jour",
     "no_past_trips": "Pas de voyages passés",
-    "no_past_trips_subtitle": "Appuyez sur le bouton ci-dessous pour commencer à explorer\net créer de nouveaux souvenirs!"
+    "no_past_trips_subtitle": "Appuyez sur le bouton ci-dessous pour commencer à explorer\net créer de nouveaux souvenirs!",
+    "only_triplan_supported": "Seuls les fichiers .triplan sont pris en charge",
+    "importing_trip": "Importation du voyage..."
   },
   "new_trip": {
     "plan_your_trip": "Planifiez votre voyage",
@@ -244,7 +254,10 @@
     "duration": "Durée",
     "current": "Actuel",
     "move_to_another_day": "Déplacer vers un autre jour",
-    "duplicate_favorite_message": "Ce lieu est déjà dans vos favoris"
+    "duplicate_favorite_message": "Ce lieu est déjà dans vos favoris",
+    "place_moved_to_day": "Lieu déplacé au Jour {}",
+    "could_not_open_maps": "Impossible d'ouvrir Google Maps",
+    "error_opening_maps": "Erreur lors de l'ouverture de Google Maps"
   },
   "favorites": {
     "title": "Favoris",
@@ -253,7 +266,8 @@
     "no_favorites_description": "Ajoutez des lieux aux favoris lors de la planification de vos voyages",
     "remove_favorite": "Retirer des favoris",
     "removed_from_favorites": "Retiré des favoris",
-    "error_removing_favorite": "Erreur lors de la suppression du favori"
+    "error_removing_favorite": "Erreur lors de la suppression du favori",
+    "confirm_remove_favorite": "Supprimer \"{}\" des favoris ?"
   },
   "map": {
     "show_route": "Afficher l'itinéraire",
@@ -318,7 +332,10 @@
     "faq_answer_7": "Oui ! Chaque voyage a son propre bloc-notes. Accédez au menu dans le voyage et appuyez sur 'Notes' pour créer et gérer vos notes.",
     "faq_answer_8": "Allez dans votre profil, section 'Langue', et choisissez parmi les 9 langues disponibles. Le changement est appliqué immédiatement.",
     "faq_answer_9": "Appuyez sur l'icône soleil/lune dans la barre supérieure de la page d'accueil pour basculer entre les modes clair et sombre.",
-    "faq_answer_10": "Allez dans votre profil, section 'Compte', et appuyez sur 'Supprimer le compte'. Vous recevrez des instructions par email. Cette action est permanente et effacera toutes vos données."
+    "faq_answer_10": "Allez dans votre profil, section 'Compte', et appuyez sur 'Supprimer le compte'. Vous recevrez des instructions par email. Cette action est permanente et effacera toutes vos données.",
+    "notifications_enabled": "Notifications activées",
+    "notifications_disabled": "Notifications désactivées",
+    "test_notification_sent": "Notification de test envoyée !"
   },
   "languages": {
     "portuguese": "Português",

@@ -20,11 +20,11 @@ class AppConstants {
   static const String close = 'common.close';
   static const String home = 'common.home';
   static const String traveling = 'common.traveling';
-  
+
   // Datas
   static const String startsIn = 'common.starts_in';
   static const String daysTrip = 'common.days_trip';
-  
+
   // Meses abreviados
   static const String jan = 'common.months.jan';
   static const String feb = 'common.months.feb';
@@ -38,7 +38,7 @@ class AppConstants {
   static const String oct = 'common.months.oct';
   static const String nov = 'common.months.nov';
   static const String dec = 'common.months.dec';
-  
+
   // Dias da semana
   static const String monday = 'common.days.monday';
   static const String tuesday = 'common.days.tuesday';
@@ -47,7 +47,7 @@ class AppConstants {
   static const String friday = 'common.days.friday';
   static const String saturday = 'common.days.saturday';
   static const String sunday = 'common.days.sunday';
-  
+
   // ===== AUTENTICAÇÃO =====
   static const String welcomeBack = 'auth.welcome_back';
   static const String emailOrUsername = 'auth.email_or_username';
@@ -80,7 +80,14 @@ class AppConstants {
   static const String verifyEmail = 'auth.verify_email';
   static const String checkEmailToActivate = 'auth.check_email_to_activate';
   static const String email = 'auth.email';
-  
+  static const String forgotPasswordTitle = 'auth.forgot_password_title';
+  static const String emailSentTitle = 'auth.email_sent_title';
+  static const String emailSentDescription = 'auth.email_sent_description';
+  static const String forgotPasswordDescription = 'auth.forgot_password_description';
+  static const String sendEmail = 'auth.send_email';
+  static const String backToLogin = 'auth.back_to_login';
+  static const String didntReceiveResend = 'auth.didnt_receive_resend';
+
   // Validações
   static const String emailRequired = 'auth.validation.email_required';
   static const String emailInvalid = 'auth.validation.email_invalid';
@@ -88,7 +95,7 @@ class AppConstants {
   static const String passwordMin6 = 'auth.validation.password_min_6';
   static const String nameRequired = 'auth.validation.name_required';
   static const String usernameRequired = 'auth.validation.username_required';
-  
+
   // ===== HOME =====
   static const String homeTitle = 'home.title';
   static const String whereToNext = 'home.where_to_next';
@@ -96,7 +103,7 @@ class AppConstants {
   static const String upcomingTrips = 'home.upcoming_trips';
   static const String noUpcomingTrips = 'home.no_upcoming_trips';
   static const String startPlanningTrip = 'home.start_planning_trip';
-  
+
   // ===== VIAGENS =====
   static const String trips = 'trips.title';
   static const String myTrips = 'trips.my_trips';
@@ -135,7 +142,7 @@ class AppConstants {
   static const String dayLabel = 'trips.day_label';
   static const String noPastTrips = 'trips.no_past_trips';
   static const String noPastTripsSubtitle = 'trips.no_past_trips_subtitle';
-  
+
   // ===== NOVA VIAGEM =====
   static const String planYourTrip = 'new_trip.plan_your_trip';
   static const String destination = 'new_trip.destination';
@@ -160,7 +167,7 @@ class AppConstants {
   static const String saveChanges = 'new_trip.save_changes';
   static const String errorCreatingTrip = 'new_trip.error_creating_trip';
   static const String errorUpdatingTrip = 'new_trip.error_updating_trip';
-  
+
   // ===== DETALHES DA VIAGEM =====
   static const String overview = 'trip_details.overview';
   static const String itinerary = 'trip_details.itinerary';
@@ -211,6 +218,9 @@ class AppConstants {
   static const String current = 'trip_details.current';
   static const String moveToAnotherDay = 'trip_details.move_to_another_day';
   static const String duplicateFavoriteMessage = 'trip_details.duplicate_favorite_message';
+  static const String placeMovedToDay = 'trip_details.place_moved_to_day';
+  static const String couldNotOpenMaps = 'trip_details.could_not_open_maps';
+  static const String errorOpeningMaps = 'trip_details.error_opening_maps';
 
   // Mensagens de sucesso/erro
   static const String timeUpdatedSuccess = 'trip_details.time_updated_success';
@@ -228,7 +238,7 @@ class AppConstants {
   static const String shareCodeLabel = 'trip_details.share_code_label';
   static const String copy = 'trip_details.copy';
   static const String codeCopied = 'trip_details.code_copied';
-  
+
   // Favorites
   static const String addToFavorites = 'trip_details.add_to_favorites';
   static const String noPlacesToFavorite = 'trip_details.no_places_to_favorite';
@@ -241,14 +251,14 @@ class AppConstants {
   static const String removeFavorite = 'favorites.remove_favorite';
   static const String removedFromFavorites = 'favorites.removed_from_favorites';
   static const String errorRemovingFavorite = 'favorites.error_removing_favorite';
-  
+
   // ===== MAPA =====
   static const String showRoute = 'map.show_route';
   static const String hideRoute = 'map.hide_route';
   static const String yourLocation = 'map.your_location';
   static const String origin = 'map.origin';
   static const String destination_map = 'map.destination';
-  
+
   // ===== PERFIL =====
   static const String profile = 'profile.title';
   static const String settings = 'profile.settings';
@@ -306,7 +316,14 @@ class AppConstants {
   static const String deleteAccount = 'profile.delete_account';
   static const String deleteAccountSubtitle = 'profile.delete_account_subtitle';
   static const String deleteAccountMessage = 'profile.delete_message';
-  
+  static const String notificationsEnabled = 'profile.notifications_enabled';
+  static const String notificationsDisabled = 'profile.notifications_disabled';
+  static const String testNotificationSent = 'profile.test_notification_sent';
+  static const String appleRegisterError = 'auth.apple_register_error';
+  static const String onlyTriplanSupported = 'trips.only_triplan_supported';
+  static const String importingTrip = 'trips.importing_trip';
+  static const String confirmRemoveFavorite = 'favorites.confirm_remove_favorite';
+
   // ===== IDIOMAS =====
   static const String portuguese = 'languages.portuguese';
   static const String english = 'languages.english';
@@ -317,7 +334,7 @@ class AppConstants {
   static const String chinese = 'languages.chinese';
   static const String japanese = 'languages.japanese';
   static const String korean = 'languages.korean';
-  
+
   // ===== MENSAGENS DE ERRO =====
   static const String errorConnection = 'errors.connection';
   static const String errorGeneric = 'errors.generic';
@@ -325,13 +342,13 @@ class AppConstants {
   static const String errorNotFound = 'errors.not_found';
   static const String tripAlreadyOwned = 'trips.already_owned';
   static const String tripAlreadyImported = 'trips.already_imported';
-  
+
   // ===== PESQUISA =====
   static const String searchPlaces = 'search.search_places';
   static const String searchResults = 'search.search_results';
   static const String noResults = 'search.no_results';
   static const String tryDifferentSearch = 'search.try_different_search';
-  
+
   // ===== PREMIUM =====
   static const String premium = 'premium.title';
   static const String activatePremium = 'premium.activate_premium';
@@ -360,7 +377,7 @@ class AppConstants {
   static const String perYear = 'premium.per_year';
   static const String savePremium = 'premium.save';
   static const String mostPopular = 'premium.most_popular';
-  
+
   // ===== LIMITS =====
   static const String tripLimitTitle = 'limits.trip_limit_title';
   static const String tripLimitDesc = 'limits.trip_limit_desc';
@@ -389,7 +406,7 @@ class AppConstants {
   static const String aiChatAddressNotAvailable = 'ai_chat.address_not_available';
   static const String aiChatHoursNotAvailable = 'ai_chat.hours_not_available';
   static const String aiChatAddToPlan = 'ai_chat.add_to_plan';
-  
+
   // ===== NOTES =====
   static const String notesTitle = 'notes.title';
   static const String notesNewNote = 'notes.new_note';

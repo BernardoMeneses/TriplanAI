@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../common/app_colors.dart';
 import '../../common/constants/app_constants.dart';
+import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/favorites_service.dart';
 
 class FavoritesPage extends StatefulWidget {
@@ -59,22 +60,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
     try {
       await _favoritesService.removeFavorite(favorite.placeId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppConstants.removedFromFavorites.tr()),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.removedFromFavorites.tr());
         _loadFavorites();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppConstants.errorRemovingFavorite.tr()),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, AppConstants.errorRemovingFavorite.tr());
       }
     }
   }

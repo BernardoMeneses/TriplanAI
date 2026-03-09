@@ -48,7 +48,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
             icon: Icon(
               Icons.workspace_premium,
-              color: Colors.amber,
+              color: subscriptionStatus!.isPremium ? Colors.amber : Colors.blue,
               size: 28,
             ),
             onPressed: () => _showPlanInfoModal(context),
@@ -130,6 +130,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         : status.isBasic
             ? 'subscription.basic'.tr()
             : 'subscription.free'.tr();
+    final planColor = status.isPremium ? Colors.amber : Colors.blue;
 
     showDialog(
       context: context,
@@ -147,11 +148,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.amber.withValues(alpha: 0.15),
+                  color: planColor.withValues(alpha: 0.15),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.workspace_premium,
-                  color: Colors.amber,
+                  color: planColor,
                   size: 32,
                 ),
               ),
@@ -204,6 +205,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 isDark,
                 enabled: status.limits.canBackupCloud,
               ),
+              if (status.isBasic) ...[
+                const SizedBox(height: 10),
+                _planInfoRow(
+                  Icons.backup,
+                  'subscription.manual_backup'.tr(),
+                  isDark,
+                  enabled: true,
+                  checkColor: Colors.amber,
+                ),
+              ],
               const SizedBox(height: 20),
               // Botão fechar
               SizedBox(
@@ -233,7 +244,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  Widget _planInfoRow(IconData icon, String label, bool isDark, {bool enabled = true}) {
+  Widget _planInfoRow(IconData icon, String label, bool isDark, {bool enabled = true, Color? checkColor}) {
     return Row(
       children: [
         Icon(
@@ -256,7 +267,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         Icon(
           enabled ? Icons.check_circle : Icons.cancel,
           size: 18,
-          color: enabled ? Colors.green : Colors.red.shade300,
+          color: enabled ? (checkColor ?? Colors.green) : Colors.red.shade300,
         ),
       ],
     );

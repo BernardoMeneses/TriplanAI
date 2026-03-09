@@ -16,6 +16,7 @@ import '../../services/connectivity_service.dart';
 import '../../shared/widgets/location_filtered_search_modal.dart';
 import '../../shared/widgets/ai_chat_modal.dart';
 import '../../shared/widgets/upgrade_dialog.dart';
+import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/subscription_service.dart';
 import 'trip_map_page.dart';
 import 'navigation_page.dart';
@@ -705,13 +706,7 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
       
       print('Erro ao gerar PDF: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${'trip_details.pdf.error_generating_pdf'.tr()}: $e'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        SnackBarHelper.showError(context, '${'trip_details.pdf.error_generating_pdf'.tr()}: $e');
       }
     }
   }
@@ -812,16 +807,12 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
 
         if (mounted) {
           setState(() {}); // Ensure UI refresh
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppConstants.timeUpdatedSuccess.tr())),
-          );
+          SnackBarHelper.showSuccess(context, AppConstants.timeUpdatedSuccess.tr());
         }
       } catch (e) {
         print('❌ Error updating time: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${AppConstants.errorUpdatingTime.tr()}: $e')),
-          );
+          SnackBarHelper.showError(context, '${AppConstants.errorUpdatingTime.tr()}: $e');
         }
       }
     }
@@ -870,13 +861,9 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
           });
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppConstants.transportUpdatedSuccess.tr())),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.transportUpdatedSuccess.tr());
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppConstants.errorUpdatingTransport.tr()}: $e')),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorUpdatingTransport.tr()}: $e');
       }
     }
   }
@@ -887,15 +874,11 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
       await _loadItems(forceRefresh: true);
       if (mounted) {
         setState(() {}); // Ensure UI refresh
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppConstants.placeRemovedSuccess.tr())),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.placeRemovedSuccess.tr());
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppConstants.errorRemovingPlace.tr()}: $e')),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorRemovingPlace.tr()}: $e');
       }
     }
   }
@@ -923,15 +906,11 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
       await _loadItems(forceRefresh: true);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Place moved to Day $targetDay')),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.placeMovedToDay.tr(args: [targetDay.toString()]));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppConstants.errorMovingPlace.tr()}: $e')),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorMovingPlace.tr()}: $e');
       }
     }
   }
@@ -959,9 +938,7 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
       await _loadItems(forceRefresh: true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppConstants.errorReordering.tr()}: $e')),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorReordering.tr()}: $e');
       }
     } finally {
       setState(() => _isReordering = false);
@@ -1066,12 +1043,7 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
     final placesWithInfo = _items.where((item) => item.place?.id != null).toList();
     
     if (placesWithInfo.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppConstants.noPlacesToFavorite.tr()),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      SnackBarHelper.showWarning(context, AppConstants.noPlacesToFavorite.tr());
       return;
     }
 
@@ -1177,23 +1149,12 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
                         Navigator.pop(context); // Fecha o modal antes do feedback
                         if (!added) {
                           if (mounted) {
-                            ScaffoldMessenger.of(this.context).showSnackBar(
-                              SnackBar(
-                                content: Text('Este local já está nos favoritos!'),
-                                backgroundColor: Colors.orange,
-                              ),
-                            );
+                            SnackBarHelper.showWarning(this.context, AppConstants.duplicateFavoriteMessage.tr());
                           }
                           return;
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text(AppConstants.addedToFavorites.tr()),
-                              backgroundColor: Colors.green,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
+                          SnackBarHelper.showSuccess(this.context, AppConstants.addedToFavorites.tr());
                         }
                       },
                     ),
@@ -1331,58 +1292,13 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
                     
                     if (mounted) {
                       Navigator.pop(context); // Close AI modal
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(Icons.check_circle, color: Colors.white),
-                              const SizedBox(width: 12),
-                              Text(
-                                AppConstants.addedToDay.tr(args: [_currentDayNumber.toString()]),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: Colors.green,
-                          duration: const Duration(seconds: 3),
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.all(16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      );
+                      SnackBarHelper.showSuccess(context, AppConstants.addedToDay.tr(args: [_currentDayNumber.toString()]));
                     }
                   } catch (e) {
                     print('Error adding place from AI: $e');
                     if (mounted) {
                       Navigator.pop(context); // Close AI modal
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(Icons.error, color: Colors.white),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(
-                                  'Error adding location. Please try again.',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: Colors.red,
-                          duration: const Duration(seconds: 3),
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.all(16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      );
+                      SnackBarHelper.showError(context, AppConstants.errorAddingLocation.tr());
                     }
                   }
                 }

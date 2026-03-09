@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../common/app_colors.dart';
 import '../../../common/constants/app_constants.dart';
+import '../../../shared/widgets/snackbar_helper.dart';
 import '../../../services/destinations_service.dart';
 import '../../../services/trips_service.dart';
 import '../../../services/subscription_service.dart';
@@ -376,14 +377,9 @@ class _NewTripPageState extends State<NewTripPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isEditMode 
-              ? '${AppConstants.errorUpdatingTrip.tr()}: $e'
-              : '${AppConstants.errorCreatingTrip.tr()}: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, _isEditMode 
+          ? '${AppConstants.errorUpdatingTrip.tr()}: $e'
+          : '${AppConstants.errorCreatingTrip.tr()}: $e');
       }
     } finally {
       if (mounted) {

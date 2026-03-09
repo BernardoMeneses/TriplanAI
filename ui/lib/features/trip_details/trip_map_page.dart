@@ -16,6 +16,7 @@ import '../../shared/widgets/upgrade_dialog.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
+import '../../shared/widgets/snackbar_helper.dart';
 
 class TripMapPage extends StatefulWidget {
   final String tripId;
@@ -415,12 +416,7 @@ class _TripMapPageState extends State<TripMapPage> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('trip_details.pdf.error_generating_pdf'.tr()),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarHelper.showError(context, AppConstants.couldNotOpenMaps.tr());
         }
       }
     } catch (e) {
@@ -497,13 +493,7 @@ class _TripMapPageState extends State<TripMapPage> {
       _allActivities[activityIndex] = activity.copyWith(transportMode: newMode);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppConstants.transportModeUpdated.tr()} $newMode'),
-            backgroundColor: AppColors.primary,
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        SnackBarHelper.showSuccess(context, '${AppConstants.transportModeUpdated.tr()} $newMode');
 
         // Recriar marcadores e rotas com os dados atualizados
         _createMarkersAndRoutes();
@@ -511,13 +501,7 @@ class _TripMapPageState extends State<TripMapPage> {
     } catch (e) {
       print('Error updating transport mode: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppConstants.errorUpdatingTransport.tr()}: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        SnackBarHelper.showError(context, '${AppConstants.errorUpdatingTransport.tr()}: $e');
       }
     }
   }
@@ -655,9 +639,7 @@ class _TripMapPageState extends State<TripMapPage> {
     }
 
     if (_allActivities.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('trip_details.pdf.no_activities_available'.tr())),
-      );
+      SnackBarHelper.showWarning(context, 'trip_details.pdf.no_activities_available'.tr());
       return;
     }
 
@@ -1036,9 +1018,7 @@ class _TripMapPageState extends State<TripMapPage> {
       if (mounted) Navigator.pop(context);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'trip_details.pdf.error_generating_pdf'.tr()}: $e')),
-        );
+        SnackBarHelper.showError(context, '${'trip_details.pdf.error_generating_pdf'.tr()}: $e');
       }
     }
   }

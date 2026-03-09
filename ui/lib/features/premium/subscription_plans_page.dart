@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
 import '../../common/app_colors.dart';
+import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/subscription_service.dart';
 import '../../services/adapty_service.dart';
 
@@ -436,12 +437,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       
       if (product == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('subscription.product_not_found'.tr()),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarHelper.showError(context, 'subscription.product_not_found'.tr());
         }
         return;
       }
@@ -451,22 +447,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       
       if (mounted) {
         if (result.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('premium.purchase_successful'.tr()),
-              backgroundColor: Colors.green,
-            ),
-          );
+          SnackBarHelper.showSuccess(context, 'premium.purchase_successful'.tr());
           // Recarregar status e voltar
           await _loadData();
           if (mounted) Navigator.of(context).pop(true);
         } else if (!result.cancelled) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.error ?? 'premium.purchase_failed'.tr()),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarHelper.showError(context, result.error ?? 'premium.purchase_failed'.tr());
         }
       }
     } finally {
@@ -495,39 +481,19 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
   }
 
   Future<void> _handleRestorePurchases() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('subscription.restoring'.tr()),
-        backgroundColor: AppColors.primary,
-      ),
-    );
+    SnackBarHelper.showInfo(context, 'subscription.restoring'.tr());
     
     final result = await _adaptyService.restorePurchases();
     
     if (mounted) {
       if (result.success && result.hasActiveSubscription) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('premium.purchases_restored'.tr()),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showSuccess(context, 'premium.purchases_restored'.tr());
         await _loadData();
         if (mounted) Navigator.of(context).pop(true);
       } else if (result.success && !result.hasActiveSubscription) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('premium.no_purchases_to_restore'.tr()),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        SnackBarHelper.showWarning(context, 'premium.no_purchases_to_restore'.tr());
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.error ?? 'premium.restore_failed'.tr()),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, result.error ?? 'premium.restore_failed'.tr());
       }
     }
   }

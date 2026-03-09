@@ -73,6 +73,13 @@
     "email_already_registered": "Diese E-Mail ist bereits registriert",
     "verify_email": "E-Mail bestätigen",
     "check_email_to_activate": "Überprüfen Sie Ihre E-Mail, um Ihr Konto zu aktivieren",
+    "forgot_password_title": "Passwort vergessen?",
+    "email_sent_title": "E-Mail gesendet!",
+    "email_sent_description": "Wir haben Ihnen eine E-Mail mit Anweisungen zum Zurücksetzen Ihres Passworts gesendet. Überprüfen Sie Ihren Posteingang.",
+    "forgot_password_description": "Keine Sorge! Geben Sie Ihre E-Mail ein und wir senden Ihnen Anweisungen zum Zurücksetzen Ihres Passworts.",
+    "send_email": "E-Mail senden",
+    "back_to_login": "Zurück zum Login",
+    "didnt_receive_resend": "Nicht erhalten? Erneut senden",
     "validation": {
       "email_required": "E-Mail oder Benutzername ist erforderlich",
       "email_invalid": "Ungültige E-Mail",
@@ -81,7 +88,8 @@
       "name_required": "Name ist erforderlich",
       "username_required": "Benutzername ist erforderlich"
     },
-    "email": "E-Mail"
+    "email": "E-Mail",
+    "apple_register_error": "Fehler bei der Registrierung mit Apple: {0}"
   },
   "home": {
     "title": "Startseite",
@@ -128,7 +136,9 @@
     "day": "Tag",
     "day_label": "Tag",
     "no_past_trips": "Keine vergangenen Reisen",
-    "no_past_trips_subtitle": "Drücken Sie die Plus-Taste unten, um zu erkunden\nund neue Erinnerungen zu schaffen!"
+    "no_past_trips_subtitle": "Drücken Sie die Plus-Taste unten, um zu erkunden\nund neue Erinnerungen zu schaffen!",
+    "only_triplan_supported": "Nur .triplan-Dateien werden unterstützt",
+    "importing_trip": "Reise wird importiert..."
   },
   "new_trip": {
     "plan_your_trip": "Planen Sie Ihre Reise",
@@ -242,7 +252,10 @@
     "duration": "Dauer",
     "current": "Aktuell",
     "move_to_another_day": "Zum anderen Tag verschieben",
-    "duplicate_favorite_message": "Dieser Ort befindet sich bereits in Favoriten"
+    "duplicate_favorite_message": "Dieser Ort befindet sich bereits in Favoriten",
+    "place_moved_to_day": "Ort zu Tag {} verschoben",
+    "could_not_open_maps": "Google Maps konnte nicht geöffnet werden",
+    "error_opening_maps": "Fehler beim Öffnen von Google Maps"
   },
   "favorites": {
     "title": "Favoriten",
@@ -251,7 +264,8 @@
     "no_favorites_description": "Fügen Sie Orte zu Favoriten hinzu, während Sie Ihre Reisen planen",
     "remove_favorite": "Aus Favoriten entfernen",
     "removed_from_favorites": "Aus Favoriten entfernt",
-    "error_removing_favorite": "Fehler beim Entfernen aus Favoriten"
+    "error_removing_favorite": "Fehler beim Entfernen aus Favoriten",
+    "confirm_remove_favorite": "\"{}\" aus Favoriten entfernen?"
   },
   "map": {
     "show_route": "Route anzeigen",
@@ -316,7 +330,10 @@
     "faq_answer_7": "Ja! Jede Reise hat ihren eigenen Notizblock. Öffnen Sie das Menü in der Reise und tippen Sie auf 'Notizen', um Ihre Notizen zu erstellen und zu verwalten.",
     "faq_answer_8": "Gehen Sie zu Ihrem Profil, Bereich 'Sprache', und wählen Sie aus 9 verfügbaren Sprachen. Die Änderung wird sofort angewendet.",
     "faq_answer_9": "Tippen Sie auf das Sonnen-/Mond-Symbol in der oberen Leiste der Startseite, um zwischen Hell- und Dunkelmodus zu wechseln.",
-    "faq_answer_10": "Gehen Sie zu Ihrem Profil, Bereich 'Konto', und tippen Sie auf 'Konto löschen'. Sie erhalten Anweisungen per E-Mail. Diese Aktion ist dauerhaft und löscht alle Ihre Daten."
+    "faq_answer_10": "Gehen Sie zu Ihrem Profil, Bereich 'Konto', und tippen Sie auf 'Konto löschen'. Sie erhalten Anweisungen per E-Mail. Diese Aktion ist dauerhaft und löscht alle Ihre Daten.",
+    "notifications_enabled": "Benachrichtigungen aktiviert",
+    "notifications_disabled": "Benachrichtigungen deaktiviert",
+    "test_notification_sent": "Testbenachrichtigung gesendet!"
   },
   "languages": {
     "portuguese": "Português",
