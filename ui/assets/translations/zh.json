@@ -449,5 +449,20 @@
     "trip_day_body": "今天是大日子！你的{destination}之旅现在开始。打开App查看你的完整行程！",
     "channel_name": "旅行提醒",
     "channel_description": "即将到来的旅行提醒通知"
+  },
+  "ai_chat": {
+    "day_header": "第{day}天",
+    "loading_conversation": "加载对话中...",
+    "welcome": "你好！\n\n输入地名或地点类型（博物馆、公园、餐厅等），我来帮你找到最佳结果！",
+    "suggestion_example": "滨海芓附近有哪些最好的五星级酒店？",
+    "fallback_response": "以下是根据您的请求给出的一些建议。",
+    "error_response": "抱歉，处理您的请求时出错。能换个方式试试吗？",
+    "place_not_found": "无法找到地点详情。请重试。",
+    "input_hint": "在此输入消息...",
+    "add_your_spot": "添加地点",
+    "default_description": "探索这个精彩之地，创造难忘的回忆。",
+    "address_not_available": "地址不可用",
+    "hours_not_available": "开放时间不可用",
+    "add_to_plan": "添加到计划"
   }
 }

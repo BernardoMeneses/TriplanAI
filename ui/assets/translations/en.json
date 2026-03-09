@@ -455,5 +455,20 @@
     "trip_day_body": "Today is the big day! Your trip to {destination} starts now. Open the app and check your full itinerary!",
     "channel_name": "Trip Reminders",
     "channel_description": "Notifications to remind you of upcoming trips"
+  },
+  "ai_chat": {
+    "day_header": "Day {day}",
+    "loading_conversation": "Loading conversation...",
+    "welcome": "Hi there!\n\nEnter a place name or type of location (museum, park, restaurant, etc.), and I'll help you find the best results!",
+    "suggestion_example": "What are the best five-star hotels near Marina Bay?",
+    "fallback_response": "Here are some suggestions based on your request.",
+    "error_response": "Sorry, I had trouble processing that. Could you try rephrasing?",
+    "place_not_found": "Could not find place details. Please try again.",
+    "input_hint": "Enter your message here...",
+    "add_your_spot": "Add your spot",
+    "default_description": "Explore this amazing place and create unforgettable memories.",
+    "address_not_available": "Address not available",
+    "hours_not_available": "Hours not available",
+    "add_to_plan": "Add to plan"
   }
 }

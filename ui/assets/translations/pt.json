@@ -454,5 +454,20 @@
     "trip_day_body": "Hoje é o grande dia! A tua viagem a {destination} começa agora. Abre a app e confere o teu roteiro completo!",
     "channel_name": "Lembretes de Viagem",
     "channel_description": "Notificações para lembrar de viagens próximas"
+  },
+  "ai_chat": {
+    "day_header": "Dia {day}",
+    "loading_conversation": "A carregar conversa...",
+    "welcome": "Olá!\n\nInsere o nome de um lugar ou tipo de local (museu, parque, restaurante, etc.) e vou ajudar-te a encontrar os melhores resultados!",
+    "suggestion_example": "Quais são os melhores hotéis cinco estrelas perto de Marina Bay?",
+    "fallback_response": "Aqui estão algumas sugestões com base no teu pedido.",
+    "error_response": "Desculpa, tive dificuldade em processar o pedido. Podes tentar reformulá-lo?",
+    "place_not_found": "Não foi possível encontrar os detalhes do local. Por favor tenta novamente.",
+    "input_hint": "Escreve a tua mensagem aqui...",
+    "add_your_spot": "Adicionar local",
+    "default_description": "Explora este local incrível e cria memórias inesquecíveis.",
+    "address_not_available": "Morada não disponível",
+    "hours_not_available": "Horário não disponível",
+    "add_to_plan": "Adicionar ao plano"
   }
 }

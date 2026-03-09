@@ -374,6 +374,21 @@ class AppConstants {
   static const String backupLockedDesc = 'limits.backup_locked_desc';
   static const String maybeLater = 'limits.maybe_later';
   static const String upgradeNow = 'limits.upgrade_now';
+
+  // ===== AI CHAT =====
+  static const String aiChatDayHeader = 'ai_chat.day_header';
+  static const String aiChatLoadingConversation = 'ai_chat.loading_conversation';
+  static const String aiChatWelcome = 'ai_chat.welcome';
+  static const String aiChatSuggestionExample = 'ai_chat.suggestion_example';
+  static const String aiChatFallbackResponse = 'ai_chat.fallback_response';
+  static const String aiChatErrorResponse = 'ai_chat.error_response';
+  static const String aiChatPlaceNotFound = 'ai_chat.place_not_found';
+  static const String aiChatInputHint = 'ai_chat.input_hint';
+  static const String aiChatAddYourSpot = 'ai_chat.add_your_spot';
+  static const String aiChatDefaultDescription = 'ai_chat.default_description';
+  static const String aiChatAddressNotAvailable = 'ai_chat.address_not_available';
+  static const String aiChatHoursNotAvailable = 'ai_chat.hours_not_available';
+  static const String aiChatAddToPlan = 'ai_chat.add_to_plan';
   
   // ===== NOTES =====
   static const String notesTitle = 'notes.title';

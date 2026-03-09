@@ -450,5 +450,20 @@
     "trip_day_body": "오늘이 바로 그 날입니다! {destination} 여행이 시작됩니다. 앱을 열고 전체 일정을 확인하세요!",
     "channel_name": "여행 알림",
     "channel_description": "다가오는 여행을 알려주는 알림"
+  },
+  "ai_chat": {
+    "day_header": "{day}일차",
+    "loading_conversation": "대화 불러오는 중...",
+    "welcome": "안녕하세요!\n\n장소 이름이나 유형(박물관, 공원, 식당 등)을 입력하면 최고의 결과를 찾는 데 도와드릴게요!",
+    "suggestion_example": "마리나 베이 근처 최고의 5성급 호텔은 어도인가요?",
+    "fallback_response": "요청에 따른 몇 가지 제안입니다.",
+    "error_response": "죄송합니다, 처리 시 문제가 발생했습니다. 다르게 질문해 보시겠어요?",
+    "place_not_found": "장소 세부 정보를 찾을 수 없습니다. 다시 시도해 주세요.",
+    "input_hint": "여기에 메시지를 입력하세요...",
+    "add_your_spot": "장소 추가",
+    "default_description": "이 놀라운 장소를 탐험하며 잊을 수 없는 추억을 만들어 보세요.",
+    "address_not_available": "주소 이용 불가",
+    "hours_not_available": "영업 시간 이용 불가",
+    "add_to_plan": "플랜에 추가"
   }
 }

@@ -102,14 +102,13 @@ class _AIChatModalState extends State<AIChatModal> {
   }
 
   void _addWelcomeMessage() {
-    final location = widget.cityFilter != null ? widget.cityFilter! : 'your destination';
     _messages.add(ChatMessage(
-      text: 'Hi there!\n\nEnter a place name or type of location (museum, park, restaurant, etc.), and I\'ll help you find the best results!',
+      text: AppConstants.aiChatWelcome.tr(),
       isUser: false,
     ));
 
     _messages.add(ChatMessage(
-      text: 'What are the best five-star hotels near Marina Bay?',
+      text: AppConstants.aiChatSuggestionExample.tr(),
       isUser: false,
       isSuggestion: true,
     ));
@@ -171,7 +170,7 @@ class _AIChatModalState extends State<AIChatModal> {
 
         setState(() {
           _messages.add(ChatMessage(
-            text: response['response'] ?? 'Here are some suggestions based on your request.',
+            text: response['response'] ?? AppConstants.aiChatFallbackResponse.tr(),
             isUser: false,
             places: places,
           ));
@@ -183,7 +182,7 @@ class _AIChatModalState extends State<AIChatModal> {
       if (mounted) {
         setState(() {
           _messages.add(ChatMessage(
-            text: 'Sorry, I had trouble processing that. Could you try rephrasing?',
+            text: AppConstants.aiChatErrorResponse.tr(),
             isUser: false,
           ));
           _isLoading = false;
@@ -241,10 +240,10 @@ class _AIChatModalState extends State<AIChatModal> {
     if (finalPlaceId == null || finalPlaceId.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not find place details. Please try again.'),
+          SnackBar(
+            content: Text(AppConstants.aiChatPlaceNotFound.tr()),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -313,8 +312,8 @@ class _AIChatModalState extends State<AIChatModal> {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      'Day ${widget.dayNumber}',
+        Text(
+                      AppConstants.aiChatDayHeader.tr(namedArgs: {'day': widget.dayNumber.toString()}),
                       style: TextStyle(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontSize: 18,
@@ -353,7 +352,7 @@ class _AIChatModalState extends State<AIChatModal> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Loading conversation...',
+                            AppConstants.aiChatLoadingConversation.tr(),
                             style: TextStyle(
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               fontSize: 14,
@@ -453,7 +452,7 @@ class _AIChatModalState extends State<AIChatModal> {
                         child: TextField(
                           controller: _messageController,
                           decoration: InputDecoration(
-                            hintText: 'Enter your reply here...',
+                            hintText: AppConstants.aiChatInputHint.tr(),
                             hintStyle: TextStyle(
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
@@ -771,7 +770,7 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
       }
     }
 
-    return 'Explore this amazing place and create unforgettable memories.';
+    return '';
   }
 
   String _getImageUrl() {
@@ -861,7 +860,7 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Add your spot',
+                  AppConstants.aiChatAddYourSpot.tr(),
                   style: TextStyle(
                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontSize: 20,
@@ -984,7 +983,7 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      description,
+                      description.isNotEmpty ? description : AppConstants.aiChatDefaultDescription.tr(),
                       style: TextStyle(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                         fontSize: 14,
@@ -1009,7 +1008,7 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            address.isNotEmpty ? address : 'Address not available',
+              address.isNotEmpty ? address : AppConstants.aiChatAddressNotAvailable.tr(),
                             style: TextStyle(
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               fontSize: 13,
@@ -1036,7 +1035,7 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            openingHours.isNotEmpty ? openingHours : 'Hours not available',
+              openingHours.isNotEmpty ? openingHours : AppConstants.aiChatHoursNotAvailable.tr(),
                             style: TextStyle(
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               fontSize: 13,
@@ -1075,7 +1074,7 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                     const Icon(Icons.add, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Add to plan',
+                      AppConstants.aiChatAddToPlan.tr(),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

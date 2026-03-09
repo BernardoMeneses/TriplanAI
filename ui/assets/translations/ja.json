@@ -118,7 +118,7 @@
     "itineraries_days": "{} 日の旅程",
     "travelers_count": "{} 人の旅行者",
     "code_hint": "ABC123",
-    "added_to_day": "{ } 日に追加されました",
+    "added_to_day": "{}日に追加されました",
     "error_adding_location": "場所の追加中にエラーが発生しました。もう一度お試しください。",
     "error_reading_file": "ファイル読み込みエラー",
     "error_importing_trip": "旅行インポートエラー",
@@ -451,5 +451,20 @@
     "trip_day_body": "今日がその日です！{destination}への旅が始まります。アプリを開いて旅程を確認しよう！",
     "channel_name": "旅行リマインダー",
     "channel_description": "旅行の予定を通知するリマインダー"
+  },
+  "ai_chat": {
+    "day_header": "{day}日目",
+    "loading_conversation": "会話を読み込んでいます...",
+    "welcome": "こんにちは！\n\n場所の名前またはタイプ（博物館、公園、レストランなど）を入力すると、最高の結果を見つけるお手伝いをします！",
+    "suggestion_example": "マリーナ・ベイ近くの最高のファイブスターホテルは？",
+    "fallback_response": "ご要望に基づくいくつかの提案をリストアップしました。",
+    "error_response": "申し訳ありません、処理中に問題が発生しました。言い換えてみてください。",
+    "place_not_found": "場所の詳細が見つかりませんでした。もう一度お試しください。",
+    "input_hint": "ここにメッセージを入力...",
+    "add_your_spot": "スポットを追加",
+    "default_description": "この素晴らしい場所を探索して、忘れられない思い出を作ろう。",
+    "address_not_available": "住所は利用できません",
+    "hours_not_available": "営業時間は利用できません",
+    "add_to_plan": "プランに追加"
   }
 }

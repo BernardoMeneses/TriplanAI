@@ -449,6 +449,19 @@
     "trip_day_title": "Das Abenteuer beginnt HEUTE!",
     "trip_day_body": "Heute ist der große Tag! Deine Reise nach {destination} beginnt jetzt. Öffne die App und schau dir deine Route an!",
     "channel_name": "Reise-Erinnerungen",
-    "channel_description": "Benachrichtigungen für bevorstehende Reisen"
-  }
+    "channel_description": "Benachrichtigungen für bevorstehende Reisen"  },
+  "ai_chat": {
+    "day_header": "Tag {day}",
+    "loading_conversation": "Gespräch wird geladen...",
+    "welcome": "Hallo!\n\nGib einen Ortsnamen oder einen Standorttyp ein (Museum, Park, Restaurant usw.) und ich helfe dir, die besten Ergebnisse zu finden!",
+    "suggestion_example": "Was sind die besten Fünf-Sterne-Hotels in der Nähe der Marina Bay?",
+    "fallback_response": "Hier sind einige Vorschläge basierend auf deiner Anfrage.",
+    "error_response": "Entschuldigung, ich hatte Probleme damit. Könntest du es umformulieren?",
+    "place_not_found": "Ortsdetails konnten nicht gefunden werden. Bitte versuche es erneut.",
+    "input_hint": "Gib hier deine Nachricht ein...",
+    "add_your_spot": "Ort hinzufügen",
+    "default_description": "Entdecke diesen fantastischen Ort und schaffe unvergessliche Erinnerungen.",
+    "address_not_available": "Adresse nicht verfügbar",
+    "hours_not_available": "Öffnungszeiten nicht verfügbar",
+    "add_to_plan": "Zum Plan hinzufügen"  }
 }

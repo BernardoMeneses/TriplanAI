@@ -1338,7 +1338,7 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
                               const Icon(Icons.check_circle, color: Colors.white),
                               const SizedBox(width: 12),
                               Text(
-                                '${AppConstants.addedToDay.tr()} $_currentDayNumber',
+                                AppConstants.addedToDay.tr(args: [_currentDayNumber.toString()]),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -1599,7 +1599,7 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
                     isReadOnly: _effectiveReadOnly,
                     onTimeEdit: _effectiveReadOnly ? null : () => _editItemTime(item, index),
                     onTransportEdit: _effectiveReadOnly ? null : () => _editItemTransport(item, index),
-                    onRefresh: _loadItems,
+                    onRefresh: () => _loadItems(forceRefresh: true),
                     onDelete: _effectiveReadOnly ? null : () => _showDeleteConfirmation(item),
                   ),
                   ),
