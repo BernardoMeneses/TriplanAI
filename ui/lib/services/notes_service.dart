@@ -16,8 +16,7 @@ class Note {
   });
 
   static Note fromJson(Map<String, dynamic> j) {
-    // Support both API (ISO strings) and legacy local (epoch ints) formats
-    int _toEpoch(dynamic v) {
+    int toEpoch(dynamic v) {
       if (v == null) return 0;
       if (v is int) return v;
       try {
@@ -31,8 +30,8 @@ class Note {
       id: j['id'] as String,
       title: j['title'] as String? ?? '',
       body: j['body'] as String? ?? '',
-      createdAt: _toEpoch(j['created_at'] ?? j['createdAt']),
-      updatedAt: _toEpoch(j['updated_at'] ?? j['updatedAt']),
+      createdAt: toEpoch(j['created_at'] ?? j['createdAt']),
+      updatedAt: toEpoch(j['updated_at'] ?? j['updatedAt']),
     );
   }
 }
@@ -56,23 +55,22 @@ class NotesService {
   }
 
   Future<Note?> createNote({String? title, String? body}) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final data = await _api.post('/notes/$tripId', body: {
-      'title': title ?? '',
-      'body': body ?? '',
-      'createdAt': now,
-      'updatedAt': now,
-    });
-    if (data == null) return null;
-    return Note.fromJson(Map<String, dynamic>.from(data));
+    try {
+      final data = await _api.post('/notes/$tripId', body: {
+        'title': title ?? '',
+        'body': body ?? '',
+      });
+      if (data == null) return null;
+      return Note.fromJson(Map<String, dynamic>.from(data));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> updateNote(Note note) async {
-    note.updatedAt = DateTime.now().millisecondsSinceEpoch;
     await _api.put('/notes/$tripId/${note.id}', body: {
       'title': note.title,
       'body': note.body,
-      'updatedAt': note.updatedAt,
     });
   }
 

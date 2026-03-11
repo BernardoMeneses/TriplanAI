@@ -20,18 +20,15 @@ router.get('/:tripId', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/notes
- * Create a new note
- * Body: { tripId, title, body }
+ * POST /api/notes/:tripId
+ * Create a new note for a trip
+ * Body: { title, body }
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/:tripId', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { tripId, title, body } = req.body;
-
-    if (!tripId) {
-      return res.status(400).json({ error: 'tripId is required' });
-    }
+    const { tripId } = req.params;
+    const { title, body } = req.body;
 
     const note = await notesService.createNote(userId, tripId, title ?? '', body ?? '');
     res.status(201).json(note);
@@ -45,17 +42,17 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
- * PUT /api/notes/:id
+ * PUT /api/notes/:tripId/:noteId
  * Update a note
  * Body: { title, body }
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:tripId/:noteId', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { id } = req.params;
+    const { noteId } = req.params;
     const { title, body } = req.body;
 
-    const note = await notesService.updateNote(userId, id, title ?? '', body ?? '');
+    const note = await notesService.updateNote(userId, noteId, title ?? '', body ?? '');
     res.json(note);
   } catch (error: any) {
     if (error.message?.includes('access denied')) {
@@ -67,14 +64,14 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 /**
- * DELETE /api/notes/:id
+ * DELETE /api/notes/:tripId/:noteId
  * Delete a note
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:tripId/:noteId', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { id } = req.params;
-    await notesService.deleteNote(userId, id);
+    const { noteId } = req.params;
+    await notesService.deleteNote(userId, noteId);
     res.status(204).send();
   } catch (error: any) {
     if (error.message?.includes('access denied')) {
