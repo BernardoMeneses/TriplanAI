@@ -159,6 +159,13 @@ export class TripsService {
       itineraryItems = itemsResult.rows;
     }
 
+    // Buscar notas da viagem
+    const notesResult = await query(
+      `SELECT title, body FROM trip_notes WHERE trip_id = $1 ORDER BY created_at ASC`,
+      [tripId]
+    );
+    const notes = notesResult.rows;
+
     // Estruturar os dados para export
     const exportData = {
       version: '1.0',
@@ -176,6 +183,7 @@ export class TripsService {
         number_of_travelers: trip.number_of_travelers,
         preferences: trip.preferences,
       },
+      notes: notes.map((n: any) => ({ title: n.title, body: n.body })),
       itineraries: itineraries.map((itinerary: any) => ({
         day_number: itinerary.day_number,
         date: itinerary.date,
@@ -258,6 +266,17 @@ export class TripsService {
       await query('UPDATE trips SET preferences = $1 WHERE id = $2', [JSON.stringify(prefs), newTrip.id]);
       // Reflect in newTrip object
       (newTrip as any).preferences = prefs;
+    }
+
+    // Importar notas se existirem
+    if (importData.notes && Array.isArray(importData.notes) && importData.notes.length > 0) {
+      for (const noteData of importData.notes) {
+        await query(
+          `INSERT INTO trip_notes (trip_id, user_id, title, body)
+           VALUES ($1, $2, $3, $4)`,
+          [newTrip.id, userId, noteData.title || '', noteData.body || '']
+        );
+      }
     }
 
     // Importar itinerários se existirem
