@@ -97,6 +97,7 @@ app.use('/api/routes', authenticate, routesController);
 app.use('/api/maps', authenticate, mapsController);
 app.use('/api/ai', authenticate, aiRateLimit, aiController);
 app.use('/api/favorites', authenticate, favoritesController);
+app.use('/api/notes', authenticate, notesController);
 app.use('/api/itinerary-items', authenticate, itineraryItemsController);
 
 // Premium routes (webhook não precisa de autenticação)
@@ -108,9 +109,6 @@ app.use('/api/premium', (req, res, next) => {
   // Outras rotas precisam autenticação
   return authenticate(req, res, next);
 }, premiumController);
-
-// Itinerary Items Routes
-app.use('/api/itinerary-items', authenticate, itineraryItemsController);
 
 // 404 Handler
 app.use((_req, res) => {
