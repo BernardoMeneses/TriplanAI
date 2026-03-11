@@ -18,6 +18,8 @@ import '../../shared/widgets/ai_chat_modal.dart';
 import '../../shared/widgets/upgrade_dialog.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/subscription_service.dart';
+import '../../services/notes_service.dart';
+import '../notes/notes_page.dart';
 import 'trip_map_page.dart';
 import 'navigation_page.dart';
 
@@ -1219,6 +1221,19 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
           ),
         ),
         actions: [
+          // Notes button
+          IconButton(
+            icon: Icon(Icons.edit_note_sharp, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotesPage(tripId: widget.tripId),
+                ),
+              );
+            },
+            tooltip: AppConstants.notesTitle.tr(),
+          ),
           // Map button - only when online
           if (_isOnline)
             IconButton(

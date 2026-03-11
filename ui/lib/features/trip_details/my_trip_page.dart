@@ -403,22 +403,6 @@ class _MyTripPageState extends State<MyTripPage> {
                 ),
               ListTile(
                 leading: Icon(
-                  Icons.sticky_note_2,
-                  color: AppColors.primary,
-                ),
-                title: Text(AppConstants.notesTitle.tr()),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => NotesPage(tripId: _trip.id),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(
                   Icons.vpn_key,
                   color: _effectiveReadOnly ? Colors.grey : AppColors.primary,
                 ),

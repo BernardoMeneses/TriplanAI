@@ -17,6 +17,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import '../../shared/widgets/snackbar_helper.dart';
+import 'dart:math' show max;
 
 class TripMapPage extends StatefulWidget {
   final String tripId;
@@ -559,36 +560,32 @@ class _TripMapPageState extends State<TripMapPage> {
   }
 
   // Criar ícone customizado para marcadores de lugares com números
-  Future<BitmapDescriptor> _createNumberMarkerIcon(int number) async {
+  Future<BitmapDescriptor> _createNumberMarkerIcon(int number, {double size = 80}) async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
     final paint = Paint()..color = AppColors.primaryDark;
 
-    // Desenhar círculo branco
-    const size = 80.0;
     canvas.drawCircle(
-      const Offset(size / 2, size / 2),
+      Offset(size / 2, size / 2),
       size / 2,
       paint,
     );
 
-    // Desenhar borda
     final borderPaint = Paint()
       ..color = AppColors.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = (size * 3 / 80).clamp(1.5, 3.0);
     canvas.drawCircle(
-      const Offset(size / 2, size / 2),
+      Offset(size / 2, size / 2),
       size / 2 - 2,
       borderPaint,
     );
 
-    // Desenhar número
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     textPainter.text = TextSpan(
       text: number.toString(),
-      style: const TextStyle(
-        fontSize: 40,
+      style: TextStyle(
+        fontSize: size * 0.5,
         fontWeight: FontWeight.bold,
         color: Colors.white,
       ),
@@ -679,20 +676,54 @@ class _TripMapPageState extends State<TripMapPage> {
           }
         }
         
-        final bounds = LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        );
-        
-        // Ajustar câmara para mostrar todos os pontos
-        await _mapController!.animateCamera(
-          CameraUpdate.newLatLngBounds(bounds, 60),
-        );
-        
-        // Aguardar a animação terminar
-        await Future.delayed(const Duration(milliseconds: 800));
-        
+        // Ajustar câmara para mostrar todos os pontos (movimento imediato)
+        final latDiff = maxLat - minLat;
+        final lngDiff = maxLng - minLng;
+        final span = max(latDiff, lngDiff);
+
+        // 1. Mover câmara PRIMEIRO com os bounds reais + padding generoso
+        //    O padding (px) garante que os marcadores nas extremidades não ficam cortados
+        if (latDiff < 0.0001 && lngDiff < 0.0001) {
+          await _mapController!.moveCamera(
+            CameraUpdate.newLatLngZoom(LatLng(minLat, minLng), 15),
+          );
+        } else {
+          final bounds = LatLngBounds(
+            southwest: LatLng(minLat, minLng),
+            northeast: LatLng(maxLat, maxLng),
+          );
+          await _mapController!.moveCamera(
+            CameraUpdate.newLatLngBounds(bounds, 100),
+          );
+        }
+
+        // 2. Substituir marcadores por versões menores para o PDF
+        //    (tamanho escala linearmente com o span; mín. 40 px para continuar legível)
+        //    Os ícones de transporte são omitidos – as polylines coloridas já os representam
+        final markerSize = (80.0 - (span - 0.1) * 20.0).clamp(40.0, 80.0);
+        final originalMarkers = Set<Marker>.from(_markers);
+        final pdfMarkers = <Marker>{};
+        for (int i = 0; i < _allActivities.length; i++) {
+          final activity = _allActivities[i];
+          if (activity.place?.latitude != null && activity.place?.longitude != null) {
+            final icon = await _createNumberMarkerIcon(i + 1, size: markerSize);
+            pdfMarkers.add(Marker(
+              markerId: MarkerId(activity.id),
+              position: LatLng(activity.place!.latitude!, activity.place!.longitude!),
+              icon: icon,
+              anchor: const Offset(0.5, 0.5),
+            ));
+          }
+        }
+        if (mounted) setState(() => _markers = pdfMarkers);
+
+        // 3. Aguardar câmara + tiles + novos marcadores renderizarem
+        await Future.delayed(const Duration(milliseconds: 1800));
+
         mapSnapshot = await _mapController!.takeSnapshot();
+
+        // 4. Restaurar marcadores originais
+        if (mounted) setState(() => _markers = originalMarkers);
       }
 
       final pdf = pw.Document();

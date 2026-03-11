@@ -26,6 +26,7 @@ import { aiController } from './modules/ai';
 import { favoritesController } from './modules/favorites';
 import { premiumController } from './modules/premium';
 import { itineraryItemsController } from './modules/iteneraries/itinerary_items.controller';
+import { notesController } from './modules/notes';
 
 const app: Express = express();
 const PORT = Number(process.env.PORT) || 3000;
