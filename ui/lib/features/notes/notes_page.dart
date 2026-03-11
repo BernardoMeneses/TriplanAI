@@ -33,6 +33,7 @@ class _NotesPageState extends State<NotesPage> {
 
   Future<void> _create() async {
     final note = await _service.createNote(title: '', body: '');
+    if (note == null) return;
     await _edit(note);
     await _load();
   }

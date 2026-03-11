@@ -44,30 +44,42 @@ class NotesService {
   NotesService({required this.tripId});
 
   Future<List<Note>> loadNotes() async {
-    final data = await _api.get('/notes/$tripId');
-    if (data == null) return [];
-    return (data as List<dynamic>)
-        .map((e) => Note.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
+    try {
+      final data = await _api.get('/notes/$tripId');
+      if (data == null) return [];
+      return (data as List<dynamic>)
+          .map((e) => Note.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
-  Future<Note> createNote({String? title, String? body}) async {
-    final data = await _api.post('/notes', body: {
-      'tripId': tripId,
+  Future<Note?> createNote({String? title, String? body}) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final data = await _api.post('/notes/$tripId', body: {
       'title': title ?? '',
       'body': body ?? '',
+      'createdAt': now,
+      'updatedAt': now,
     });
+    if (data == null) return null;
     return Note.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<void> updateNote(Note note) async {
-    await _api.put('/notes/${note.id}', body: {
+    note.updatedAt = DateTime.now().millisecondsSinceEpoch;
+    await _api.put('/notes/$tripId/${note.id}', body: {
       'title': note.title,
       'body': note.body,
+      'updatedAt': note.updatedAt,
     });
   }
 
   Future<void> deleteNote(String id) async {
-    await _api.delete('/notes/$id');
+    await _api.delete('/notes/$tripId/$id');
   }
+
+  /// Notes are removed server-side via ON DELETE CASCADE when the trip is deleted.
+  static Future<void> deleteAllForTrip(String tripId) async {}
 }
