@@ -292,12 +292,15 @@ class _MyTripPageState extends State<MyTripPage> {
   }
 
   Future<void> _deleteTrip() async {
+    final isMember = _trip.isMember;
     // Mostrar diálogo de confirmação
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppConstants.deleteTripTitle.tr()),
-        content: Text(AppConstants.deleteTripMessage.tr()),
+        title: Text(isMember ? 'Deixar viagem' : AppConstants.deleteTripTitle.tr()),
+        content: Text(isMember
+            ? 'Tens a certeza que pretendes deixar de seguir esta viagem partilhada?'
+            : AppConstants.deleteTripMessage.tr()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -308,7 +311,7 @@ class _MyTripPageState extends State<MyTripPage> {
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
-            child: Text(AppConstants.delete.tr()),
+            child: Text(isMember ? 'Deixar' : AppConstants.delete.tr()),
           ),
         ],
       ),
@@ -322,10 +325,12 @@ class _MyTripPageState extends State<MyTripPage> {
       final tripsService = TripsService();
       await tripsService.deleteTrip(_trip.id);
 
-      // Also remove notes for this trip
-      try {
-        await NotesService.deleteAllForTrip(_trip.id);
-      } catch (_) {}
+      // Only remove notes from local cache for owned trips (members share the owner's notes)
+      if (!isMember) {
+        try {
+          await NotesService.deleteAllForTrip(_trip.id);
+        } catch (_) {}
+      }
 
       // Also remove from local cache immediately so lists update optimistically
       try {
@@ -333,7 +338,10 @@ class _MyTripPageState extends State<MyTripPage> {
       } catch (_) {}
 
       if (mounted) {
-        SnackBarHelper.showSuccess(context, AppConstants.tripDeletedSuccess.tr());
+        SnackBarHelper.showSuccess(
+          context,
+          isMember ? 'Viagem removida das suas viagens' : AppConstants.tripDeletedSuccess.tr(),
+        );
         // Emit event to inform other pages
         try { AppEvents.emitTripsChanged(); } catch (_) {}
         // Voltar para home após apagar
@@ -438,16 +446,16 @@ class _MyTripPageState extends State<MyTripPage> {
               ),
               ListTile(
                 leading: Icon(
-                  Icons.delete_outline,
+                  _trip.isMember ? Icons.exit_to_app : Icons.delete_outline,
                   color: _effectiveReadOnly ? Colors.grey : Colors.red,
                 ),
                 title: Text(
-                  AppConstants.deleteTrip.tr(),
+                  _trip.isMember ? 'Deixar viagem' : AppConstants.deleteTrip.tr(),
                   style: TextStyle(
                     color: _effectiveReadOnly ? Colors.grey : Colors.red,
                   ),
                 ),
-                subtitle: Text(AppConstants.deleteTripSubtitle.tr()),
+                subtitle: Text(_trip.isMember ? 'Remover das tuas viagens' : AppConstants.deleteTripSubtitle.tr()),
                 enabled: !_effectiveReadOnly,
                 onTap: _effectiveReadOnly ? null : () {
                   Navigator.pop(context);

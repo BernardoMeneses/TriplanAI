@@ -186,6 +186,12 @@ class TripsService {
     final response = await _apiService.post('/trips/import', body: tripData);
     return Trip.fromJson(response);
   }
+
+  // Juntar-se a uma viagem partilhada via código (live-sync, sem criar cópia)
+  Future<Trip> joinTrip(String tripCode) async {
+    final response = await _apiService.post('/trips/join', body: {'trip_code': tripCode});
+    return Trip.fromJson(response);
+  }
 }
 
 class Trip {
@@ -204,6 +210,8 @@ class Trip {
   final int numberOfTravelers;
   final DateTime createdAt;
   final DateTime updatedAt;
+  /// True when this trip was joined via share code (not owned by the current user)
+  final bool isMember;
 
   Trip({
     required this.id,
@@ -221,6 +229,7 @@ class Trip {
     required this.numberOfTravelers,
     required this.createdAt,
     required this.updatedAt,
+    this.isMember = false,
   });
 
   factory Trip.fromJson(Map<String, dynamic> json) {
@@ -240,6 +249,7 @@ class Trip {
       numberOfTravelers: json['number_of_travelers'] ?? 1,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      isMember: json['is_member'] == true,
     );
   }
 
@@ -260,6 +270,7 @@ class Trip {
       'number_of_travelers': numberOfTravelers,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'is_member': isMember,
     };
   }
 

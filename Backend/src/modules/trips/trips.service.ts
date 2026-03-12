@@ -51,9 +51,15 @@ export class TripsService {
     return result.rows[0] || null;
   }
 
-  async getTripsByUser(userId: string): Promise<Trip[]> {
-    const result = await query<Trip>(
-      'SELECT * FROM trips WHERE user_id = $1 ORDER BY start_date DESC',
+  async getTripsByUser(userId: string): Promise<(Trip & { is_member: boolean })[]> {
+    const result = await query<Trip & { is_member: boolean }>(
+      `SELECT t.*, (t.user_id <> $1) AS is_member
+       FROM trips t
+       WHERE t.user_id = $1
+         OR EXISTS (
+           SELECT 1 FROM trip_members tm WHERE tm.trip_id = t.id AND tm.user_id = $1
+         )
+       ORDER BY t.start_date DESC`,
       [userId]
     );
     return result.rows;
@@ -93,9 +99,44 @@ export class TripsService {
     return result.rows[0] || null;
   }
 
-  async deleteTrip(tripId: string): Promise<boolean> {
+  async deleteTrip(tripId: string, userId?: string): Promise<boolean> {
+    if (userId) {
+      // Check if user is the owner or just a member
+      const tripResult = await query('SELECT user_id FROM trips WHERE id = $1', [tripId]);
+      if (tripResult.rows.length === 0) return false;
+      const isOwner = tripResult.rows[0].user_id === userId;
+      if (!isOwner) {
+        // Member: just leave the trip
+        const leaveResult = await query(
+          'DELETE FROM trip_members WHERE trip_id = $1 AND user_id = $2',
+          [tripId, userId]
+        );
+        return (leaveResult.rowCount ?? 0) > 0;
+      }
+    }
     const result = await query('DELETE FROM trips WHERE id = $1', [tripId]);
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Join a shared trip via its code (adds user as member, no copy created)
+  async joinTrip(userId: string, tripCode: string): Promise<(Trip & { is_member: boolean }) | null> {
+    const trip = await this.getTripByCode(tripCode);
+    if (!trip) return null;
+
+    // Owner cannot join their own trip
+    if (trip.user_id === userId) {
+      throw new Error('Já és o dono desta viagem');
+    }
+
+    // Upsert into trip_members (idempotent)
+    await query(
+      `INSERT INTO trip_members (trip_id, user_id)
+       VALUES ($1, $2)
+       ON CONFLICT (trip_id, user_id) DO NOTHING`,
+      [trip.id, userId]
+    );
+
+    return { ...trip, is_member: true };
   }
 
   // Gera ou retorna trip_code (6 caracteres) para uma viagem

@@ -129,6 +129,11 @@ class _ImportTripPageState extends State<ImportTripPage> {
         return;
       }
 
+      // If user is already a member, show a message but still show the preview
+      if (data is Map<String, dynamic> && data['already_member'] == true) {
+        if (mounted) SnackBarHelper.showInfo(context, 'Já és membro desta viagem');
+      }
+
       // Expect backend to return a map with 'trip' and optionally 'itineraries'
       setState(() {
         _tripPreview = data as Map<String, dynamic>?;
@@ -178,28 +183,9 @@ class _ImportTripPageState extends State<ImportTripPage> {
         // legacy: import from file
         newTrip = await _tripShareService.importTripFromFile(_selectedFilePath!);
       } else {
-        // import from preview data fetched by code
-        // Backend import expects the same shape as exported files: { 'trip': {...}, 'version': 'x', 'itineraries': [...] }
-        Map<String, dynamic> payload;
-
-        if (_tripPreview!.containsKey('trip') && _tripPreview!['trip'] is Map<String, dynamic>) {
-          payload = Map<String, dynamic>.from(_tripPreview!);
-          // Ensure version exists
-          payload['version'] = payload['version'] ?? '1.0';
-          // Ensure itineraries exists
-          if (!payload.containsKey('itineraries')) payload['itineraries'] = [];
-        } else if (_tripPreview is Map<String, dynamic>) {
-          // If preview is the trip object directly, wrap it
-          payload = {
-            'trip': Map<String, dynamic>.from(_tripPreview! as Map<String, dynamic>),
-            'version': '1.0',
-            'itineraries': [],
-          };
-        } else {
-          throw Exception('Formato de importação inválido');
-        }
-
-        newTrip = await _tripsService.importTrip(payload);
+        // Join via share code (live-sync membership, no copy created)
+        final code = _codeController.text.trim().toUpperCase();
+        newTrip = await _tripsService.joinTrip(code);
       }
 
       if (mounted) {
@@ -221,8 +207,10 @@ class _ImportTripPageState extends State<ImportTripPage> {
       }
     } catch (e) {
       final msg = e.toString();
-      if (mounted) {
-        if (msg.contains('Viagem já importada') || msg.toLowerCase().contains('already imported')) {
+      if (mounted) {        
+        if (msg.contains('Já és o dono desta viagem')) {
+          SnackBarHelper.showWarning(context, AppConstants.tripAlreadyOwned.tr());
+        } else if (msg.contains('Já és membro') || msg.contains('Viagem já importada') || msg.toLowerCase().contains('already imported')) {
           SnackBarHelper.showWarning(context, AppConstants.tripAlreadyImported.tr());
         } else {
           SnackBarHelper.showError(context, '${AppConstants.errorImportingTrip.tr()}: $e');

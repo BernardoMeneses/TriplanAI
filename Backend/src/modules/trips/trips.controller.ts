@@ -187,7 +187,8 @@ router.put('/:id', async (req: Request, res: Response) => {
  */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const deleted = await tripsService.deleteTrip(req.params.id);
+    const userId = (req as any).user?.id;
+    const deleted = await tripsService.deleteTrip(req.params.id, userId);
     if (!deleted) {
       return res.status(404).json({ error: 'Viagem não encontrada' });
     }
@@ -296,11 +297,23 @@ router.get('/by-code/:trip_code', async (req: Request, res: Response) => {
     const userId = (req as any).user?.id;
     const owned = userId ? trip.user_id === userId : false;
 
+    // Verificar se o utilizador já é membro desta viagem
+    let alreadyMember = false;
+    if (userId && !owned) {
+      const { query } = await import('../../config/database');
+      const memberCheck = await query(
+        'SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2',
+        [trip.id, userId]
+      );
+      alreadyMember = (memberCheck.rowCount ?? 0) > 0;
+    }
+
     // Reutilizar a lógica de export para retornar { version, trip, itineraries }
     const exportData = await tripsService.exportTrip(trip.id);
 
     // Anexar metadados úteis ao cliente
     (exportData as any).owned = !!owned;
+    (exportData as any).already_member = alreadyMember;
     (exportData as any).original_trip_id = trip.id;
 
     res.json(exportData);
@@ -331,6 +344,29 @@ router.get('/by-code/:trip_code', async (req: Request, res: Response) => {
  *       400:
  *         description: Erro na importação
  */
+/**
+ * POST /api/trips/join  — Join a shared trip via its 6-char code (live-sync membership)
+ */
+router.post('/join', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Utilizador não autenticado' });
+    }
+    const { trip_code } = req.body;
+    if (!trip_code) {
+      return res.status(400).json({ error: 'trip_code obrigatório' });
+    }
+    const trip = await tripsService.joinTrip(userId, trip_code);
+    if (!trip) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+    res.status(201).json(trip);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao juntar-se à viagem' });
+  }
+});
+
 router.post('/import', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;

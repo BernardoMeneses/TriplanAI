@@ -12,11 +12,15 @@ export interface Note {
 
 export class NotesService {
   async getNotesByTrip(userId: string, tripId: string): Promise<Note[]> {
-    // Only return notes where the trip belongs to this user
+    // Return notes if user owns the trip OR is a member
     const result = await query<Note>(
       `SELECT n.* FROM trip_notes n
        INNER JOIN trips t ON t.id = n.trip_id
-       WHERE n.trip_id = $1 AND t.user_id = $2
+       WHERE n.trip_id = $1
+         AND (t.user_id = $2
+              OR EXISTS (
+                SELECT 1 FROM trip_members tm WHERE tm.trip_id = $1 AND tm.user_id = $2
+              ))
        ORDER BY n.created_at DESC`,
       [tripId, userId]
     );
@@ -24,9 +28,14 @@ export class NotesService {
   }
 
   async createNote(userId: string, tripId: string, title: string, body: string): Promise<Note> {
-    // Verify the trip belongs to this user before inserting
+    // Verify the trip belongs to this user OR user is a member
     const tripCheck = await query(
-      'SELECT id FROM trips WHERE id = $1 AND user_id = $2',
+      `SELECT 1 FROM trips t
+       WHERE t.id = $1
+         AND (t.user_id = $2
+              OR EXISTS (
+                SELECT 1 FROM trip_members tm WHERE tm.trip_id = $1 AND tm.user_id = $2
+              ))`,
       [tripId, userId]
     );
     if (tripCheck.rowCount === 0) {
