@@ -106,6 +106,10 @@ class ApiService {
       if (response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } else {
+      if (response.statusCode == 429) {
+        // Silent fail for throttled requests.
+        throw ApiException('');
+      }
       final error = response.body.isNotEmpty
           ? jsonDecode(response.body)['error'] ?? 'Erro desconhecido'
           : 'Erro ${response.statusCode}';
