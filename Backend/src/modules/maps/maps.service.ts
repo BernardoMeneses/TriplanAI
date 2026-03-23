@@ -203,22 +203,37 @@ export class MapsService {
       }
 
       const response = await mapsClient.textSearch({ params });
+      const places = response.data.results.slice(0, 20);
 
-      return response.data.results.slice(0, 20).map(place => ({
-        placeId: place.place_id || '',
-        name: place.name || '',
-        formattedAddress: place.formatted_address || '',
-        location: {
-          lat: place.geometry?.location.lat || 0,
-          lng: place.geometry?.location.lng || 0
-        },
-        types: place.types || [],
-        rating: place.rating,
-        priceLevel: place.price_level,
-        photos: place.photos?.slice(0, 3).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        )
+      // Buscar detalhes completos para cada resultado
+      const detailedPlaces = await Promise.all(places.map(async (place) => {
+        let details = await this.getPlaceDetails(place.place_id || '');
+        // Se não houver fotos, buscar imagem genérica na web (Unsplash)
+        let photos = details?.photos && details.photos.length > 0 ? details.photos : [];
+        if (!photos || photos.length === 0) {
+          // Busca simples na Unsplash API (pública, sem autenticação, apenas para fallback)
+          // Em produção, ideal usar uma API key própria ou outro serviço
+          const unsplashQuery = encodeURIComponent(place.name || query);
+          const unsplashUrl = `https://source.unsplash.com/800x600/?${unsplashQuery}`;
+          photos = [unsplashUrl];
+        }
+        return {
+          placeId: details?.placeId || place.place_id || '',
+          name: details?.name || place.name || '',
+          formattedAddress: details?.formattedAddress || place.formatted_address || '',
+          location: details?.location || {
+            lat: place.geometry?.location.lat || 0,
+            lng: place.geometry?.location.lng || 0
+          },
+          types: details?.types || place.types || [],
+          rating: details?.rating || place.rating,
+          priceLevel: details?.priceLevel || place.price_level,
+          photos,
+          phoneNumber: details?.phoneNumber,
+          website: details?.website
+        };
       }));
+      return detailedPlaces;
     } catch (error) {
       console.error('Erro ao pesquisar lugares:', error);
       return [];
