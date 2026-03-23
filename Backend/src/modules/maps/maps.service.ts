@@ -97,6 +97,54 @@ export class MapsService {
     return null;
   }
 
+  /**
+   * Query Wikimedia directly for thumbnails related to the place.
+   */
+  private async getWikimediaThumbnail(name: string, formattedAddress?: string): Promise<string | null> {
+    const q = [name, formattedAddress].filter(Boolean).join(' ').trim();
+    if (!q) return null;
+
+    try {
+      const url = 'https://commons.wikimedia.org/w/api.php';
+      const response = await axios.get(url, {
+        timeout: 4000,
+        params: {
+          action: 'query',
+          generator: 'search',
+          gsrsearch: q,
+          gsrlimit: 5,
+          prop: 'pageimages',
+          piprop: 'thumbnail',
+          pithumbsize: 1200,
+          format: 'json',
+          origin: '*',
+        },
+      });
+
+      const pages = response?.data?.query?.pages;
+      if (!pages || typeof pages !== 'object') return null;
+
+      for (const page of Object.values(pages) as Array<any>) {
+        const src = page?.thumbnail?.source;
+        if (src && typeof src === 'string') {
+          return src;
+        }
+      }
+    } catch {
+      // Ignore and fallback to next provider.
+    }
+
+    return null;
+  }
+
+  /**
+   * Unsplash source endpoint based on query text.
+   */
+  private getUnsplashQueryImage(name: string, formattedAddress?: string): string {
+    const q = encodeURIComponent([name, formattedAddress, 'travel landmark'].filter(Boolean).join(' '));
+    return `https://source.unsplash.com/1200x800/?${q}`;
+  }
+
   private async ensurePhotos(
     name: string,
     placeId: string,
@@ -110,6 +158,17 @@ export class MapsService {
     const wikiPhoto = await this.getWikipediaThumbnail(name, formattedAddress);
     if (wikiPhoto) {
       return [wikiPhoto];
+    }
+
+    const wikimediaPhoto = await this.getWikimediaThumbnail(name, formattedAddress);
+    if (wikimediaPhoto) {
+      return [wikimediaPhoto];
+    }
+
+    // Internet fallback by query.
+    const unsplashImage = this.getUnsplashQueryImage(name, formattedAddress);
+    if (unsplashImage) {
+      return [unsplashImage];
     }
 
     return [this.buildGuaranteedFallbackImage(`${placeId}-${name}`)];
@@ -500,12 +559,27 @@ export class MapsService {
         subtitle = adminArea?.long_name || country?.long_name || '';
       }
 
-      // Get photo URL - pegar foto aleatória se houver múltiplas
+      // Get photo URL - random Google photo when available
       let photoUrl: string | null = null;
       if (place.photos && place.photos.length > 0) {
-        // Escolher uma foto aleatória
         const randomIndex = Math.floor(Math.random() * Math.min(place.photos.length, 10));
         photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[randomIndex].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`;
+      } else {
+        const wikiPhoto = await this.getWikipediaThumbnail(place.name || '', place.formatted_address || '');
+        if (wikiPhoto) {
+          photoUrl = wikiPhoto;
+        } else {
+          const wikimediaPhoto = await this.getWikimediaThumbnail(place.name || '', place.formatted_address || '');
+          if (wikimediaPhoto) {
+            photoUrl = wikimediaPhoto;
+          } else {
+            photoUrl = this.getUnsplashQueryImage(place.name || '', place.formatted_address || '');
+          }
+        }
+      }
+
+      if (!photoUrl) {
+        photoUrl = this.buildGuaranteedFallbackImage(`${place.place_id || placeId}-${place.name || 'place'}`);
       }
 
       return {
