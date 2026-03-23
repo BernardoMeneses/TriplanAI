@@ -57,6 +57,40 @@ export interface PlaceDetails {
 }
 
 export class MapsService {
+  private buildPhotoUrl(photoReference: string, maxWidth: number): string {
+    return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${GOOGLE_MAPS_API_KEY}`;
+  }
+
+  // Text Search/Nearby pode devolver lugares sem fotos. Fazemos fallback para Place Details
+  // nos primeiros resultados para evitar itens sem imagem no frontend.
+  private async ensurePhotos(
+    place: PlaceDetails,
+    index: number,
+    maxDetailFallbacks: number = 8
+  ): Promise<PlaceDetails> {
+    if (place.photos && place.photos.length > 0) {
+      return place;
+    }
+
+    if (!place.placeId || index >= maxDetailFallbacks) {
+      return place;
+    }
+
+    try {
+      const fullDetails = await this.getPlaceDetails(place.placeId);
+      if (fullDetails?.photos && fullDetails.photos.length > 0) {
+        return {
+          ...place,
+          photos: fullDetails.photos,
+        };
+      }
+    } catch (error) {
+      console.warn(`⚠️ Fallback de fotos falhou para ${place.placeId}:`, error);
+    }
+
+    return place;
+  }
+
   async geocode(address: string): Promise<GeocodingResult | null> {
     try {
       const response = await mapsClient.geocode({
@@ -170,9 +204,7 @@ export class MapsService {
           weekdayText: place.opening_hours.weekday_text || [],
           isOpenNow: place.opening_hours.open_now
         } : undefined,
-        photos: place.photos?.slice(0, 5).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        ),
+        photos: place.photos?.slice(0, 5).map(photo => this.buildPhotoUrl(photo.photo_reference, 800)),
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -197,7 +229,7 @@ export class MapsService {
 
       const response = await mapsClient.textSearch({ params });
 
-      return response.data.results.slice(0, 20).map(place => ({
+      const baseResults: PlaceDetails[] = response.data.results.slice(0, 20).map(place => ({
         placeId: place.place_id || '',
         name: place.name || '',
         formattedAddress: place.formatted_address || '',
@@ -208,10 +240,10 @@ export class MapsService {
         types: place.types || [],
         rating: place.rating,
         priceLevel: place.price_level,
-        photos: place.photos?.slice(0, 3).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        )
+        photos: place.photos?.slice(0, 3).map(photo => this.buildPhotoUrl(photo.photo_reference, 400))
       }));
+
+      return Promise.all(baseResults.map((place, index) => this.ensurePhotos(place, index)));
     } catch (error) {
       console.error('Erro ao pesquisar lugares:', error);
       return [];
@@ -238,7 +270,7 @@ export class MapsService {
 
       const response = await mapsClient.placesNearby({ params });
 
-      return response.data.results.slice(0, 20).map(place => ({
+      const baseResults: PlaceDetails[] = response.data.results.slice(0, 20).map(place => ({
         placeId: place.place_id || '',
         name: place.name || '',
         formattedAddress: place.vicinity || '',
@@ -249,10 +281,10 @@ export class MapsService {
         types: place.types || [],
         rating: place.rating,
         priceLevel: place.price_level,
-        photos: place.photos?.slice(0, 3).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        )
+        photos: place.photos?.slice(0, 3).map(photo => this.buildPhotoUrl(photo.photo_reference, 400))
       }));
+
+      return Promise.all(baseResults.map((place, index) => this.ensurePhotos(place, index)));
     } catch (error) {
       console.error('Erro ao obter lugares próximos:', error);
       return [];
@@ -426,7 +458,7 @@ export class MapsService {
       if (place.photos && place.photos.length > 0) {
         // Escolher uma foto aleatória
         const randomIndex = Math.floor(Math.random() * Math.min(place.photos.length, 10));
-        photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[randomIndex].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`;
+        photoUrl = this.buildPhotoUrl(place.photos[randomIndex].photo_reference, 800);
       }
 
       return {

@@ -117,7 +117,7 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
       
       // Buscar detalhes completos apenas para os primeiros 3 resultados
       let fullDetails = null;
-      if (index < 3 && place.placeId) {
+      if ((!place.photos || place.photos.length === 0) && place.placeId && index < 8) {
         fullDetails = await mapsService.getPlaceDetails(place.placeId);
       }
       
