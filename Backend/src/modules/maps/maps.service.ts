@@ -1,4 +1,5 @@
 import { Client, GeocodeResult, PlaceInputType, TravelMode, Language } from '@googlemaps/google-maps-services-js';
+import axios from 'axios';
 
 const mapsClient = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
@@ -58,8 +59,9 @@ export interface PlaceDetails {
 
 export class MapsService {
   private buildPhotoUrl(photoReference: string, maxWidth: number): string {
-    return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${GOOGLE_MAPS_API_KEY}`;
-  }
+  const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+  return `${baseUrl}/api/maps/photo?photoReference=${encodeURIComponent(photoReference)}&maxWidth=${maxWidth}`;
+}
 
   // Text Search/Nearby pode devolver lugares sem fotos. Fazemos fallback para Place Details
   // nos primeiros resultados para evitar itens sem imagem no frontend.
@@ -141,7 +143,18 @@ export class MapsService {
       return null;
     }
   }
-
+  async fetchPlacePhotoStream(photoReference: string, maxWidth: number = 800) {
+  return axios.get('https://maps.googleapis.com/maps/api/place/photo', {
+    params: {
+      maxwidth: maxWidth,
+      photoreference: photoReference,
+      key: GOOGLE_MAPS_API_KEY,
+    },
+    responseType: 'stream',
+    maxRedirects: 5,
+    validateStatus: () => true,
+  });
+}
   async reverseGeocode(lat: number, lng: number): Promise<string | null> {
     try {
       const response = await mapsClient.reverseGeocode({
