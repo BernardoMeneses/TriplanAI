@@ -365,6 +365,10 @@ export class RoutesService {
         return [];
       }
       const results: DistanceMatrixResult[] = data.map((item: any) => {
+        // Considera status vazio/objeto como válido se houver distanceMeters
+        let statusString = 'OK';
+        if (typeof item.status === 'string') statusString = item.status;
+        if (typeof item.status === 'object' && Object.keys(item.status).length > 0 && item.status.code) statusString = item.status.code;
         return {
           origin: origins[item.originIndex],
           destination: destinations[item.destinationIndex],
@@ -372,7 +376,7 @@ export class RoutesService {
           distanceText: item.distanceMeters ? this.formatDistance(item.distanceMeters) : 'N/A',
           duration: item.duration ? (typeof item.duration === 'string' ? this.parseDuration(item.duration) : item.duration.seconds) : 0,
           durationText: item.duration ? this.formatDuration(typeof item.duration === 'string' ? this.parseDuration(item.duration) : item.duration.seconds) : 'N/A',
-          status: item.status || 'UNKNOWN',
+          status: statusString,
         };
       });
       if (results.length === 0) {
@@ -501,7 +505,7 @@ export class RoutesService {
       
       const results = await this.getDistanceMatrix([originWaypoint], [destWaypoint], travelMode);
       
-      if (results.length > 0 && results[0].status === 'OK') {
+      if (results.length > 0 && results[0].distance > 0) {
         return {
           distance: results[0].distance,
           distanceText: results[0].distanceText,
