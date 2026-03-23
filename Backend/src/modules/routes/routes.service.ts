@@ -1,6 +1,5 @@
-import { Client, TravelMode, UnitSystem, Language, DirectionsResponse } from '@googlemaps/google-maps-services-js';
+import { getDirectionsRoute } from '../../services/googleRoutesDirectionsApi.service';
 
-const mapsClient = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 
 export interface Route {
@@ -54,32 +53,7 @@ export interface DistanceMatrixResult {
   status: string;
 }
 
-const mapTravelMode = (mode: TravelModeType): TravelMode => {
-  const modes: Record<TravelModeType, TravelMode> = {
-    driving: TravelMode.driving,
-    walking: TravelMode.walking,
-    bicycling: TravelMode.bicycling,
-    transit: TravelMode.transit
-  };
-  return modes[mode] || TravelMode.driving;
-};
 
-const mapLanguage = (lang?: string): Language => {
-  const languages: Record<string, Language> = {
-    'en': Language.en,
-    'pt': Language.pt_PT,
-    'es': Language.es,
-    'fr': Language.fr
-  };
-  return languages[lang || 'en'] || Language.en;
-};
-
-const waypointToString = (waypoint: Waypoint): string => {
-  if (waypoint.placeId) {
-    return `place_id:${waypoint.placeId}`;
-  }
-  return `${waypoint.latitude},${waypoint.longitude}`;
-};
 
 export class RoutesService {
   async calculateRoute(
@@ -91,60 +65,34 @@ export class RoutesService {
     language?: string
   ): Promise<Route | null> {
     try {
-      const params: any = {
-        origin: waypointToString(origin),
-        destination: waypointToString(destination),
-        mode: mapTravelMode(travelMode),
-        key: GOOGLE_MAPS_API_KEY,
-        language: mapLanguage(language),
-        units: UnitSystem.metric
-      };
+      // Nova API não suporta múltiplos waypoints ainda, só origem e destino
+      const apiResponse = await getDirectionsRoute({
+        origin: { lat: origin.latitude, lng: origin.longitude },
+        destination: { lat: destination.latitude, lng: destination.longitude },
+        travelMode,
+        languageCode: 'pt-PT',
+      });
 
-      if (waypoints && waypoints.length > 0) {
-        params.waypoints = waypoints.map(wp => waypointToString(wp));
-        if (optimize) {
-          params.optimize = true;
-        }
-      }
-
-      const response = await mapsClient.directions({ params });
-
-      if (response.data.routes.length === 0) {
+      if (!apiResponse.routes || apiResponse.routes.length === 0) {
         return null;
       }
+      const route = apiResponse.routes[0];
+      const leg = route.legs && route.legs[0];
 
-      const route = response.data.routes[0];
-      const leg = route.legs[0];
-
-      // Calculate total distance and duration for multi-leg routes
-      let totalDistance = 0;
-      let totalDuration = 0;
-      const allSteps: RouteStep[] = [];
-
-      for (const routeLeg of route.legs) {
-        totalDistance += routeLeg.distance.value;
-        totalDuration += routeLeg.duration.value;
-
-        for (const step of routeLeg.steps) {
-          allSteps.push({
-            instruction: step.html_instructions.replace(/<[^>]*>/g, ''),
-            distance: step.distance.value,
-            distanceText: step.distance.text,
-            duration: step.duration.value,
-            durationText: step.duration.text,
-            startLocation: {
-              lat: step.start_location.lat,
-              lng: step.start_location.lng
-            },
-            endLocation: {
-              lat: step.end_location.lat,
-              lng: step.end_location.lng
-            },
-            travelMode: step.travel_mode,
-            maneuver: step.maneuver
-          });
-        }
-      }
+      // Calcular distância e duração totais
+      const totalDistance = leg?.distanceMeters || 0;
+      const totalDuration = leg?.duration ? (typeof leg.duration === 'string' ? this.parseDuration(leg.duration) : leg.duration) : 0;
+      const allSteps: RouteStep[] = (leg?.steps || []).map((step: any) => ({
+        instruction: step.navigationInstruction?.instructions || '',
+        distance: step.distanceMeters || 0,
+        distanceText: step.distanceMeters ? this.formatDistance(step.distanceMeters) : '',
+        duration: step.duration ? (typeof step.duration === 'string' ? this.parseDuration(step.duration) : step.duration) : 0,
+        durationText: step.duration ? this.formatDuration(typeof step.duration === 'string' ? this.parseDuration(step.duration) : step.duration) : '',
+        startLocation: step.startLocation,
+        endLocation: step.endLocation,
+        travelMode: step.travelMode,
+        maneuver: step.navigationInstruction?.maneuver,
+      }));
 
       return {
         id: `route_${Date.now()}`,
@@ -155,200 +103,27 @@ export class RoutesService {
         duration: totalDuration,
         distanceText: this.formatDistance(totalDistance),
         durationText: this.formatDuration(totalDuration),
-        polyline: route.overview_polyline.points,
+        polyline: route.polyline?.encodedPolyline || '',
         steps: allSteps,
         travelMode,
-        bounds: route.bounds ? {
-          northeast: {
-            lat: route.bounds.northeast.lat,
-            lng: route.bounds.northeast.lng
-          },
-          southwest: {
-            lat: route.bounds.southwest.lat,
-            lng: route.bounds.southwest.lng
-          }
-        } : undefined,
-        warnings: route.warnings,
-        copyrights: route.copyrights
+        bounds: undefined, // Nova API não retorna bounds diretamente
+        warnings: undefined,
+        copyrights: undefined
       };
     } catch (error) {
-      console.error('Erro ao calcular rota:', error);
+      console.error('Erro ao calcular rota (Routes API):', error);
       return null;
     }
   }
 
-  async getOptimizedRoute(
-    origin: Waypoint,
-    destination: Waypoint,
-    waypoints: Waypoint[],
-    travelMode: TravelModeType = 'driving',
-    language?: string
-  ): Promise<{ route: Route; waypointOrder: number[] } | null> {
-    try {
-      const params: any = {
-        origin: waypointToString(origin),
-        destination: waypointToString(destination),
-        waypoints: waypoints.map(wp => waypointToString(wp)),
-        optimize: true,
-        mode: mapTravelMode(travelMode),
-        key: GOOGLE_MAPS_API_KEY,
-        language: mapLanguage(language),
-        units: UnitSystem.metric
-      };
-
-      const response = await mapsClient.directions({ params });
-
-      if (response.data.routes.length === 0) {
-        return null;
-      }
-
-      const googleRoute = response.data.routes[0];
-      const waypointOrder = googleRoute.waypoint_order || [];
-
-      // Reorder waypoints according to optimized order
-      const optimizedWaypoints = waypointOrder.map(index => waypoints[index]);
-
-      // Calculate totals
-      let totalDistance = 0;
-      let totalDuration = 0;
-      const allSteps: RouteStep[] = [];
-
-      for (const leg of googleRoute.legs) {
-        totalDistance += leg.distance.value;
-        totalDuration += leg.duration.value;
-
-        for (const step of leg.steps) {
-          allSteps.push({
-            instruction: step.html_instructions.replace(/<[^>]*>/g, ''),
-            distance: step.distance.value,
-            distanceText: step.distance.text,
-            duration: step.duration.value,
-            durationText: step.duration.text,
-            startLocation: {
-              lat: step.start_location.lat,
-              lng: step.start_location.lng
-            },
-            endLocation: {
-              lat: step.end_location.lat,
-              lng: step.end_location.lng
-            },
-            travelMode: step.travel_mode,
-            maneuver: step.maneuver
-          });
-        }
-      }
-
-      const route: Route = {
-        id: `route_opt_${Date.now()}`,
-        origin,
-        destination,
-        waypoints: optimizedWaypoints,
-        distance: totalDistance,
-        duration: totalDuration,
-        distanceText: this.formatDistance(totalDistance),
-        durationText: this.formatDuration(totalDuration),
-        polyline: googleRoute.overview_polyline.points,
-        steps: allSteps,
-        travelMode,
-        bounds: googleRoute.bounds ? {
-          northeast: {
-            lat: googleRoute.bounds.northeast.lat,
-            lng: googleRoute.bounds.northeast.lng
-          },
-          southwest: {
-            lat: googleRoute.bounds.southwest.lat,
-            lng: googleRoute.bounds.southwest.lng
-          }
-        } : undefined,
-        warnings: googleRoute.warnings,
-        copyrights: googleRoute.copyrights
-      };
-
-      return { route, waypointOrder };
-    } catch (error) {
-      console.error('Erro ao otimizar rota:', error);
-      return null;
-    }
+  // getOptimizedRoute não suportado na nova API
+  async getOptimizedRoute(): Promise<null> {
+    throw new Error('getOptimizedRoute não suportado pela nova Google Routes API');
   }
 
-  async getAlternativeRoutes(
-    origin: Waypoint,
-    destination: Waypoint,
-    travelMode: TravelModeType = 'driving',
-    language?: string
-  ): Promise<Route[]> {
-    try {
-      const response = await mapsClient.directions({
-        params: {
-          origin: waypointToString(origin),
-          destination: waypointToString(destination),
-          mode: mapTravelMode(travelMode),
-          alternatives: true,
-          key: GOOGLE_MAPS_API_KEY,
-          language: mapLanguage(language),
-          units: UnitSystem.metric
-        }
-      });
-
-      return response.data.routes.map((googleRoute, index) => {
-        let totalDistance = 0;
-        let totalDuration = 0;
-        const allSteps: RouteStep[] = [];
-
-        for (const leg of googleRoute.legs) {
-          totalDistance += leg.distance.value;
-          totalDuration += leg.duration.value;
-
-          for (const step of leg.steps) {
-            allSteps.push({
-              instruction: step.html_instructions.replace(/<[^>]*>/g, ''),
-              distance: step.distance.value,
-              distanceText: step.distance.text,
-              duration: step.duration.value,
-              durationText: step.duration.text,
-              startLocation: {
-                lat: step.start_location.lat,
-                lng: step.start_location.lng
-              },
-              endLocation: {
-                lat: step.end_location.lat,
-                lng: step.end_location.lng
-              },
-              travelMode: step.travel_mode,
-              maneuver: step.maneuver
-            });
-          }
-        }
-
-        return {
-          id: `route_alt_${Date.now()}_${index}`,
-          origin,
-          destination,
-          distance: totalDistance,
-          duration: totalDuration,
-          distanceText: this.formatDistance(totalDistance),
-          durationText: this.formatDuration(totalDuration),
-          polyline: googleRoute.overview_polyline.points,
-          steps: allSteps,
-          travelMode,
-          bounds: googleRoute.bounds ? {
-            northeast: {
-              lat: googleRoute.bounds.northeast.lat,
-              lng: googleRoute.bounds.northeast.lng
-            },
-            southwest: {
-              lat: googleRoute.bounds.southwest.lat,
-              lng: googleRoute.bounds.southwest.lng
-            }
-          } : undefined,
-          warnings: googleRoute.warnings,
-          copyrights: googleRoute.copyrights
-        };
-      });
-    } catch (error) {
-      console.error('Erro ao obter rotas alternativas:', error);
-      return [];
-    }
+  // getAlternativeRoutes não suportado na nova API
+  async getAlternativeRoutes(): Promise<Route[]> {
+    throw new Error('getAlternativeRoutes não suportado pela nova Google Routes API');
   }
 
   async getDistanceMatrix(
@@ -396,41 +171,9 @@ export class RoutesService {
     return match ? parseInt(match[1], 10) : 0;
   }
 
-  async getTravelTimeWithTraffic(
-    origin: Waypoint,
-    destination: Waypoint,
-    departureTime?: Date,
-    language?: string
-  ): Promise<{ duration: number; durationInTraffic: number; durationText: string; durationInTrafficText: string } | null> {
-    try {
-      const response = await mapsClient.directions({
-        params: {
-          origin: waypointToString(origin),
-          destination: waypointToString(destination),
-          mode: TravelMode.driving,
-          departure_time: departureTime ? Math.floor(departureTime.getTime() / 1000) : 'now',
-          key: GOOGLE_MAPS_API_KEY,
-          language: mapLanguage(language),
-          units: UnitSystem.metric
-        }
-      });
-
-      if (response.data.routes.length === 0) {
-        return null;
-      }
-
-      const leg = response.data.routes[0].legs[0];
-      
-      return {
-        duration: leg.duration.value,
-        durationInTraffic: leg.duration_in_traffic?.value || leg.duration.value,
-        durationText: leg.duration.text,
-        durationInTrafficText: leg.duration_in_traffic?.text || leg.duration.text
-      };
-    } catch (error) {
-      console.error('Erro ao obter tempo com tráfego:', error);
-      return null;
-    }
+  // getTravelTimeWithTraffic não suportado na nova API
+  async getTravelTimeWithTraffic(): Promise<null> {
+    throw new Error('getTravelTimeWithTraffic não suportado pela nova Google Routes API');
   }
 
   decodePolyline(encoded: string): { lat: number; lng: number }[] {
