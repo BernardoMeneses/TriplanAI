@@ -1,5 +1,4 @@
 import { Client, GeocodeResult, PlaceInputType, TravelMode, Language } from '@googlemaps/google-maps-services-js';
-import axios from 'axios';
 
 const mapsClient = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
@@ -58,122 +57,6 @@ export interface PlaceDetails {
 }
 
 export class MapsService {
-  /**
-   * Guaranteed fallback image so UI always has an image URL.
-   */
-  private buildGuaranteedFallbackImage(seed: string): string {
-    const safeSeed = encodeURIComponent(seed.toLowerCase().replace(/\s+/g, '-'));
-    return `https://picsum.photos/seed/${safeSeed}/1200/800`;
-  }
-
-  /**
-   * Try fetching a representative thumbnail from Wikipedia.
-   */
-  private async getWikipediaThumbnail(name: string, formattedAddress?: string): Promise<string | null> {
-    const rawName = (name || '').trim();
-    if (!rawName) return null;
-
-    const candidates = new Set<string>();
-    candidates.add(rawName);
-
-    const cityHint = formattedAddress?.split(',')?.[0]?.trim();
-    if (cityHint && cityHint.toLowerCase() !== rawName.toLowerCase()) {
-      candidates.add(`${rawName} (${cityHint})`);
-    }
-
-    for (const title of candidates) {
-      try {
-        const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-        const response = await axios.get(url, { timeout: 3500 });
-        const thumb = response?.data?.thumbnail?.source;
-        if (thumb && typeof thumb === 'string') {
-          return thumb;
-        }
-      } catch {
-        // Ignore and try next candidate.
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Query Wikimedia directly for thumbnails related to the place.
-   */
-  private async getWikimediaThumbnail(name: string, formattedAddress?: string): Promise<string | null> {
-    const q = [name, formattedAddress].filter(Boolean).join(' ').trim();
-    if (!q) return null;
-
-    try {
-      const url = 'https://commons.wikimedia.org/w/api.php';
-      const response = await axios.get(url, {
-        timeout: 4000,
-        params: {
-          action: 'query',
-          generator: 'search',
-          gsrsearch: q,
-          gsrlimit: 5,
-          prop: 'pageimages',
-          piprop: 'thumbnail',
-          pithumbsize: 1200,
-          format: 'json',
-          origin: '*',
-        },
-      });
-
-      const pages = response?.data?.query?.pages;
-      if (!pages || typeof pages !== 'object') return null;
-
-      for (const page of Object.values(pages) as Array<any>) {
-        const src = page?.thumbnail?.source;
-        if (src && typeof src === 'string') {
-          return src;
-        }
-      }
-    } catch {
-      // Ignore and fallback to next provider.
-    }
-
-    return null;
-  }
-
-  /**
-   * Unsplash source endpoint based on query text.
-   */
-  private getUnsplashQueryImage(name: string, formattedAddress?: string): string {
-    const q = encodeURIComponent([name, formattedAddress, 'travel landmark'].filter(Boolean).join(' '));
-    return `https://source.unsplash.com/1200x800/?${q}`;
-  }
-
-  private async ensurePhotos(
-    name: string,
-    placeId: string,
-    formattedAddress: string,
-    googlePhotos: string[]
-  ): Promise<string[]> {
-    if (googlePhotos.length > 0) {
-      return googlePhotos;
-    }
-
-    const wikiPhoto = await this.getWikipediaThumbnail(name, formattedAddress);
-    if (wikiPhoto) {
-      return [wikiPhoto];
-    }
-
-    const wikimediaPhoto = await this.getWikimediaThumbnail(name, formattedAddress);
-    if (wikimediaPhoto) {
-      return [wikimediaPhoto];
-    }
-
-    // Internet fallback by query.
-    const unsplashImage = this.getUnsplashQueryImage(name, formattedAddress);
-    if (unsplashImage) {
-      return [unsplashImage];
-    }
-
-    return [this.buildGuaranteedFallbackImage(`${placeId}-${name}`)];
-  }
-
   async geocode(address: string): Promise<GeocodingResult | null> {
     try {
       const response = await mapsClient.geocode({
@@ -272,19 +155,6 @@ export class MapsService {
       const place = response.data.result;
       if (!place) return null;
 
-      const googlePhotos = (place.photos || [])
-        .slice(0, 5)
-        .map(photo =>
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        );
-
-      const photos = await this.ensurePhotos(
-        place.name || '',
-        place.place_id || placeId,
-        place.formatted_address || '',
-        googlePhotos
-      );
-
       return {
         placeId: place.place_id || placeId,
         name: place.name || '',
@@ -300,7 +170,9 @@ export class MapsService {
           weekdayText: place.opening_hours.weekday_text || [],
           isOpenNow: place.opening_hours.open_now
         } : undefined,
-        photos,
+        photos: place.photos?.slice(0, 5).map(photo => 
+          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+        ),
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -325,26 +197,21 @@ export class MapsService {
 
       const response = await mapsClient.textSearch({ params });
 
-      return response.data.results.slice(0, 20).map(place => {
-        const googlePhotos = (place.photos || []).slice(0, 3).map(photo =>
+      return response.data.results.slice(0, 20).map(place => ({
+        placeId: place.place_id || '',
+        name: place.name || '',
+        formattedAddress: place.formatted_address || '',
+        location: {
+          lat: place.geometry?.location.lat || 0,
+          lng: place.geometry?.location.lng || 0
+        },
+        types: place.types || [],
+        rating: place.rating,
+        priceLevel: place.price_level,
+        photos: place.photos?.slice(0, 3).map(photo => 
           `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        );
-        const fallback = this.buildGuaranteedFallbackImage(`${place.place_id || place.name || 'place'}-${place.name || 'place'}`);
-
-        return {
-          placeId: place.place_id || '',
-          name: place.name || '',
-          formattedAddress: place.formatted_address || '',
-          location: {
-            lat: place.geometry?.location.lat || 0,
-            lng: place.geometry?.location.lng || 0
-          },
-          types: place.types || [],
-          rating: place.rating,
-          priceLevel: place.price_level,
-          photos: googlePhotos.length > 0 ? googlePhotos : [fallback]
-        };
-      });
+        )
+      }));
     } catch (error) {
       console.error('Erro ao pesquisar lugares:', error);
       return [];
@@ -371,26 +238,21 @@ export class MapsService {
 
       const response = await mapsClient.placesNearby({ params });
 
-      return response.data.results.slice(0, 20).map(place => {
-        const googlePhotos = (place.photos || []).slice(0, 3).map(photo =>
+      return response.data.results.slice(0, 20).map(place => ({
+        placeId: place.place_id || '',
+        name: place.name || '',
+        formattedAddress: place.vicinity || '',
+        location: {
+          lat: place.geometry?.location.lat || 0,
+          lng: place.geometry?.location.lng || 0
+        },
+        types: place.types || [],
+        rating: place.rating,
+        priceLevel: place.price_level,
+        photos: place.photos?.slice(0, 3).map(photo => 
           `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        );
-        const fallback = this.buildGuaranteedFallbackImage(`${place.place_id || place.name || 'place'}-${place.name || 'place'}`);
-
-        return {
-          placeId: place.place_id || '',
-          name: place.name || '',
-          formattedAddress: place.vicinity || '',
-          location: {
-            lat: place.geometry?.location.lat || 0,
-            lng: place.geometry?.location.lng || 0
-          },
-          types: place.types || [],
-          rating: place.rating,
-          priceLevel: place.price_level,
-          photos: googlePhotos.length > 0 ? googlePhotos : [fallback]
-        };
-      });
+        )
+      }));
     } catch (error) {
       console.error('Erro ao obter lugares próximos:', error);
       return [];
@@ -559,27 +421,12 @@ export class MapsService {
         subtitle = adminArea?.long_name || country?.long_name || '';
       }
 
-      // Get photo URL - random Google photo when available
+      // Get photo URL - pegar foto aleatória se houver múltiplas
       let photoUrl: string | null = null;
       if (place.photos && place.photos.length > 0) {
+        // Escolher uma foto aleatória
         const randomIndex = Math.floor(Math.random() * Math.min(place.photos.length, 10));
         photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[randomIndex].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`;
-      } else {
-        const wikiPhoto = await this.getWikipediaThumbnail(place.name || '', place.formatted_address || '');
-        if (wikiPhoto) {
-          photoUrl = wikiPhoto;
-        } else {
-          const wikimediaPhoto = await this.getWikimediaThumbnail(place.name || '', place.formatted_address || '');
-          if (wikimediaPhoto) {
-            photoUrl = wikimediaPhoto;
-          } else {
-            photoUrl = this.getUnsplashQueryImage(place.name || '', place.formatted_address || '');
-          }
-        }
-      }
-
-      if (!photoUrl) {
-        photoUrl = this.buildGuaranteedFallbackImage(`${place.place_id || placeId}-${place.name || 'place'}`);
       }
 
       return {
