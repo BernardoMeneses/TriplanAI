@@ -218,32 +218,6 @@ router.post('/static', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/photo', async (req: Request, res: Response) => {
-  try {
-    const { photoReference, maxWidth } = req.query;
-
-    if (!photoReference || typeof photoReference !== 'string') {
-      return res.status(400).json({ error: 'photoReference é obrigatório' });
-    }
-
-    const width = maxWidth ? Number(maxWidth) : 800;
-
-    const response = await mapsService.fetchPlacePhotoStream(photoReference, width);
-
-    if (response.status >= 400) {
-      return res.status(response.status).send('Erro ao obter foto');
-    }
-
-    const contentType = response.headers['content-type'] || 'image/jpeg';
-    res.setHeader('Content-Type', contentType);
-
-    response.data.pipe(res);
-  } catch (error) {
-    console.error('Error fetching place photo:', error);
-    res.status(500).json({ error: 'Erro ao obter foto do lugar' });
-  }
-});
-
 // GET /api/maps/timezone - Obter fuso horário de uma localização
 router.get('/timezone', async (req: Request, res: Response) => {
   try {
