@@ -155,6 +155,14 @@ export class MapsService {
       const place = response.data.result;
       if (!place) return null;
 
+      const photos = place.photos?.slice(0, 5).map(photo => 
+        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      if (photos && photos.length > 0) {
+        console.log(`[MapsService] Imagens do card para placeId ${placeId}:`, photos);
+      } else {
+        console.log(`[MapsService] Nenhuma imagem encontrada para placeId ${placeId}`);
+      }
       return {
         placeId: place.place_id || placeId,
         name: place.name || '',
@@ -170,9 +178,7 @@ export class MapsService {
           weekdayText: place.opening_hours.weekday_text || [],
           isOpenNow: place.opening_hours.open_now
         } : undefined,
-        photos: place.photos?.slice(0, 5).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        ),
+        photos,
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -498,6 +504,16 @@ export class MapsService {
 
       const route = response.data.routes[0];
       const leg = route.legs[0];
+
+      // Log polylines e modos de transporte
+      if (route.overview_polyline) {
+        console.log('[MapsService] Polyline geral:', route.overview_polyline.points);
+      }
+      if (leg.steps && leg.steps.length > 0) {
+        leg.steps.forEach((step, idx) => {
+          console.log(`[MapsService] Step ${idx} modo: ${step.travel_mode}, polyline:`, step.polyline?.points);
+        });
+      }
 
       return {
         distance: leg.distance,
