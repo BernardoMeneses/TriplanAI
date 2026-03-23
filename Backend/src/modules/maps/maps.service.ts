@@ -208,17 +208,19 @@ export class MapsService {
       // Buscar detalhes completos para cada resultado
       const detailedPlaces = await Promise.all(places.map(async (place) => {
         let details = await this.getPlaceDetails(place.place_id || '');
-        // Garantir nome para fallback
-        const fallbackName = details?.name || place.name || query || 'travel';
-        // Se não houver fotos, buscar imagem genérica na web (Unsplash)
-        let photos = details?.photos && details.photos.length > 0 ? details.photos : [];
-        if (!photos || photos.length === 0 || !photos[0]) {
+        // Usar sempre o campo photoUrl do details (que já faz fallback Unsplash)
+        let photoUrl = null;
+        let photos: string[] = [];
+        if (details?.photos && details.photos.length > 0) {
+          photos = details.photos;
+          photoUrl = details.photos[0];
+        } else {
+          // Fallback igual ao getPlaceDetails
+          const fallbackName = details?.name || place.name || query || 'travel';
           const unsplashQuery = encodeURIComponent(fallbackName);
-          const unsplashUrl = `https://source.unsplash.com/800x600/?${unsplashQuery}`;
-          photos = [unsplashUrl];
+          photoUrl = `https://source.unsplash.com/800x600/?${unsplashQuery}`;
+          photos = [photoUrl];
         }
-        // Campo photoUrl para o frontend (primeira imagem, nunca undefined ou vazio)
-        const photoUrl = (photos[0] && typeof photos[0] === 'string' && photos[0].length > 0) ? photos[0] : `https://source.unsplash.com/800x600/?${encodeURIComponent(fallbackName)}`;
         return {
           placeId: details?.placeId || place.place_id || '',
           name: details?.name || place.name || '',
