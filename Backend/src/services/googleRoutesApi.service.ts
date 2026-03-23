@@ -20,12 +20,22 @@ export async function getRouteMatrix(origins: Waypoint[], destinations: Waypoint
   const requestBody = {
     origins: origins.map(wp => ({
       waypoint: {
-        location: { latLng: { latitude: wp.latitude, longitude: wp.longitude } }
+        location: {
+          latLng: {
+            latitude: wp.latitude,
+            longitude: wp.longitude
+          }
+        }
       }
     })),
     destinations: destinations.map(wp => ({
       waypoint: {
-        location: { latLng: { latitude: wp.latitude, longitude: wp.longitude } }
+        location: {
+          latLng: {
+            latitude: wp.latitude,
+            longitude: wp.longitude
+          }
+        }
       }
     })),
     travelMode: mapTravelMode(travelMode),
