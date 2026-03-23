@@ -1,4 +1,5 @@
 import { Client, GeocodeResult, PlaceInputType, TravelMode, Language } from '@googlemaps/google-maps-services-js';
+import axios from 'axios';
 
 const mapsClient = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
@@ -57,6 +58,63 @@ export interface PlaceDetails {
 }
 
 export class MapsService {
+  /**
+   * Guaranteed fallback image so UI always has an image URL.
+   */
+  private buildGuaranteedFallbackImage(seed: string): string {
+    const safeSeed = encodeURIComponent(seed.toLowerCase().replace(/\s+/g, '-'));
+    return `https://picsum.photos/seed/${safeSeed}/1200/800`;
+  }
+
+  /**
+   * Try fetching a representative thumbnail from Wikipedia.
+   */
+  private async getWikipediaThumbnail(name: string, formattedAddress?: string): Promise<string | null> {
+    const rawName = (name || '').trim();
+    if (!rawName) return null;
+
+    const candidates = new Set<string>();
+    candidates.add(rawName);
+
+    const cityHint = formattedAddress?.split(',')?.[0]?.trim();
+    if (cityHint && cityHint.toLowerCase() !== rawName.toLowerCase()) {
+      candidates.add(`${rawName} (${cityHint})`);
+    }
+
+    for (const title of candidates) {
+      try {
+        const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const response = await axios.get(url, { timeout: 3500 });
+        const thumb = response?.data?.thumbnail?.source;
+        if (thumb && typeof thumb === 'string') {
+          return thumb;
+        }
+      } catch {
+        // Ignore and try next candidate.
+      }
+    }
+
+    return null;
+  }
+
+  private async ensurePhotos(
+    name: string,
+    placeId: string,
+    formattedAddress: string,
+    googlePhotos: string[]
+  ): Promise<string[]> {
+    if (googlePhotos.length > 0) {
+      return googlePhotos;
+    }
+
+    const wikiPhoto = await this.getWikipediaThumbnail(name, formattedAddress);
+    if (wikiPhoto) {
+      return [wikiPhoto];
+    }
+
+    return [this.buildGuaranteedFallbackImage(`${placeId}-${name}`)];
+  }
+
   async geocode(address: string): Promise<GeocodingResult | null> {
     try {
       const response = await mapsClient.geocode({
@@ -155,6 +213,19 @@ export class MapsService {
       const place = response.data.result;
       if (!place) return null;
 
+      const googlePhotos = (place.photos || [])
+        .slice(0, 5)
+        .map(photo =>
+          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+        );
+
+      const photos = await this.ensurePhotos(
+        place.name || '',
+        place.place_id || placeId,
+        place.formatted_address || '',
+        googlePhotos
+      );
+
       return {
         placeId: place.place_id || placeId,
         name: place.name || '',
@@ -170,9 +241,7 @@ export class MapsService {
           weekdayText: place.opening_hours.weekday_text || [],
           isOpenNow: place.opening_hours.open_now
         } : undefined,
-        photos: place.photos?.slice(0, 5).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        ),
+        photos,
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -197,21 +266,26 @@ export class MapsService {
 
       const response = await mapsClient.textSearch({ params });
 
-      return response.data.results.slice(0, 20).map(place => ({
-        placeId: place.place_id || '',
-        name: place.name || '',
-        formattedAddress: place.formatted_address || '',
-        location: {
-          lat: place.geometry?.location.lat || 0,
-          lng: place.geometry?.location.lng || 0
-        },
-        types: place.types || [],
-        rating: place.rating,
-        priceLevel: place.price_level,
-        photos: place.photos?.slice(0, 3).map(photo => 
+      return response.data.results.slice(0, 20).map(place => {
+        const googlePhotos = (place.photos || []).slice(0, 3).map(photo =>
           `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        )
-      }));
+        );
+        const fallback = this.buildGuaranteedFallbackImage(`${place.place_id || place.name || 'place'}-${place.name || 'place'}`);
+
+        return {
+          placeId: place.place_id || '',
+          name: place.name || '',
+          formattedAddress: place.formatted_address || '',
+          location: {
+            lat: place.geometry?.location.lat || 0,
+            lng: place.geometry?.location.lng || 0
+          },
+          types: place.types || [],
+          rating: place.rating,
+          priceLevel: place.price_level,
+          photos: googlePhotos.length > 0 ? googlePhotos : [fallback]
+        };
+      });
     } catch (error) {
       console.error('Erro ao pesquisar lugares:', error);
       return [];
@@ -238,21 +312,26 @@ export class MapsService {
 
       const response = await mapsClient.placesNearby({ params });
 
-      return response.data.results.slice(0, 20).map(place => ({
-        placeId: place.place_id || '',
-        name: place.name || '',
-        formattedAddress: place.vicinity || '',
-        location: {
-          lat: place.geometry?.location.lat || 0,
-          lng: place.geometry?.location.lng || 0
-        },
-        types: place.types || [],
-        rating: place.rating,
-        priceLevel: place.price_level,
-        photos: place.photos?.slice(0, 3).map(photo => 
+      return response.data.results.slice(0, 20).map(place => {
+        const googlePhotos = (place.photos || []).slice(0, 3).map(photo =>
           `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        )
-      }));
+        );
+        const fallback = this.buildGuaranteedFallbackImage(`${place.place_id || place.name || 'place'}-${place.name || 'place'}`);
+
+        return {
+          placeId: place.place_id || '',
+          name: place.name || '',
+          formattedAddress: place.vicinity || '',
+          location: {
+            lat: place.geometry?.location.lat || 0,
+            lng: place.geometry?.location.lng || 0
+          },
+          types: place.types || [],
+          rating: place.rating,
+          priceLevel: place.price_level,
+          photos: googlePhotos.length > 0 ? googlePhotos : [fallback]
+        };
+      });
     } catch (error) {
       console.error('Erro ao obter lugares próximos:', error);
       return [];

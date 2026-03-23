@@ -185,7 +185,10 @@ class _PremiumPageState extends State<PremiumPage> {
                         context,
                         planType: 'yearly',
                         title: AppConstants.yearly.tr(),
-                        price: '€39.99',
+                        price: _getLocalizedPriceForPlan(
+                          'yearly',
+                          fallback: '€39.99',
+                        ),
                         period: AppConstants.perYear.tr(),
                         savings: '${AppConstants.savePremium.tr()} 33%',
                         isMostPopular: true,
@@ -198,7 +201,10 @@ class _PremiumPageState extends State<PremiumPage> {
                         context,
                         planType: 'monthly',
                         title: AppConstants.monthly.tr(),
-                        price: '€4.99',
+                        price: _getLocalizedPriceForPlan(
+                          'monthly',
+                          fallback: '€5.99',
+                        ),
                         period: AppConstants.perMonth.tr(),
                         isMostPopular: false,
                       ),
@@ -543,6 +549,11 @@ class _PremiumPageState extends State<PremiumPage> {
         });
       }
     }
+  }
+
+  String _getLocalizedPriceForPlan(String planType, {required String fallback}) {
+    final product = _getProductForPlan(planType);
+    return product?.price.localizedString ?? fallback;
   }
 
   Future<void> _handleRestorePurchases() async {

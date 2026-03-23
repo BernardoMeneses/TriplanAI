@@ -175,6 +175,20 @@ class SubscriptionService {
     _lastFetch = null;
   }
 
+  /// Reverter plano para free no backend
+  Future<bool> deactivatePlan() async {
+    try {
+      await _apiService.post('/premium/deactivate');
+      clearCache();
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ SubscriptionService: Erro ao desativar plano: $e');
+      }
+      return false;
+    }
+  }
+
   /// Verifica se uma feature está disponível
   Future<bool> hasFeature(String feature) async {
     final status = await getStatus();

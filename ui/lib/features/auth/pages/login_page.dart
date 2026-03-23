@@ -198,6 +198,11 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      final isAvailable = await SignInWithApple.isAvailable();
+      if (!isAvailable) {
+        throw Exception('Apple Sign In não está disponível neste dispositivo.');
+      }
+
       final credential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
@@ -240,6 +245,14 @@ class _LoginPageState extends State<LoginPage> {
 
         widget.onLoginSuccess();
       }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code.toString().contains('canceled')) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = 'Não foi possível autenticar com Apple. Verifica a configuração do Apple Sign In no iPhone e tenta novamente.';
+      });
     } catch (e) {
       final errorMsg = e.toString();
 

@@ -42,6 +42,22 @@ export interface ItineraryItem {
 }
 
 export class ItineraryItemsService {
+  private buildGuaranteedFallbackImage(seed: string): string {
+    const safeSeed = encodeURIComponent(seed.toLowerCase().replace(/\s+/g, '-'));
+    return `https://picsum.photos/seed/${safeSeed}/1200/800`;
+  }
+
+  private ensurePlaceImages(item: ItineraryItem): ItineraryItem {
+    if (!item.place) return item;
+
+    const images = Array.isArray(item.place.images) ? item.place.images : [];
+    if (images.length > 0) return item;
+
+    const seed = item.place.google_place_id || item.place.id || item.title || 'place';
+    item.place.images = [this.buildGuaranteedFallbackImage(seed)];
+    return item;
+  }
+
   async createItineraryItem(data: {
     itineraryId: string;
     placeId?: string;
@@ -272,8 +288,8 @@ export class ItineraryItemsService {
         item.place.images = [];
       }
     }
-    
-    return item;
+
+    return this.ensurePlaceImages(item);
   }
 
   async getItineraryItemsByDay(itineraryId: string): Promise<ItineraryItem[]> {
@@ -312,7 +328,7 @@ export class ItineraryItemsService {
           item.place.images = [];
         }
       }
-      return item;
+      return this.ensurePlaceImages(item);
     });
     
     return items;
@@ -343,7 +359,18 @@ export class ItineraryItemsService {
       WHERE ii.id = $1`,
       [id]
     );
-    return result.rows[0] || null;
+    const item = result.rows[0] || null;
+    if (!item) return null;
+
+    if (item.place && item.place.images && typeof item.place.images === 'string') {
+      try {
+        item.place.images = JSON.parse(item.place.images);
+      } catch (e) {
+        item.place.images = [];
+      }
+    }
+
+    return this.ensurePlaceImages(item);
   }
 
   async updateItineraryItem(

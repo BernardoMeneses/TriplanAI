@@ -90,6 +90,9 @@ class AdaptyService {
   }
 
   /// Obter paywall com produtos
+  /// Devolve null e preenche [lastError] em caso de falha.
+  String? lastError;
+
   Future<AdaptyPaywall?> getPaywall({String placementId = premiumPlacementId}) async {
     if (!_isInitialized) {
       await initialize();
@@ -97,19 +100,27 @@ class AdaptyService {
     
     try {
       if (kDebugMode) {
-        print('🔍 AdaptyService: A obter paywall para placement: $placementId');
+        print('🔍 AdaptyService: A obter paywall para placement: "$placementId"');
       }
       
       final paywall = await Adapty().getPaywall(placementId: placementId);
       
       if (kDebugMode) {
-        print('✅ AdaptyService: Paywall obtida: ${paywall.name} (${paywall.placementId})');
+        print('✅ AdaptyService: Paywall obtida: "${paywall.name}" (placement: "${paywall.placementId}")');
       }
       
+      lastError = null;
       return paywall;
-    } catch (e) {
+    } on AdaptyError catch (e) {
+      lastError = '[AdaptyError ${e.code}] ${e.message}';
       if (kDebugMode) {
-        print('❌ AdaptyService: Erro ao obter paywall ($placementId): $e');
+        print('❌ AdaptyService: AdaptyError ao obter paywall "$placementId": code=${e.code} msg=${e.message}');
+      }
+      return null;
+    } catch (e) {
+      lastError = e.toString();
+      if (kDebugMode) {
+        print('❌ AdaptyService: Erro ao obter paywall "$placementId": $e');
       }
       return null;
     }
@@ -122,11 +133,11 @@ class AdaptyService {
     }
     
     try {
-      // Sempre obter paywall nova para garantir que é do placement correto
       final paywall = await getPaywall(placementId: placementId);
       if (paywall == null) {
+        // lastError already set by getPaywall
         if (kDebugMode) {
-          print('❌ AdaptyService: Paywall null para $placementId');
+          print('❌ AdaptyService: Paywall null para "$placementId" — verifica o Placement ID no Adapty Dashboard');
         }
         return [];
       }
@@ -134,16 +145,29 @@ class AdaptyService {
       final products = await Adapty().getPaywallProducts(paywall: paywall);
       
       if (kDebugMode) {
-        print('✅ AdaptyService: ${products.length} produtos obtidos para $placementId');
+        print('✅ AdaptyService: ${products.length} produto(s) obtido(s) para "$placementId"');
+        if (products.isEmpty) {
+          print('⚠️  AdaptyService: Nenhum produto — verifica se os produtos estão ligados ao Paywall no Adapty');
+        }
         for (final p in products) {
-          print('   - ${p.vendorProductId}: ${p.price.localizedString}');
+          print('   - vendorProductId: "${p.vendorProductId}" | preço: ${p.price.localizedString}');
         }
       }
       
+      if (products.isEmpty) {
+        lastError = 'Paywall "$placementId" encontrada mas sem produtos ligados.';
+      }
       return products;
-    } catch (e) {
+    } on AdaptyError catch (e) {
+      lastError = '[AdaptyError ${e.code}] ${e.message}';
       if (kDebugMode) {
-        print('❌ AdaptyService: Erro ao obter produtos ($placementId): $e');
+        print('❌ AdaptyService: AdaptyError ao obter produtos "$placementId": code=${e.code} msg=${e.message}');
+      }
+      return [];
+    } catch (e) {
+      lastError = e.toString();
+      if (kDebugMode) {
+        print('❌ AdaptyService: Erro ao obter produtos "$placementId": $e');
       }
       return [];
     }

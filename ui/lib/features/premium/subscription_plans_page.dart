@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../common/app_colors.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/subscription_service.dart';
@@ -23,6 +24,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
   List<AdaptyPaywallProduct> _premiumProducts = [];
   bool _isLoading = true;
   bool _isPurchasing = false;
+  bool _isCancelling = false;
+  String? _loadError;
 
   @override
   void initState() {
@@ -52,11 +55,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       }
     }
     
+    final error = _adaptyService.lastError;
     setState(() {
       _currentStatus = status;
       _basicProducts = basicProducts;
       _premiumProducts = premiumProducts;
       _isLoading = false;
+      _loadError = (basicProducts.isEmpty && premiumProducts.isEmpty) ? error : null;
     });
   }
 
@@ -72,7 +77,30 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : Column(
+              children: [
+                if (kDebugMode && _loadError != null)
+                  Material(
+                    color: Colors.orange.shade100,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.bug_report, size: 16, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '⚠️ DEBUG — Adapty: $_loadError',
+                              style: const TextStyle(fontSize: 11, color: Colors.deepOrange),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -83,58 +111,77 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                   
                   const SizedBox(height: 24),
 
-                  // Plan Cards
-                  _buildPlanCard(
-                    context,
-                    plan: SubscriptionPlan.free,
-                    price: '€0',
-                    period: 'subscription.forever'.tr(),
-                    features: [
-                      _PlanFeature('2 ${'subscription.trips'.tr()}', true),
-                      _PlanFeature('5 ${'subscription.activities_per_day'.tr()}', true),
-                      _PlanFeature('3 ${'subscription.ai_month'.tr()}', true),
-                      _PlanFeature('subscription.export_pdf'.tr(), false),
-                      _PlanFeature('subscription.cloud_backup'.tr(), false),
-                      _PlanFeature('subscription.share_trips'.tr(), false),
-                    ],
-                    color: Colors.grey,
-                  ),
-                  
-                  const SizedBox(height: 16),
-
-                  _buildPlanCard(
-                    context,
-                    plan: SubscriptionPlan.basic,
-                    price: '€2.99',
-                    period: 'subscription.per_month'.tr(),
-                    features: [
-                      _PlanFeature('10 ${'subscription.trips'.tr()}', true),
-                      _PlanFeature('10 ${'subscription.activities_per_day'.tr()}', true),
-                      _PlanFeature('20 ${'subscription.ai_month'.tr()}', true),
-                      _PlanFeature('subscription.export_pdf'.tr(), true),
-                      _PlanFeature('subscription.manual_backup'.tr(), true, iconColor: Colors.amber),
-                      _PlanFeature('subscription.share_trips'.tr(), true),
-                    ],
-                    color: Colors.blue,
-                    isPopular: true,
-                  ),
-                  
-                  const SizedBox(height: 16),
-
-                  _buildPlanCard(
-                    context,
-                    plan: SubscriptionPlan.premium,
-                    price: '€5.99',
-                    period: 'subscription.per_month'.tr(),
-                    features: [
-                      _PlanFeature('subscription.unlimited_trips'.tr(), true),
-                      _PlanFeature('subscription.unlimited_activities'.tr(), true),
-                      _PlanFeature('subscription.unlimited_ai'.tr(), true),
-                      _PlanFeature('subscription.export_pdf'.tr(), true),
-                      _PlanFeature('subscription.auto_backup'.tr(), true),
-                      _PlanFeature('subscription.share_trips'.tr(), true),
-                    ],
-                    color: Colors.amber[700]!,
+                  // Horizontal plan selector
+                  SizedBox(
+                    height: 430,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        SizedBox(
+                          width: 330,
+                          child: _buildPlanCard(
+                            context,
+                            plan: SubscriptionPlan.free,
+                            price: '€0',
+                            period: 'subscription.forever'.tr(),
+                            features: [
+                              _PlanFeature('2 ${'subscription.trips'.tr()}', true),
+                              _PlanFeature('5 ${'subscription.activities_per_day'.tr()}', true),
+                              _PlanFeature('3 ${'subscription.ai_month'.tr()}', true),
+                              _PlanFeature('subscription.export_pdf'.tr(), false),
+                              _PlanFeature('subscription.cloud_backup'.tr(), false),
+                              _PlanFeature('subscription.share_trips'.tr(), false),
+                            ],
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        SizedBox(
+                          width: 330,
+                          child: _buildPlanCard(
+                            context,
+                            plan: SubscriptionPlan.basic,
+                            price: _getLocalizedPriceForPlan(
+                              SubscriptionPlan.basic,
+                              fallback: '€2.99',
+                            ),
+                            period: _getLocalizedPeriodForPlan(SubscriptionPlan.basic),
+                            features: [
+                              _PlanFeature('10 ${'subscription.trips'.tr()}', true),
+                              _PlanFeature('10 ${'subscription.activities_per_day'.tr()}', true),
+                              _PlanFeature('20 ${'subscription.ai_month'.tr()}', true),
+                              _PlanFeature('subscription.export_pdf'.tr(), true),
+                              _PlanFeature('subscription.manual_backup'.tr(), true, iconColor: Colors.amber),
+                              _PlanFeature('subscription.share_trips'.tr(), true),
+                            ],
+                            color: Colors.blue,
+                            isPopular: true,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        SizedBox(
+                          width: 330,
+                          child: _buildPlanCard(
+                            context,
+                            plan: SubscriptionPlan.premium,
+                            price: _getLocalizedPriceForPlan(
+                              SubscriptionPlan.premium,
+                              fallback: '€5.99',
+                            ),
+                            period: _getLocalizedPeriodForPlan(SubscriptionPlan.premium),
+                            features: [
+                              _PlanFeature('subscription.unlimited_trips'.tr(), true),
+                              _PlanFeature('subscription.unlimited_activities'.tr(), true),
+                              _PlanFeature('subscription.unlimited_ai'.tr(), true),
+                              _PlanFeature('subscription.export_pdf'.tr(), true),
+                              _PlanFeature('subscription.auto_backup'.tr(), true),
+                              _PlanFeature('subscription.share_trips'.tr(), true),
+                            ],
+                            color: Colors.amber[700]!,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
                   const SizedBox(height: 32),
@@ -186,6 +233,24 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                     ),
                   ),
 
+                  if (_currentStatus?.isPaid == true) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _isCancelling ? null : _showManageOrCancelDialog,
+                      icon: _isCancelling
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.cancel_outlined),
+                      label: Text('subscription.manage_cancel_button'.tr()),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 24),
 
                   // Terms and conditions
@@ -199,6 +264,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                   ),
                 ],
               ),
+                  ),
+                ),
+              ],
             ),
     );
   }
@@ -429,6 +497,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
   }
 
   Future<void> _handleSubscribe() async {
+    if (_selectedPlan == SubscriptionPlan.free) {
+      await _downgradeToFree();
+      return;
+    }
+
     setState(() => _isPurchasing = true);
     
     try {
@@ -461,23 +534,207 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
   }
   
   AdaptyPaywallProduct? _getProductForPlan(SubscriptionPlan plan) {
+    if (plan == SubscriptionPlan.free) return null;
+
     // Selecionar lista de produtos correta baseado no plano
     final products = plan == SubscriptionPlan.basic 
         ? _basicProducts 
         : _premiumProducts;
     
     if (products.isEmpty) return null;
-    
+
     // Procurar produto mensal primeiro
     for (final product in products) {
       final id = product.vendorProductId.toLowerCase();
-      if (id.contains('monthly') || !id.contains('year')) {
+      if (id.contains('month') || id.contains('mensal')) {
+        return product;
+      }
+    }
+
+    // Depois tentar anual
+    for (final product in products) {
+      final id = product.vendorProductId.toLowerCase();
+      if (id.contains('year') || id.contains('annual') || id.contains('anual')) {
         return product;
       }
     }
     
     // Se não encontrar mensal, retornar o primeiro produto disponível
     return products.first;
+  }
+
+  String _getLocalizedPriceForPlan(SubscriptionPlan plan, {required String fallback}) {
+    final product = _getProductForPlan(plan);
+    return product?.price.localizedString ?? fallback;
+  }
+
+  String _getLocalizedPeriodForPlan(SubscriptionPlan plan) {
+    final product = _getProductForPlan(plan);
+    if (product == null) return 'subscription.per_month'.tr();
+
+    final id = product.vendorProductId.toLowerCase();
+    if (id.contains('year') || id.contains('annual') || id.contains('anual')) {
+      return 'subscription.per_year'.tr();
+    }
+    return 'subscription.per_month'.tr();
+  }
+
+  Future<void> _showManageOrCancelDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.manage_accounts,
+                        color: Colors.orange,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'subscription.manage_cancel_title'.tr(),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'subscription.manage_cancel_description'.tr(),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'subscription.manage_cancel_store_notice'.tr(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('common.close'.tr()),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+                          await _openStoreSubscriptions();
+                        },
+                        child: Text('subscription.open_store'.tr()),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      Navigator.of(context).pop();
+                      await _downgradeToFree();
+                    },
+                    icon: const Icon(Icons.arrow_downward_rounded),
+                    label: Text('subscription.back_to_free'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(46),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openStoreSubscriptions() async {
+    final uri = (defaultTargetPlatform == TargetPlatform.iOS)
+        ? Uri.parse('https://apps.apple.com/account/subscriptions')
+        : Uri.parse('https://play.google.com/store/account/subscriptions?package=com.triplanai.app');
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      SnackBarHelper.showError(context, 'subscription.open_store_failed'.tr());
+    }
+  }
+
+  Future<void> _downgradeToFree() async {
+    setState(() => _isCancelling = true);
+
+    try {
+      final success = await _subscriptionService.deactivatePlan();
+      if (!mounted) return;
+
+      if (success) {
+        await _loadData();
+        if (!mounted) return;
+        SnackBarHelper.showSuccess(context, 'subscription.back_to_free_success'.tr());
+      } else {
+        SnackBarHelper.showError(context, 'subscription.back_to_free_failed'.tr());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCancelling = false);
+      }
+    }
   }
 
   Future<void> _handleRestorePurchases() async {
