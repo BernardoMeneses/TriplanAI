@@ -358,38 +358,38 @@ export class RoutesService {
     language?: string
   ): Promise<DistanceMatrixResult[]> {
     try {
-      const response = await mapsClient.distancematrix({
-        params: {
-          origins: origins.map(wp => waypointToString(wp)),
-          destinations: destinations.map(wp => waypointToString(wp)),
-          mode: mapTravelMode(travelMode),
-          key: GOOGLE_MAPS_API_KEY,
-          language: mapLanguage(language),
-          units: UnitSystem.metric
-        }
+      const { getRouteMatrix } = await import('../../services/googleRoutesApi.service');
+      const data = await getRouteMatrix(origins, destinations, travelMode);
+      if (!Array.isArray(data)) {
+        console.error('Resposta inesperada da Routes API:', data);
+        return [];
+      }
+      const results: DistanceMatrixResult[] = data.map((item: any) => {
+        return {
+          origin: origins[item.originIndex],
+          destination: destinations[item.destinationIndex],
+          distance: item.distanceMeters || 0,
+          distanceText: item.distanceMeters ? this.formatDistance(item.distanceMeters) : 'N/A',
+          duration: item.duration ? (typeof item.duration === 'string' ? this.parseDuration(item.duration) : item.duration.seconds) : 0,
+          durationText: item.duration ? this.formatDuration(typeof item.duration === 'string' ? this.parseDuration(item.duration) : item.duration.seconds) : 'N/A',
+          status: item.status || 'UNKNOWN',
+        };
       });
-
-      const results: DistanceMatrixResult[] = [];
-
-      response.data.rows.forEach((row, originIndex) => {
-        row.elements.forEach((element, destIndex) => {
-          results.push({
-            origin: origins[originIndex],
-            destination: destinations[destIndex],
-            distance: element.distance?.value || 0,
-            distanceText: element.distance?.text || 'N/A',
-            duration: element.duration?.value || 0,
-            durationText: element.duration?.text || 'N/A',
-            status: element.status
-          });
-        });
-      });
-
+      if (results.length === 0) {
+        console.warn('⚠️ [getDistanceMatrix] Nenhum resultado retornado da nova Routes API');
+      }
       return results;
-    } catch (error) {
-      console.error('Erro ao calcular matriz de distâncias:', error);
+    } catch (error: any) {
+      console.error('Erro ao calcular matriz de distâncias (Routes API):', error?.response?.data || error);
       return [];
     }
+  }
+
+  // Utilitário para parsear string de duração tipo '3600s' para segundos
+  private parseDuration(duration: string): number {
+    if (!duration) return 0;
+    const match = duration.match(/(\d+)s/);
+    return match ? parseInt(match[1], 10) : 0;
   }
 
   async getTravelTimeWithTraffic(
