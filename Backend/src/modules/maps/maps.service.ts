@@ -208,15 +208,17 @@ export class MapsService {
       // Buscar detalhes completos para cada resultado
       const detailedPlaces = await Promise.all(places.map(async (place) => {
         let details = await this.getPlaceDetails(place.place_id || '');
+        // Garantir nome para fallback
+        const fallbackName = details?.name || place.name || query || 'travel';
         // Se não houver fotos, buscar imagem genérica na web (Unsplash)
         let photos = details?.photos && details.photos.length > 0 ? details.photos : [];
-        if (!photos || photos.length === 0) {
-          // Busca simples na Unsplash API (pública, sem autenticação, apenas para fallback)
-          // Em produção, ideal usar uma API key própria ou outro serviço
-          const unsplashQuery = encodeURIComponent(place.name || query);
+        if (!photos || photos.length === 0 || !photos[0]) {
+          const unsplashQuery = encodeURIComponent(fallbackName);
           const unsplashUrl = `https://source.unsplash.com/800x600/?${unsplashQuery}`;
           photos = [unsplashUrl];
         }
+        // Campo photoUrl para o frontend (primeira imagem, nunca undefined ou vazio)
+        const photoUrl = (photos[0] && typeof photos[0] === 'string' && photos[0].length > 0) ? photos[0] : `https://source.unsplash.com/800x600/?${encodeURIComponent(fallbackName)}`;
         return {
           placeId: details?.placeId || place.place_id || '',
           name: details?.name || place.name || '',
@@ -229,6 +231,7 @@ export class MapsService {
           rating: details?.rating || place.rating,
           priceLevel: details?.priceLevel || place.price_level,
           photos,
+          photoUrl,
           phoneNumber: details?.phoneNumber,
           website: details?.website
         };
