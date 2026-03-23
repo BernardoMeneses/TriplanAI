@@ -139,43 +139,49 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final favorite = _favorites[index];
-                      return Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        color: isDark ? AppColors.surfaceDark : Colors.white,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (favorite.place.images?.isNotEmpty ?? false)
-                              ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(12),
-                                ),
-                                child: CachedNetworkImage(
-                                  imageUrl: favorite.place.images!.first,
-                                  height: 160,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(
-                                    height: 160,
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        // Determine the best image URL: prefer photoUrl, fallback to images[0], else null
+                        String? imageUrl = (favorite.place.photoUrl != null && favorite.place.photoUrl!.isNotEmpty)
+                            ? favorite.place.photoUrl
+                            : (favorite.place.images?.isNotEmpty ?? false)
+                                ? favorite.place.images!.first
+                                : null;
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          color: isDark ? AppColors.surfaceDark : Colors.white,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (imageUrl != null && imageUrl.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(12),
                                   ),
-                                  errorWidget: (context, url, error) => Container(
+                                  child: CachedNetworkImage(
+                                    imageUrl: imageUrl,
                                     height: 160,
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.place,
-                                        size: 64,
-                                        color: AppColors.primary,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      height: 160,
+                                      color: AppColors.primary.withOpacity(0.1),
+                                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
+                                      height: 160,
+                                      color: AppColors.primary.withOpacity(0.1),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.place,
+                                          size: 64,
+                                          color: AppColors.primary,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
                             Padding(
                               padding: const EdgeInsets.all(16),
                               child: Column(

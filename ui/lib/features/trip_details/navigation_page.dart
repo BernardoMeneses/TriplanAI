@@ -590,10 +590,25 @@ class _NavigationPageState extends State<NavigationPage> {
         'language': language,
       });
 
+      if (response != null && response['error'] != null) {
+        // Exibir mensagem amigável ao usuário
+        if (mounted) {
+          SnackBarHelper.showWarning(context, response['error']);
+        }
+        setState(() {
+          _durationMinutes = null;
+          _durationText = null;
+          _distanceText = null;
+          _steps = [];
+          _polylines = {};
+        });
+        return;
+      }
+
       if (response != null) {
         final durationSeconds = response['duration'] ?? 0;
-        _durationMinutes = (durationSeconds / 60).round();
-        _durationText = response['durationText'] ?? '$_durationMinutes min';
+        _durationMinutes = response['duration'] != null ? (durationSeconds / 60).round() : null;
+        _durationText = response['durationText'] ?? (_durationMinutes != null ? '$_durationMinutes min' : null);
         _distanceText = response['distanceText'] ?? '';
 
         // Parse steps

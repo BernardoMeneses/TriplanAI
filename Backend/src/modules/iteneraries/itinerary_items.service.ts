@@ -187,18 +187,28 @@ export class ItineraryItemsService {
     if (!startTime) {
       const baseHour = 9; // Começar às 9h
       const hoursToAdd = data.orderIndex * 3; // 3h entre atividades
-      const calculatedHour = baseHour + hoursToAdd;
-      startTime = `${String(calculatedHour).padStart(2, '0')}:00`;
+      let calculatedHour = baseHour + hoursToAdd;
+      // Limitar para 23:59 se ultrapassar
+      if (calculatedHour > 23) {
+        startTime = '23:59';
+      } else {
+        startTime = `${String(calculatedHour).padStart(2, '0')}:00`;
+      }
     }
     
     // Calcular end_time se duration_minutes foi fornecido
     let endTime = data.endTime;
     if (!endTime && data.durationMinutes && startTime) {
       const [hours, minutes] = startTime.split(':').map(Number);
-      const totalMinutes = hours * 60 + minutes + data.durationMinutes;
-      const endHours = Math.floor(totalMinutes / 60) % 24;
-      const endMinutes = totalMinutes % 60;
-      endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+      let totalMinutes = hours * 60 + minutes + data.durationMinutes;
+      // Limitar para 23:59 se ultrapassar
+      if (totalMinutes > 23 * 60 + 59) {
+        endTime = '23:59';
+      } else {
+        const endHours = Math.floor(totalMinutes / 60);
+        const endMinutes = totalMinutes % 60;
+        endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+      }
     }
     
     const result = await query<ItineraryItem>(

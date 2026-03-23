@@ -222,6 +222,7 @@ class PlaceInfo {
   final double? longitude;
   final double? rating;
   final List<String>? images;
+  final String? photoUrl;
   final String? placeType;
   final OpeningHours? openingHours;
   final int? priceLevel;
@@ -238,6 +239,7 @@ class PlaceInfo {
     this.longitude,
     this.rating,
     this.images,
+    this.photoUrl,
     this.placeType,
     this.openingHours,
     this.priceLevel,
@@ -305,6 +307,7 @@ class PlaceInfo {
       longitude: json['longitude']?.toDouble(),
       rating: json['rating']?.toDouble(),
       images: imagesList,
+      photoUrl: json['photoUrl'],
       placeType: json['place_type'],
       openingHours: openingHours,
       priceLevel: json['price_level'],
@@ -324,6 +327,7 @@ class PlaceInfo {
       'longitude': longitude,
       'rating': rating,
       'images': images,
+      'photoUrl': photoUrl,
       'place_type': placeType,
       'opening_hours': openingHours?.toJson(),
       'price_level': priceLevel,

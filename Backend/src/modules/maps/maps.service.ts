@@ -516,7 +516,10 @@ export class MapsService {
       });
 
       if (!apiResponse.routes || apiResponse.routes.length === 0) {
-        throw new Error('No route found');
+        // Mensagem amigável para frontend
+        return {
+          error: 'Não foi encontrada nenhuma rota para o modo de transporte selecionado. Pode não haver transporte público disponível para este trajeto ou horário.'
+        };
       }
       const route = apiResponse.routes[0];
       const leg = route.legs && route.legs[0];
@@ -551,7 +554,10 @@ export class MapsService {
       };
     } catch (error) {
       console.error('Error getting directions:', error);
-      throw error;
+      // Mensagem amigável para erros inesperados
+      return {
+        error: 'Ocorreu um erro ao obter direções. Tente novamente ou escolha outro modo de transporte.'
+      };
     }
   }
 
