@@ -53,6 +53,7 @@ export interface PlaceDetails {
     isOpenNow?: boolean;
   };
   photos?: string[];
+  photoUrl?: string; // Adicionado para suportar imagem principal
   phoneNumber?: string;
   website?: string;
 }
@@ -156,13 +157,19 @@ export class MapsService {
       const place = response.data.result;
       if (!place) return null;
 
-      const photos = place.photos?.slice(0, 5).map(photo => 
+      let photos = place.photos?.slice(0, 5).map(photo => 
         `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-      );
+      ) || [];
+      let photoUrl = null;
       if (photos && photos.length > 0) {
+        photoUrl = photos[0];
         console.log(`[MapsService] Imagens do card para placeId ${placeId}:`, photos);
       } else {
-        console.log(`[MapsService] Nenhuma imagem encontrada para placeId ${placeId}`);
+        // Fallback Unsplash
+        const fallbackName = place.name || 'travel';
+        photoUrl = `https://source.unsplash.com/800x600/?${encodeURIComponent(fallbackName)}`;
+        photos = [photoUrl];
+        console.log(`[MapsService] Nenhuma imagem encontrada para placeId ${placeId}, usando fallback:`, photoUrl);
       }
       return {
         placeId: place.place_id || placeId,
@@ -180,6 +187,7 @@ export class MapsService {
           isOpenNow: place.opening_hours.open_now
         } : undefined,
         photos,
+        photoUrl, // NOVO CAMPO sempre presente
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -208,19 +216,7 @@ export class MapsService {
       // Buscar detalhes completos para cada resultado
       const detailedPlaces = await Promise.all(places.map(async (place) => {
         let details = await this.getPlaceDetails(place.place_id || '');
-        // Usar sempre o campo photoUrl do details (que já faz fallback Unsplash)
-        let photoUrl = null;
-        let photos: string[] = [];
-        if (details?.photos && details.photos.length > 0) {
-          photos = details.photos;
-          photoUrl = details.photos[0];
-        } else {
-          // Fallback igual ao getPlaceDetails
-          const fallbackName = details?.name || place.name || query || 'travel';
-          const unsplashQuery = encodeURIComponent(fallbackName);
-          photoUrl = `https://source.unsplash.com/800x600/?${unsplashQuery}`;
-          photos = [photoUrl];
-        }
+        // Copiar diretamente o campo photoUrl e photos do details
         return {
           placeId: details?.placeId || place.place_id || '',
           name: details?.name || place.name || '',
@@ -232,8 +228,8 @@ export class MapsService {
           types: details?.types || place.types || [],
           rating: details?.rating || place.rating,
           priceLevel: details?.priceLevel || place.price_level,
-          photos,
-          photoUrl,
+          photos: details?.photos || [],
+          photoUrl: details?.photoUrl || '',
           phoneNumber: details?.phoneNumber,
           website: details?.website
         };
