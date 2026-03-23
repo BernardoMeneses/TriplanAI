@@ -52,5 +52,6 @@ export async function getRouteMatrix(origins: Waypoint[], destinations: Waypoint
       },
     }
   );
+  console.log('[Google Routes API] Resposta bruta:', JSON.stringify(response.data, null, 2));
   return response.data;
 }
