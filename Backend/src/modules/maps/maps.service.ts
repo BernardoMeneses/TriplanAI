@@ -1,4 +1,5 @@
 import { Client, GeocodeResult, PlaceInputType, TravelMode, Language } from '@googlemaps/google-maps-services-js';
+import { getDirectionsRoute } from '../../services/googleRoutesDirectionsApi.service';
 
 const mapsClient = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
@@ -472,7 +473,7 @@ export class MapsService {
     return deg * (Math.PI / 180);
   }
 
-  // Obter direções entre dois pontos com modo de transporte
+  // Obter direções entre dois pontos com modo de transporte (usando nova Google Routes API)
   async getDirections(params: {
     origin: string | { lat: number; lng: number };
     destination: string | { lat: number; lng: number };
@@ -480,63 +481,68 @@ export class MapsService {
     mode?: 'driving' | 'walking' | 'bicycling' | 'transit';
   }) {
     try {
-      const requestParams: any = {
-        origin: typeof params.origin === 'string' ? params.origin : `${params.origin.lat},${params.origin.lng}`,
-        destination: typeof params.destination === 'string' ? params.destination : `${params.destination.lat},${params.destination.lng}`,
-        mode: params.mode ? TravelMode[params.mode] : TravelMode.walking,
-        key: GOOGLE_MAPS_API_KEY,
-      };
+      // Adaptar origem/destino para formato { lat, lng }
+      const origin = typeof params.origin === 'string'
+        ? this.parseLatLngString(params.origin)
+        : params.origin;
+      const destination = typeof params.destination === 'string'
+        ? this.parseLatLngString(params.destination)
+        : params.destination;
 
-      // Só adicionar waypoints se existirem
-      if (params.waypoints && params.waypoints.length > 0) {
-        requestParams.waypoints = params.waypoints.map(wp => 
-          typeof wp === 'string' ? wp : `${wp.lat},${wp.lng}`
-        );
-      }
+      // Nova API ainda não suporta waypoints múltiplos (apenas um par origem-destino)
+      const travelMode = params.mode || 'walking';
 
-      const response = await mapsClient.directions({
-        params: requestParams,
+      const apiResponse = await getDirectionsRoute({
+        origin,
+        destination,
+        travelMode,
+        languageCode: 'pt-PT',
       });
 
-      if (response.data.status !== 'OK') {
-        throw new Error(`Directions API error: ${response.data.status}`);
+      if (!apiResponse.routes || apiResponse.routes.length === 0) {
+        throw new Error('No route found');
       }
-
-      const route = response.data.routes[0];
-      const leg = route.legs[0];
+      const route = apiResponse.routes[0];
+      const leg = route.legs && route.legs[0];
 
       // Log polylines e modos de transporte
-      if (route.overview_polyline) {
-        console.log('[MapsService] Polyline geral:', route.overview_polyline.points);
+      if (route.polyline && route.polyline.encodedPolyline) {
+        console.log('[MapsService] Polyline geral:', route.polyline.encodedPolyline);
       }
-      if (leg.steps && leg.steps.length > 0) {
-        leg.steps.forEach((step, idx) => {
-          console.log(`[MapsService] Step ${idx} modo: ${step.travel_mode}, polyline:`, step.polyline?.points);
+      if (leg && leg.steps && leg.steps.length > 0) {
+        leg.steps.forEach((step: any, idx: any) => {
+          console.log(`[MapsService] Step ${idx} modo: ${step.travelMode}, polyline:`, step.polyline?.encodedPolyline);
         });
       }
 
       return {
-        distance: leg.distance,
-        duration: leg.duration,
-        startAddress: leg.start_address,
-        endAddress: leg.end_address,
-        startLocation: leg.start_location,
-        endLocation: leg.end_location,
-        steps: leg.steps.map(step => ({
-          distance: step.distance,
-          duration: step.duration,
-          instruction: step.html_instructions,
+        distance: leg?.distanceMeters ? { value: leg.distanceMeters, text: `${(leg.distanceMeters/1000).toFixed(2)} km` } : undefined,
+        duration: leg?.duration ? { value: leg.duration, text: `${Math.round(leg.duration/60)} min` } : undefined,
+        startAddress: leg?.startLocation,
+        endAddress: leg?.endLocation,
+        startLocation: leg?.startLocation,
+        endLocation: leg?.endLocation,
+        steps: leg?.steps?.map((step: any) => ({
+          distance: step.distanceMeters ? { value: step.distanceMeters, text: `${step.distanceMeters} m` } : undefined,
+          duration: step.duration ? { value: step.duration, text: `${Math.round(step.duration/60)} min` } : undefined,
+          instruction: step.navigationInstruction?.instructions,
           polyline: step.polyline,
-          travelMode: step.travel_mode,
-          startLocation: step.start_location,
-          endLocation: step.end_location,
-        })),
-        polyline: route.overview_polyline,
+          travelMode: step.travelMode,
+          startLocation: step.startLocation,
+          endLocation: step.endLocation,
+        })) || [],
+        polyline: route.polyline,
       };
     } catch (error) {
       console.error('Error getting directions:', error);
       throw error;
     }
+  }
+
+  // Utilitário para converter string "lat,lng" em objeto { lat, lng }
+  private parseLatLngString(str: string): { lat: number; lng: number } {
+    const [lat, lng] = str.split(',').map(Number);
+    return { lat, lng };
   }
 
   // Obter rota otimizada com múltiplos transportes
