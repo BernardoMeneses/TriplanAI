@@ -19,10 +19,14 @@ const mapTravelMode = (mode: TravelModeType): string => {
 export async function getRouteMatrix(origins: Waypoint[], destinations: Waypoint[], travelMode: TravelModeType = 'driving') {
   const requestBody = {
     origins: origins.map(wp => ({
-      location: { latLng: { latitude: wp.latitude, longitude: wp.longitude } }
+      waypoint: {
+        location: { latLng: { latitude: wp.latitude, longitude: wp.longitude } }
+      }
     })),
     destinations: destinations.map(wp => ({
-      location: { latLng: { latitude: wp.latitude, longitude: wp.longitude } }
+      waypoint: {
+        location: { latLng: { latitude: wp.latitude, longitude: wp.longitude } }
+      }
     })),
     travelMode: mapTravelMode(travelMode),
     units: 'METRIC',
