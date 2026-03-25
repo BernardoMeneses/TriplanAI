@@ -124,11 +124,25 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const itinerary = await itinerariesService.updateItinerary(req.params.id, req.body);
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Não autenticado' });
+    }
+    const itinerary = await itinerariesService.getItineraryById(req.params.id);
     if (!itinerary) {
       return res.status(404).json({ error: 'Itinerário não encontrado' });
     }
-    res.json(itinerary);
+    // Buscar a viagem para verificar owner
+    const tripsService = require('../trips/trips.service');
+    const trip = await tripsService.tripsService.getTripById(itinerary.trip_id);
+    if (!trip) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+    if (trip.user_id !== userId) {
+      return res.status(403).json({ error: 'Apenas o owner pode editar o itinerário.' });
+    }
+    const updatedItinerary = await itinerariesService.updateItinerary(req.params.id, req.body);
+    res.json(updatedItinerary);
   } catch (error) {
     res.status(400).json({ error: 'Erro ao atualizar itinerário' });
   }
@@ -152,6 +166,23 @@ router.put('/:id', async (req: Request, res: Response) => {
  */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Não autenticado' });
+    }
+    const itinerary = await itinerariesService.getItineraryById(req.params.id);
+    if (!itinerary) {
+      return res.status(404).json({ error: 'Itinerário não encontrado' });
+    }
+    // Buscar a viagem para verificar owner
+    const tripsService = require('../trips/trips.service');
+    const trip = await tripsService.tripsService.getTripById(itinerary.trip_id);
+    if (!trip) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+    if (trip.user_id !== userId) {
+      return res.status(403).json({ error: 'Apenas o owner pode eliminar o itinerário.' });
+    }
     const deleted = await itinerariesService.deleteItinerary(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Itinerário não encontrado' });

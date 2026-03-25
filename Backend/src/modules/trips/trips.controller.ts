@@ -157,11 +157,20 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const trip = await tripsService.updateTrip(req.params.id, req.body);
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Não autenticado' });
+    }
+    // Buscar viagem para verificar owner
+    const trip = await tripsService.getTripById(req.params.id);
     if (!trip) {
       return res.status(404).json({ error: 'Viagem não encontrada' });
     }
-    res.json(trip);
+    if (trip.user_id !== userId) {
+      return res.status(403).json({ error: 'Apenas o owner pode editar esta viagem.' });
+    }
+    const updatedTrip = await tripsService.updateTrip(req.params.id, req.body);
+    res.json(updatedTrip);
   } catch (error) {
     res.status(400).json({ error: 'Erro ao atualizar viagem' });
   }

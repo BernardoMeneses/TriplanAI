@@ -52,23 +52,40 @@ export class NotesService {
   }
 
   async updateNote(userId: string, noteId: string, title: string, body: string): Promise<Note> {
+    // Buscar a nota e a viagem
+    const noteResult = await query<Note>('SELECT * FROM trip_notes WHERE id = $1', [noteId]);
+    if (noteResult.rows.length === 0) {
+      throw new Error('Note not found or access denied');
+    }
+    const note = noteResult.rows[0];
+    const tripResult = await query('SELECT user_id FROM trips WHERE id = $1', [note.trip_id]);
+    if (tripResult.rows.length === 0 || tripResult.rows[0].user_id !== userId) {
+      throw new Error('Access denied: only the owner can edit notes');
+    }
     const result = await query<Note>(
       `UPDATE trip_notes
        SET title = $1, body = $2, updated_at = NOW()
-       WHERE id = $3 AND user_id = $4
+       WHERE id = $3
        RETURNING *`,
-      [title || '', body || '', noteId, userId]
+      [title || '', body || '', noteId]
     );
-    if (result.rowCount === 0) {
-      throw new Error('Note not found or access denied');
-    }
     return result.rows[0];
   }
 
   async deleteNote(userId: string, noteId: string): Promise<void> {
+    // Buscar a nota e a viagem
+    const noteResult = await query<Note>('SELECT * FROM trip_notes WHERE id = $1', [noteId]);
+    if (noteResult.rows.length === 0) {
+      throw new Error('Note not found or access denied');
+    }
+    const note = noteResult.rows[0];
+    const tripResult = await query('SELECT user_id FROM trips WHERE id = $1', [note.trip_id]);
+    if (tripResult.rows.length === 0 || tripResult.rows[0].user_id !== userId) {
+      throw new Error('Access denied: only the owner can delete notes');
+    }
     const result = await query(
-      'DELETE FROM trip_notes WHERE id = $1 AND user_id = $2',
-      [noteId, userId]
+      'DELETE FROM trip_notes WHERE id = $1',
+      [noteId]
     );
     if (result.rowCount === 0) {
       throw new Error('Note not found or access denied');
