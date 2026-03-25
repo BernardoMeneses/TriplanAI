@@ -367,10 +367,11 @@ class _NewTripPageState extends State<NewTripPage> {
         } else {
           // Se for nova viagem, substituir a rota atual pela página de detalhes
           // Isso garante que o botão voltar vá para home
+          debugPrint('DEBUG [new_trip_page] trip.userId: \x1B[36m\x1B[1m\x1B[4m\x1B[7m[36m${trip.userId}\x1B[0m | isReadOnly: \x1B[31mfalse\x1B[0m');
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => MyTripPage(trip: trip),
+              builder: (context) => MyTripPage(trip: trip, isReadOnly: false),
             ),
           );
         }

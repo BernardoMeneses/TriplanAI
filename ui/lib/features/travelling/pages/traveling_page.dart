@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:triplan_ai_front/services/auth_service.dart';
 import '../widgets/empty_trips_state.dart';
 import '../../../common/app_colors.dart';
 import '../../../common/constants/app_constants.dart';
@@ -134,13 +135,17 @@ class _TravelingPageState extends State<TravelingPage> with SingleTickerProvider
   }
 
   void _openTripDetails(Trip trip) {
+    final currentUser = AuthService().currentUser;
+    final bool isOwner = currentUser != null && trip.userId == currentUser.id;
+    final bool isReadOnly = !isOwner || _isOfflineMode || trip.isMember;
+    debugPrint('DEBUG [travelling_page] trip.userId: [36m[1m[4m[7m${trip.userId}[0m | currentUser.id: [33m[1m[4m[7m${currentUser?.id}[0m | trip.isMember: [35m${trip.isMember}[0m | isOwner: [32m$isOwner[0m | isReadOnly: [31m$isReadOnly[0m');
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MyTripPage(
           trip: trip,
           onTripUpdated: _loadTrips,
-          isReadOnly: _isOfflineMode,
+          isReadOnly: isReadOnly,
         ),
       ),
     ).then((_) => _loadTrips());

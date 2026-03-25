@@ -22,6 +22,7 @@ import '../../services/notes_service.dart';
 import '../notes/notes_page.dart';
 import 'trip_map_page.dart';
 import 'navigation_page.dart';
+import '../../services/real_time_service.dart';
 
 class DayDetailsPage extends StatefulWidget {
   final String tripId;
@@ -66,7 +67,8 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
   // Connectivity state
   bool _isOnline = true;
   StreamSubscription<bool>? _connectivitySubscription;
-  
+  // Assinatura para atualizações em tempo real
+  StreamSubscription<dynamic>? _realtimeSubscription;
   /// ReadOnly efetivo - true se offline OU se widget.isReadOnly
   bool get _effectiveReadOnly => widget.isReadOnly || !_isOnline;
 
@@ -74,7 +76,6 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
   void initState() {
     super.initState();
     _currentDayNumber = widget.dayNumber;
-    
     // Iniciar verificação de conectividade
     _isOnline = _connectivityService.isOnline;
     _connectivitySubscription = _connectivityService.connectivityStream.listen((isOnline) {
@@ -84,8 +85,17 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
         });
       }
     });
-    
     _loadTripData();
+    // Atualização em tempo real para não-owners usando WebSocket
+    if (widget.isReadOnly) {
+      _realtimeSubscription = RealTimeService().subscribeToItinerary(
+        widget.tripId,
+        _currentDayNumber,
+        () {
+          if (mounted) _loadItems(forceRefresh: true);
+        },
+      );
+    }
   }
 
   Future<void> _loadTripData() async {
@@ -399,6 +409,8 @@ class _DayDetailsPageState extends State<DayDetailsPage> with SingleTickerProvid
   @override
   void dispose() {
     _connectivitySubscription?.cancel();
+    _realtimeSubscription?.cancel();
+    RealTimeService().dispose();
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();

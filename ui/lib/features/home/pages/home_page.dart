@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:triplan_ai_front/services/auth_service.dart';
 import '../../../common/app_colors.dart';
 import '../../../common/constants/app_constants.dart';
 import '../../../shared/widgets/custom_app_bar.dart';
@@ -131,13 +132,21 @@ class _HomePageState extends State<HomePage> {
   // --------------------------------------------------
 
   void _openTripDetails(Trip trip) {
+    // Verificar owner vs membro
+    final currentUser = AuthService().currentUser;
+    debugPrint('DEBUG trip.userId: [33m${trip.userId}[0m');
+    debugPrint('DEBUG currentUser.id: [36m${currentUser?.id}[0m');
+    debugPrint('DEBUG trip.isMember: [35m${trip.isMember}[0m');
+    final bool isOwner = currentUser != null && trip.userId == currentUser.id;
+    final bool isReadOnly = !isOwner || _isOfflineMode || trip.isMember;
+    debugPrint('DEBUG isOwner: [32m$isOwner[0m | isReadOnly: [31m$isReadOnly[0m');
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => MyTripPage(
           trip: trip,
           onTripUpdated: _loadTrips,
-          isReadOnly: _isOfflineMode,
+          isReadOnly: isReadOnly,
         ),
       ),
     ).then((_) => _loadTrips(forceRefresh: true));

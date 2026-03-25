@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ItineraryItemsService } from './itinerary_items.service';
+import { emitItineraryUpdate } from '../../websocket';
 
 const router = Router();
 const itineraryItemsService = new ItineraryItemsService();
@@ -52,6 +53,8 @@ const itineraryItemsService = new ItineraryItemsService();
 router.post('/', async (req: Request, res: Response) => {
   try {
     const item = await itineraryItemsService.createItineraryItem(req.body);
+    // Emitir evento de atualização em tempo real
+    emitItineraryUpdate(item.itinerary_id, req.body.dayNumber || 1);
     res.status(201).json(item);
   } catch (error) {
     console.error('Erro ao criar item do itinerario:', error);
@@ -166,6 +169,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Apenas o owner pode editar itens do itinerário.' });
     }
     const updatedItem = await itineraryItemsService.updateItineraryItem(req.params.id, req.body);
+    // Emitir evento de atualização em tempo real
+    emitItineraryUpdate(item.itinerary_id, req.body.dayNumber || 1);
     res.json(updatedItem);
   } catch (error) {
     console.error('Erro ao atualizar item:', error);
@@ -217,6 +222,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Apenas o owner pode eliminar itens do itinerário.' });
     }
     await itineraryItemsService.deleteItineraryItem(req.params.id);
+    // Emitir evento de atualização em tempo real
+    emitItineraryUpdate(item.itinerary_id, 1); // dayNumber pode ser ajustado conforme necessário
     res.json({ message: 'Item eliminado com sucesso' });
   } catch (error) {
     console.error('Erro ao eliminar item:', error);

@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import path from 'path';
+import http from 'http';
+import { setupWebSocket } from './websocket';
 
 // Load environment variables first
 dotenv.config();
@@ -122,7 +124,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // 🚀 START SERVER IMMEDIATELY (CapRover-friendly)
-app.listen(PORT, '0.0.0.0', () => {
+const server = http.createServer(app);
+setupWebSocket(server);
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║ 🌍 TriplanAI API                                         ║
