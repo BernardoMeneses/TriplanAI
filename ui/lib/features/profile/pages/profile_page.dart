@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
@@ -11,9 +10,7 @@ import '../../../services/notification_service.dart';
 import '../../../services/google_drive_backup_service.dart';
 import '../../../services/api_service.dart';
 import '../../../services/trip_cache_service.dart';
-import '../../../services/favorites_service.dart';
 import '../../../services/subscription_service.dart';
-import '../../../services/location_service.dart';
 import '../../../shared/widgets/language_selector_dialog.dart';
 import '../../../shared/widgets/upgrade_dialog.dart';
 import '../../premium/subscription_plans_page.dart';
@@ -401,7 +398,7 @@ class _ProfilePageState extends State<ProfilePage> {
           : Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
             ),
     );
   }

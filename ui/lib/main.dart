@@ -220,7 +220,7 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
         final constrainedTextScaleFactor = mediaQueryData.textScaleFactor.clamp(1.0, 1.3);
 
         return MediaQuery(
-          data: mediaQueryData.copyWith(textScaleFactor: constrainedTextScaleFactor),
+          data: mediaQueryData.copyWith(textScaler: TextScaler.linear(constrainedTextScaleFactor)),
           child: child!,
         );
       },

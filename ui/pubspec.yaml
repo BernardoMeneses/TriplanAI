@@ -57,6 +57,7 @@ dependencies:
   adapty_flutter: ^3.4.3
   pdf: ^3.11.1
   printing: ^5.13.4
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1

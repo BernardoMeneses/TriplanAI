@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../common/app_colors.dart';
 import '../../../common/constants/app_constants.dart';
 import '../../../shared/widgets/snackbar_helper.dart';
-import '../../../services/destinations_service.dart';
 import '../../../services/trips_service.dart';
 import '../../../services/subscription_service.dart';
 import '../../../services/trip_cache_service.dart';

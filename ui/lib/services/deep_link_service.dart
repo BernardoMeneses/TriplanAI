@@ -61,14 +61,12 @@ class DeepLinkService {
     try {
       // Enquanto app aberta - escutar stream
       _appLinkStreamSubscription = _appLinks.uriLinkStream.listen((uri) {
-        if (uri != null) {
-          try {
-            onAppLink?.call(uri);
-          } catch (e) {
-            debugPrint('Erro ao tratar app link stream: $e');
-          }
+        try {
+          onAppLink?.call(uri);
+        } catch (e) {
+          debugPrint('Erro ao tratar app link stream: $e');
         }
-      }, onError: (err) {
+            }, onError: (err) {
         debugPrint('Erro app link stream: $err');
       });
     } catch (e) {

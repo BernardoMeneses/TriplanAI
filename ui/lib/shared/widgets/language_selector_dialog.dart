@@ -90,7 +90,7 @@ class LanguageSelectorDialog extends StatelessWidget {
                     ),
                   ),
                   title: Text(
-                    (lang['name']! as String).tr(),
+                    (lang['name']!).tr(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -113,7 +113,7 @@ class LanguageSelectorDialog extends StatelessWidget {
                               const Icon(Icons.check_circle, color: Colors.white),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: Text((lang['name']! as String).tr()),
+                                child: Text((lang['name']!).tr()),
                               ),
                             ],
                           ),

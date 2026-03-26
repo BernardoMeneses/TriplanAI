@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -120,7 +119,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
       final data = await _tripsService.fetchTripByCode(code);
 
       // If backend signals that the trip is owned by this user, prevent import
-      if (data is Map<String, dynamic> && data['owned'] == true) {
+      if (data['owned'] == true) {
         if (mounted) SnackBarHelper.showWarning(context, AppConstants.tripAlreadyOwned.tr());
         setState(() {
           _tripPreview = null;
@@ -130,7 +129,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
       }
 
       // If user is already a member, show a message but still show the preview
-      if (data is Map<String, dynamic> && data['already_member'] == true) {
+      if (data['already_member'] == true) {
         if (mounted) SnackBarHelper.showInfo(context, 'Já és membro desta viagem');
       }
 

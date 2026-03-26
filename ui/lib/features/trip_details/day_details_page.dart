@@ -18,7 +18,6 @@ import '../../shared/widgets/ai_chat_modal.dart';
 import '../../shared/widgets/upgrade_dialog.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/subscription_service.dart';
-import '../../services/notes_service.dart';
 import '../notes/notes_page.dart';
 import 'trip_map_page.dart';
 import 'navigation_page.dart';
@@ -1806,21 +1805,22 @@ class _ActivityCardState extends State<_ActivityCard> {
                     child: Row(
                       children: [
                         // Botão de delete
-                        GestureDetector(
-                          onTap: widget.onDelete,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.white,
-                              size: 20,
+                        if (!widget.isReadOnly)
+                          GestureDetector(
+                            onTap: widget.onDelete,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
-                        ),
                         const SizedBox(width: 8),
                         // Ícone de categoria
                         Container(

@@ -12,7 +12,6 @@ import 'package:flutter/services.dart';
 import '../../services/trip_cache_service.dart';
 import '../../services/connectivity_service.dart';
 import '../../services/notes_service.dart';
-import '../notes/notes_page.dart';
 import 'day_details_page.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 
