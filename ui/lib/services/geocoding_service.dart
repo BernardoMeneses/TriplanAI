@@ -6,8 +6,9 @@ class GeocodingService {
 
   GeocodingService();
 
-  /// Geocode an address via backend. Expected response: { "lat": number, "lng": number }
-  Future<Map<String, double>?> geocodeAddress(String address) async {
+  /// Geocode an address via backend. Returns the full backend response when possible.
+  /// Expected backend shape: { lat, lng, formattedAddress, placeId, components: { city, country, ... } }
+  Future<Map<String, dynamic>?> geocodeAddress(String address) async {
     try {
       if (kDebugMode) {
         print('🛰️ Geocoding address: $address');
@@ -17,12 +18,7 @@ class GeocodingService {
         queryParams: {'address': address},
       );
       if (response == null) return null;
-      final latRaw = response['lat'];
-      final lngRaw = response['lng'];
-      if (latRaw == null || lngRaw == null) return null;
-      final lat = (latRaw as num).toDouble();
-      final lng = (lngRaw as num).toDouble();
-      return {'lat': lat, 'lng': lng};
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       if (kDebugMode) {
         print('Geocoding error: $e');

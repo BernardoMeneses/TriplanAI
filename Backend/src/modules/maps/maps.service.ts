@@ -269,6 +269,12 @@ export class MapsService {
       if (countryCodeForText) {
         params.region = countryCodeForText.toLowerCase();
         console.log(`[MapsService] using region bias for textSearch: ${countryCodeForText}`);
+        // Append an English country name to the query to bias textSearch results
+        const countryNameEn = this.countryCodeToEnglishName(countryCodeForText);
+        if (countryNameEn) {
+          params.query = `${query}, ${countryNameEn}`;
+          console.log(`[MapsService] appending country to textSearch query to bias results: ${params.query}`);
+        }
       }
 
       if (location) {
@@ -559,6 +565,22 @@ export class MapsService {
 
   private toRad(deg: number): number {
     return deg * (Math.PI / 180);
+  }
+
+  private countryCodeToEnglishName(code?: string): string | undefined {
+    if (!code) return undefined;
+    const iso = code.trim().toUpperCase();
+    const map: Record<string, string> = {
+      'IT': 'Italy',
+      'PT': 'Portugal',
+      'ES': 'Spain',
+      'FR': 'France',
+      'DE': 'Germany',
+      'BR': 'Brazil',
+      'US': 'United States',
+      'GB': 'United Kingdom'
+    };
+    return map[iso];
   }
 
   private normalizeCountryCode(country?: string): string | undefined {

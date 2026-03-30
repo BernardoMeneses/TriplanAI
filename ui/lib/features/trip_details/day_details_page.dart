@@ -61,6 +61,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
   double? _destinationLat;
   double? _destinationLng;
   bool _isGeocoding = false;
+  String? _destinationCountry;
 
   List<ItineraryItem> _items = [];
   bool _isLoading = true;
@@ -124,9 +125,30 @@ class _DayDetailsPageState extends State<DayDetailsPage>
       setState(() => _isGeocoding = true);
       final res = await _geocodingService.geocodeAddress(address);
       if (res != null) {
+        final lat = (res['lat'] as num?)?.toDouble();
+        final lng = (res['lng'] as num?)?.toDouble();
+        String? countryFromResponse;
+        try {
+          final comps = res['components'];
+          if (comps is Map && comps['country'] != null) {
+            countryFromResponse = comps['country'] as String;
+          }
+        } catch (_) {}
+        if (countryFromResponse == null) {
+          final formatted = res['formattedAddress'] as String?;
+          if (formatted != null) {
+            final parts = formatted.split(',').map((s) => s.trim()).toList();
+            if (parts.isNotEmpty) countryFromResponse = parts.last;
+          }
+        }
+
         setState(() {
-          _destinationLat = res['lat'];
-          _destinationLng = res['lng'];
+          _destinationLat = lat;
+          _destinationLng = lng;
+          if (countryFromResponse != null &&
+              countryFromResponse.trim().isNotEmpty) {
+            _destinationCountry = countryFromResponse;
+          }
         });
       }
     } catch (e) {
@@ -307,7 +329,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
       backgroundColor: Colors.transparent,
       builder: (_) => LocationFilteredSearchModal(
         cityFilter: widget.tripCity,
-        countryFilter: widget.tripCountry,
+        countryFilter: widget.tripCountry ?? _destinationCountry,
         dayNumber: widget.dayNumber,
         centerLat: _destinationLat,
         centerLng: _destinationLng,
