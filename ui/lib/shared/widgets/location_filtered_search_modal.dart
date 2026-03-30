@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:uuid/uuid.dart';
+import '../../services/geocoding_service.dart';
 import '../../common/app_colors.dart';
 import '../../services/destinations_service.dart';
 import '../../shared/widgets/destination_search_modal.dart';
@@ -37,6 +38,10 @@ class _LocationFilteredSearchModalState
   Timer? _debounce;
 
   late final String _sessionToken;
+  final GeocodingService _geocodingService = GeocodingService();
+  double? _effectiveLat;
+  double? _effectiveLng;
+  bool _geocodeAttempted = false;
 
   String get _locationLabel {
     if (widget.cityFilter != null && widget.cityFilter!.trim().isNotEmpty) {
@@ -60,6 +65,8 @@ class _LocationFilteredSearchModalState
   void initState() {
     super.initState();
     _sessionToken = Uuid().v4();
+    _effectiveLat = widget.centerLat;
+    _effectiveLng = widget.centerLng;
   }
 
   void _onSearchChanged(String query) {
@@ -81,6 +88,30 @@ class _LocationFilteredSearchModalState
 
       try {
         String searchQuery = q;
+
+        // If we don't have coords yet but have a city/country filter, try geocoding once
+        if ((_effectiveLat == null || _effectiveLng == null) &&
+            !_geocodeAttempted) {
+          _geocodeAttempted = true;
+          final city = widget.cityFilter?.trim() ?? '';
+          final country = widget.countryFilter?.trim() ?? '';
+          final parts = <String>[];
+          if (city.isNotEmpty) parts.add(city);
+          if (country.isNotEmpty) parts.add(country);
+          final address = parts.join(', ');
+          if (address.isNotEmpty) {
+            try {
+              final res = await _geocodingService.geocodeAddress(address);
+              if (res != null) {
+                _effectiveLat = res['lat'];
+                _effectiveLng = res['lng'];
+              }
+            } catch (e) {
+              // ignore geocoding errors, we'll fallback to no-location search
+              print('Geocoding fallback failed: $e');
+            }
+          }
+        }
         // Sempre priorizar cidade sobre país para pesquisa mais específica
         if (widget.cityFilter != null && widget.cityFilter!.trim().isNotEmpty) {
           searchQuery = '$q, ${widget.cityFilter}';
@@ -92,8 +123,8 @@ class _LocationFilteredSearchModalState
         final results = await _destinationsService.searchDestinations(
           searchQuery,
           sessionToken: _sessionToken,
-          lat: widget.centerLat,
-          lng: widget.centerLng,
+          lat: _effectiveLat ?? widget.centerLat,
+          lng: _effectiveLng ?? widget.centerLng,
           country: widget.countryFilter,
         );
 
