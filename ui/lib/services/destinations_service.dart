@@ -75,12 +75,18 @@ class DestinationsService {
   Future<List<Destination>> searchDestinations(
     String query, {
     String? sessionToken,
+    double? lat,
+    double? lng,
   }) async {
     if (query.trim().isEmpty) return [];
 
     try {
       final params = {'query': query};
       if (sessionToken != null) params['sessionToken'] = sessionToken;
+      if (lat != null && lng != null) {
+        params['lat'] = lat.toString();
+        params['lng'] = lng.toString();
+      }
 
       final response = await _api.get(
         '/maps/destinations/search',

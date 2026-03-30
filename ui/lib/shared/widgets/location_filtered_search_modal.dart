@@ -8,12 +8,16 @@ class LocationFilteredSearchModal extends StatefulWidget {
   final String? cityFilter;
   final String? countryFilter;
   final int? dayNumber;
+  final double? centerLat;
+  final double? centerLng;
 
   const LocationFilteredSearchModal({
     super.key,
     this.cityFilter,
     this.countryFilter,
     this.dayNumber,
+    this.centerLat,
+    this.centerLng,
   });
 
   @override
@@ -78,6 +82,8 @@ class _LocationFilteredSearchModalState
       final results = await _destinationsService.searchDestinations(
         searchQuery,
         sessionToken: _sessionToken,
+        lat: widget.centerLat,
+        lng: widget.centerLng,
       );
 
       if (mounted) {

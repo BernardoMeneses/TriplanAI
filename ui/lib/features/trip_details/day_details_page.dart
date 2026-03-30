@@ -309,6 +309,8 @@ class _DayDetailsPageState extends State<DayDetailsPage>
         cityFilter: widget.tripCity,
         countryFilter: widget.tripCountry,
         dayNumber: widget.dayNumber,
+        centerLat: _destinationLat,
+        centerLng: _destinationLng,
       ),
     );
 
