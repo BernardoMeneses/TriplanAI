@@ -6,12 +6,13 @@ const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 
 const BASE_URL = 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix';
 
-const mapTravelMode = (mode: TravelModeType): string => {
-  const modes: Record<TravelModeType, string> = {
+const mapTravelMode = (mode: TravelModeType | 'ferry'): string => {
+  const modes: Record<string, string> = {
     driving: 'DRIVE',
     walking: 'WALK',
     bicycling: 'BICYCLE',
-    transit: 'TRANSIT'
+    transit: 'TRANSIT',
+    ferry: 'TRANSIT'
   };
   return modes[mode] || 'DRIVE';
 };

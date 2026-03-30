@@ -21,12 +21,16 @@ class TripMapPage extends StatefulWidget {
   final String tripId;
   final int dayNumber;
   final List<ItineraryItem> activities;
+  final double? destinationLat;
+  final double? destinationLng;
 
   const TripMapPage({
     super.key,
     required this.tripId,
     required this.dayNumber,
     required this.activities,
+    this.destinationLat,
+    this.destinationLng,
   });
 
   @override
@@ -53,7 +57,9 @@ class _TripMapPageState extends State<TripMapPage> {
   }
 
   void _createMarkersAndRoutes() async {
-    print('Creating markers and routes for ${_allActivities.length} activities');
+    print(
+      'Creating markers and routes for ${_allActivities.length} activities',
+    );
 
     final Set<Marker> markers = {};
     final List<LatLng> points = [];
@@ -61,7 +67,8 @@ class _TripMapPageState extends State<TripMapPage> {
     for (int i = 0; i < _allActivities.length; i++) {
       final activity = _allActivities[i];
 
-      if (activity.place?.latitude != null && activity.place?.longitude != null) {
+      if (activity.place?.latitude != null &&
+          activity.place?.longitude != null) {
         final position = LatLng(
           activity.place!.latitude!,
           activity.place!.longitude!,
@@ -118,17 +125,22 @@ class _TripMapPageState extends State<TripMapPage> {
       // Preparar os pontos para enviar à API com seus modos de transporte
       final pointsData = _allActivities
           .where((a) => a.place?.latitude != null && a.place?.longitude != null)
-          .map((a) => {
-        'lat': a.place!.latitude!,
-        'lng': a.place!.longitude!,
-        'name': a.title,
-        'transportMode': a.transportMode ?? 'walking', // Include transport mode
-      })
+          .map(
+            (a) => {
+              'lat': a.place!.latitude!,
+              'lng': a.place!.longitude!,
+              'name': a.title,
+              'transportMode':
+                  a.transportMode ?? 'walking', // Include transport mode
+            },
+          )
           .toList();
 
       print('Sending ${pointsData.length} points to API');
       for (var i = 0; i < pointsData.length; i++) {
-        print('Point $i: ${pointsData[i]["name"]} - ${pointsData[i]["transportMode"]}');
+        print(
+          'Point $i: ${pointsData[i]["name"]} - ${pointsData[i]["transportMode"]}',
+        );
       }
 
       if (pointsData.length < 2) {
@@ -138,10 +150,10 @@ class _TripMapPageState extends State<TripMapPage> {
 
       // Chamar API do backend para obter rotas com modos de transporte específicos
       final language = context.locale.languageCode;
-      final response = await _apiService.post('/routes/multi-segment', body: {
-        'points': pointsData,
-        'language': language,
-      });
+      final response = await _apiService.post(
+        '/routes/multi-segment',
+        body: {'points': pointsData, 'language': language},
+      );
 
       print('API Response received');
       print('Response type: ${response.runtimeType}');
@@ -182,30 +194,41 @@ class _TripMapPageState extends State<TripMapPage> {
             if (decodedPoints.length > 1) {
               final midPoint = decodedPoints[decodedPoints.length ~/ 2];
 
-              // Escolher ícone baseado no modo de transporte
+              // Escolher ícone baseado no modo de transporte (inclui ferry)
               IconData iconData;
               final modeLower = mode.toLowerCase();
 
               if (modeLower == 'bicycling') {
                 iconData = Icons.directions_bike;
               } else if (modeLower == 'transit') {
-                // Verificar o tipo específico de transit se disponível
+                // Verificar o tipo específico de transit se disponível (inclui ferry/boat)
                 final transitDetails = route['transit_details'];
                 if (transitDetails != null && transitDetails['line'] != null) {
-                  final vehicleType = transitDetails['line']['vehicle']?['type']?.toString().toLowerCase() ?? 'transit';
+                  final vehicleType =
+                      transitDetails['line']['vehicle']?['type']
+                          ?.toString()
+                          .toLowerCase() ??
+                      'transit';
 
-                  if (vehicleType.contains('subway') || vehicleType.contains('metro')) {
+                  if (vehicleType.contains('subway') ||
+                      vehicleType.contains('metro')) {
                     iconData = Icons.subway;
-                  } else if (vehicleType.contains('rail') || vehicleType.contains('train')) {
+                  } else if (vehicleType.contains('rail') ||
+                      vehicleType.contains('train')) {
                     iconData = Icons.train;
                   } else if (vehicleType.contains('bus')) {
                     iconData = Icons.directions_bus;
+                  } else if (vehicleType.contains('ferry') ||
+                      vehicleType.contains('boat')) {
+                    iconData = Icons.directions_boat;
                   } else {
                     iconData = Icons.directions_transit;
                   }
                 } else {
                   iconData = Icons.directions_transit;
                 }
+              } else if (modeLower == 'ferry' || modeLower == 'boat') {
+                iconData = Icons.directions_boat;
               } else if (modeLower == 'driving') {
                 iconData = Icons.directions_car;
               } else {
@@ -213,7 +236,10 @@ class _TripMapPageState extends State<TripMapPage> {
               }
 
               // Criar ícone customizado com a cor do transporte
-              final icon = await _createTransportMarkerIcon(iconData, transportColor);
+              final icon = await _createTransportMarkerIcon(
+                iconData,
+                transportColor,
+              );
 
               print('Creating transport marker at $midPoint with mode $mode');
 
@@ -225,7 +251,9 @@ class _TripMapPageState extends State<TripMapPage> {
                   anchor: const Offset(0.5, 0.5),
                   zIndex: 2,
                   onTap: () {
-                    print('Transport marker tapped for segment ${route['segmentIndex']}');
+                    print(
+                      'Transport marker tapped for segment ${route['segmentIndex']}',
+                    );
                     // Get the activity index for this transport segment
                     final segmentIndex = route['segmentIndex'] as int;
                     if (segmentIndex < _allActivities.length) {
@@ -252,14 +280,18 @@ class _TripMapPageState extends State<TripMapPage> {
           setState(() {
             _polylines = polylines;
             // Keep all activity markers (those with activity IDs) and add transport markers
-            final activityMarkers = _markers.where((m) =>
-                _allActivities.any((a) => a.id == m.markerId.value)
-            ).toSet();
+            final activityMarkers = _markers
+                .where(
+                  (m) => _allActivities.any((a) => a.id == m.markerId.value),
+                )
+                .toSet();
             _markers = {...activityMarkers, ...transportMarkers};
             _routeSegments = segments;
             _isLoading = false;
           });
-          print('Updated map with ${polylines.length} polylines, ${_markers.length} total markers (${transportMarkers.length} transport)');
+          print(
+            'Updated map with ${polylines.length} polylines, ${_markers.length} total markers (${transportMarkers.length} transport)',
+          );
         }
       } else {
         // Fallback: criar linhas simples se a API falhar
@@ -268,8 +300,8 @@ class _TripMapPageState extends State<TripMapPage> {
         final List<RouteSegment> segments = [];
 
         for (int i = 0; i < points.length - 1; i++) {
-          final transportMode = i < _allActivities.length - 1 
-              ? (_allActivities[i + 1].transportMode ?? 'walking') 
+          final transportMode = i < _allActivities.length - 1
+              ? (_allActivities[i + 1].transportMode ?? 'walking')
               : 'walking';
           polylines.add(
             Polyline(
@@ -354,6 +386,9 @@ class _TripMapPageState extends State<TripMapPage> {
         return TransportType.train;
       case 'bus':
         return TransportType.bus;
+      case 'ferry':
+      case 'boat':
+        return TransportType.transit;
       case 'driving':
         return TransportType.driving;
       default:
@@ -373,7 +408,11 @@ class _TripMapPageState extends State<TripMapPage> {
       case 'subway':
       case 'train':
       case 'bus':
-        return const Color(0xFF66BB6A); // Verde claro - transporte público
+      case 'ferry':
+      case 'boat':
+        return const Color(
+          0xFF66BB6A,
+        ); // Verde claro - transporte público / ferry
       case 'bicycling':
         return const Color(0xFF81C784); // Verde mais claro - bicicleta
       default:
@@ -401,15 +440,19 @@ class _TripMapPageState extends State<TripMapPage> {
       northeast: LatLng(maxLat, maxLng),
     );
 
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, 100),
-    );
+    _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
   }
 
   // Abrir Google Maps ao clicar num marker
   Future<void> _openInGoogleMaps(double lat, double lng, String label) async {
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-    
+    // Preferir pesquisar pelo nome/endereço (label). Se não houver label, usar coordenadas.
+    final query = (label.trim().isNotEmpty)
+        ? Uri.encodeComponent(label)
+        : '$lat,$lng';
+    final url = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$query',
+    );
+
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -424,14 +467,38 @@ class _TripMapPageState extends State<TripMapPage> {
   }
 
   // Show dialog to change transport mode
-  Future<void> _showTransportModeDialog(int activityIndex, String currentMode) async {
+  Future<void> _showTransportModeDialog(
+    int activityIndex,
+    String currentMode,
+  ) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final modes = [
-      {'value': 'walking', 'label': 'Walking', 'icon': Icons.directions_walk},
-      {'value': 'driving', 'label': 'Driving', 'icon': Icons.directions_car},
-      {'value': 'transit', 'label': 'Transit', 'icon': Icons.directions_transit},
-      {'value': 'bicycling', 'label': 'Bicycling', 'icon': Icons.directions_bike},
+      {
+        'value': 'walking',
+        'labelKey': AppConstants.walking,
+        'icon': Icons.directions_walk,
+      },
+      {
+        'value': 'driving',
+        'labelKey': AppConstants.driving,
+        'icon': Icons.directions_car,
+      },
+      {
+        'value': 'transit',
+        'labelKey': AppConstants.transit,
+        'icon': Icons.directions_transit,
+      },
+      {
+        'value': 'bicycling',
+        'labelKey': AppConstants.bicycling,
+        'icon': Icons.directions_bike,
+      },
+      {
+        'value': 'ferry',
+        'labelKey': AppConstants.ferry,
+        'icon': Icons.directions_boat,
+      },
     ];
 
     final selectedMode = await showDialog<String>(
@@ -441,7 +508,9 @@ class _TripMapPageState extends State<TripMapPage> {
         title: Text(
           AppConstants.transportMode.tr(),
           style: TextStyle(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color: isDark
+                ? AppColors.textPrimaryDark
+                : AppColors.textPrimaryLight,
           ),
         ),
         content: Column(
@@ -451,16 +520,24 @@ class _TripMapPageState extends State<TripMapPage> {
             return ListTile(
               leading: Icon(
                 mode['icon'] as IconData,
-                color: isSelected ? AppColors.primary : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                color: isSelected
+                    ? AppColors.primary
+                    : (isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight),
               ),
               title: Text(
-                mode['label'] as String,
+                (mode['labelKey'] as String).tr(),
                 style: TextStyle(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
-              trailing: isSelected ? Icon(Icons.check, color: AppColors.primary) : null,
+              trailing: isSelected
+                  ? Icon(Icons.check, color: AppColors.primary)
+                  : null,
               onTap: () => Navigator.pop(context, mode['value']),
             );
           }).toList(),
@@ -492,7 +569,10 @@ class _TripMapPageState extends State<TripMapPage> {
       _allActivities[activityIndex] = activity.copyWith(transportMode: newMode);
 
       if (mounted) {
-        SnackBarHelper.showSuccess(context, '${AppConstants.transportModeUpdated.tr()} $newMode');
+        SnackBarHelper.showSuccess(
+          context,
+          '${AppConstants.transportModeUpdated.tr()} $newMode',
+        );
 
         // Recriar marcadores e rotas com os dados atualizados
         _createMarkersAndRoutes();
@@ -500,16 +580,22 @@ class _TripMapPageState extends State<TripMapPage> {
     } catch (e) {
       print('Error updating transport mode: $e');
       if (mounted) {
-        SnackBarHelper.showError(context, '${AppConstants.errorUpdatingTransport.tr()}: $e');
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorUpdatingTransport.tr()}: $e',
+        );
       }
     }
   }
 
   // Criar ícone customizado para marcadores de transporte com cor específica
-  Future<BitmapDescriptor> _createTransportMarkerIcon(IconData iconData, Color transportColor) async {
+  Future<BitmapDescriptor> _createTransportMarkerIcon(
+    IconData iconData,
+    Color transportColor,
+  ) async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
-    
+
     // Fundo branco circular
     const size = 60.0;
     final backgroundPaint = Paint()..color = Colors.white;
@@ -544,10 +630,7 @@ class _TripMapPageState extends State<TripMapPage> {
     textPainter.layout();
     textPainter.paint(
       canvas,
-      Offset(
-        (size - textPainter.width) / 2,
-        (size - textPainter.height) / 2,
-      ),
+      Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
     );
 
     final picture = pictureRecorder.endRecording();
@@ -558,26 +641,21 @@ class _TripMapPageState extends State<TripMapPage> {
   }
 
   // Criar ícone customizado para marcadores de lugares com números
-  Future<BitmapDescriptor> _createNumberMarkerIcon(int number, {double size = 80}) async {
+  Future<BitmapDescriptor> _createNumberMarkerIcon(
+    int number, {
+    double size = 80,
+  }) async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
     final paint = Paint()..color = AppColors.primaryDark;
 
-    canvas.drawCircle(
-      Offset(size / 2, size / 2),
-      size / 2,
-      paint,
-    );
+    canvas.drawCircle(Offset(size / 2, size / 2), size / 2, paint);
 
     final borderPaint = Paint()
       ..color = AppColors.primary
       ..style = PaintingStyle.stroke
       ..strokeWidth = (size * 3 / 80).clamp(1.5, 3.0);
-    canvas.drawCircle(
-      Offset(size / 2, size / 2),
-      size / 2 - 2,
-      borderPaint,
-    );
+    canvas.drawCircle(Offset(size / 2, size / 2), size / 2 - 2, borderPaint);
 
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     textPainter.text = TextSpan(
@@ -591,10 +669,7 @@ class _TripMapPageState extends State<TripMapPage> {
     textPainter.layout();
     textPainter.paint(
       canvas,
-      Offset(
-        (size - textPainter.width) / 2,
-        (size - textPainter.height) / 2,
-      ),
+      Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
     );
 
     final picture = pictureRecorder.endRecording();
@@ -612,6 +687,8 @@ class _TripMapPageState extends State<TripMapPage> {
         return 'trip_details.transport.driving'.tr();
       case 'transit':
         return 'trip_details.transport.transit'.tr();
+      case 'ferry':
+        return 'trip_details.transport.ferry'.tr();
       case 'bicycling':
         return 'trip_details.transport.bicycling'.tr();
       default:
@@ -634,7 +711,10 @@ class _TripMapPageState extends State<TripMapPage> {
     }
 
     if (_allActivities.isEmpty) {
-      SnackBarHelper.showWarning(context, 'trip_details.pdf.no_activities_available'.tr());
+      SnackBarHelper.showWarning(
+        context,
+        'trip_details.pdf.no_activities_available'.tr(),
+      );
       return;
     }
 
@@ -656,14 +736,18 @@ class _TripMapPageState extends State<TripMapPage> {
         double maxLat = -double.infinity;
         double minLng = double.infinity;
         double maxLng = -double.infinity;
-        
+
         for (final marker in _markers) {
-          if (marker.position.latitude < minLat) minLat = marker.position.latitude;
-          if (marker.position.latitude > maxLat) maxLat = marker.position.latitude;
-          if (marker.position.longitude < minLng) minLng = marker.position.longitude;
-          if (marker.position.longitude > maxLng) maxLng = marker.position.longitude;
+          if (marker.position.latitude < minLat)
+            minLat = marker.position.latitude;
+          if (marker.position.latitude > maxLat)
+            maxLat = marker.position.latitude;
+          if (marker.position.longitude < minLng)
+            minLng = marker.position.longitude;
+          if (marker.position.longitude > maxLng)
+            maxLng = marker.position.longitude;
         }
-        
+
         // Também incluir pontos da polyline
         for (final polyline in _polylines) {
           for (final point in polyline.points) {
@@ -673,7 +757,7 @@ class _TripMapPageState extends State<TripMapPage> {
             if (point.longitude > maxLng) maxLng = point.longitude;
           }
         }
-        
+
         // Ajustar câmara para mostrar todos os pontos (movimento imediato)
         final latDiff = maxLat - minLat;
         final lngDiff = maxLng - minLng;
@@ -703,14 +787,20 @@ class _TripMapPageState extends State<TripMapPage> {
         final pdfMarkers = <Marker>{};
         for (int i = 0; i < _allActivities.length; i++) {
           final activity = _allActivities[i];
-          if (activity.place?.latitude != null && activity.place?.longitude != null) {
+          if (activity.place?.latitude != null &&
+              activity.place?.longitude != null) {
             final icon = await _createNumberMarkerIcon(i + 1, size: markerSize);
-            pdfMarkers.add(Marker(
-              markerId: MarkerId(activity.id),
-              position: LatLng(activity.place!.latitude!, activity.place!.longitude!),
-              icon: icon,
-              anchor: const Offset(0.5, 0.5),
-            ));
+            pdfMarkers.add(
+              Marker(
+                markerId: MarkerId(activity.id),
+                position: LatLng(
+                  activity.place!.latitude!,
+                  activity.place!.longitude!,
+                ),
+                icon: icon,
+                anchor: const Offset(0.5, 0.5),
+              ),
+            );
           }
         }
         if (mounted) setState(() => _markers = pdfMarkers);
@@ -725,7 +815,7 @@ class _TripMapPageState extends State<TripMapPage> {
       }
 
       final pdf = pw.Document();
-      
+
       // Página do mapa (se disponível)
       if (mapSnapshot != null) {
         final mapImage = pw.MemoryImage(mapSnapshot);
@@ -743,7 +833,9 @@ class _TripMapPageState extends State<TripMapPage> {
                     margin: const pw.EdgeInsets.only(bottom: 24),
                     decoration: pw.BoxDecoration(
                       color: PdfColor.fromHex('#7ED9C8'),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(12),
+                      ),
                     ),
                     child: pw.Row(
                       children: [
@@ -777,8 +869,13 @@ class _TripMapPageState extends State<TripMapPage> {
                   pw.Expanded(
                     child: pw.Container(
                       decoration: pw.BoxDecoration(
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-                        border: pw.Border.all(color: PdfColor.fromHex('#E0E0E0'), width: 2),
+                        borderRadius: const pw.BorderRadius.all(
+                          pw.Radius.circular(12),
+                        ),
+                        border: pw.Border.all(
+                          color: PdfColor.fromHex('#E0E0E0'),
+                          width: 2,
+                        ),
                       ),
                       child: pw.ClipRRect(
                         horizontalRadius: 12,
@@ -801,11 +898,17 @@ class _TripMapPageState extends State<TripMapPage> {
                       children: [
                         pw.Text(
                           'trip_details.pdf.generated_by'.tr(),
-                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+                          style: const pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
                         ),
                         pw.Text(
                           DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
-                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+                          style: const pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
                         ),
                       ],
                     ),
@@ -816,7 +919,7 @@ class _TripMapPageState extends State<TripMapPage> {
           ),
         );
       }
-      
+
       // Páginas do roteiro
       pdf.addPage(
         pw.MultiPage(
@@ -844,10 +947,7 @@ class _TripMapPageState extends State<TripMapPage> {
                   pw.SizedBox(height: 8),
                   pw.Text(
                     '${_allActivities.length} ${'trip_details.activities'.tr().toLowerCase()}',
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      color: PdfColors.white,
-                    ),
+                    style: pw.TextStyle(fontSize: 14, color: PdfColors.white),
                   ),
                 ],
               ),
@@ -894,16 +994,23 @@ class _TripMapPageState extends State<TripMapPage> {
             return _allActivities.asMap().entries.map((entry) {
               final index = entry.key;
               final item = entry.value;
-              
+
               // Obter informação de transporte para a PRÓXIMA atividade
-              final nextItem = index < _allActivities.length - 1 ? _allActivities[index + 1] : null;
-              
+              final nextItem = index < _allActivities.length - 1
+                  ? _allActivities[index + 1]
+                  : null;
+
               return pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 16),
                 padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColor.fromHex('#E0E0E0'), width: 1),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(
+                    color: PdfColor.fromHex('#E0E0E0'),
+                    width: 1,
+                  ),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(8),
+                  ),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -982,7 +1089,8 @@ class _TripMapPageState extends State<TripMapPage> {
                       ],
                     ),
                     // Descrição (se existir)
-                    if (item.description != null && item.description!.isNotEmpty) ...[
+                    if (item.description != null &&
+                        item.description!.isNotEmpty) ...[
                       pw.SizedBox(height: 8),
                       pw.Text(
                         item.description!,
@@ -993,14 +1101,23 @@ class _TripMapPageState extends State<TripMapPage> {
                       ),
                     ],
                     // Badge de transporte para a PRÓXIMA atividade (no fundo do card atual)
-                    if (nextItem != null && nextItem.travelTimeFromPreviousText != null) ...[
+                    if (nextItem != null &&
+                        nextItem.travelTimeFromPreviousText != null) ...[
                       pw.SizedBox(height: 12),
                       pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: pw.BoxDecoration(
                           color: PdfColor.fromHex('#E8F5E9'),
-                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-                          border: pw.Border.all(color: PdfColor.fromHex('#4CAF50'), width: 1),
+                          borderRadius: const pw.BorderRadius.all(
+                            pw.Radius.circular(6),
+                          ),
+                          border: pw.Border.all(
+                            color: PdfColor.fromHex('#4CAF50'),
+                            width: 1,
+                          ),
                         ),
                         child: pw.Row(
                           mainAxisSize: pw.MainAxisSize.min,
@@ -1040,14 +1157,18 @@ class _TripMapPageState extends State<TripMapPage> {
       // Compartilhar PDF
       await Printing.sharePdf(
         bytes: await pdf.save(),
-        filename: '${'trip_details.pdf.filename_route'.tr()}_${widget.dayNumber}.pdf',
+        filename:
+            '${'trip_details.pdf.filename_route'.tr()}_${widget.dayNumber}.pdf',
       );
     } catch (e) {
       // Fechar loading
       if (mounted) Navigator.pop(context);
-      
+
       if (mounted) {
-        SnackBarHelper.showError(context, '${'trip_details.pdf.error_generating_pdf'.tr()}: $e');
+        SnackBarHelper.showError(
+          context,
+          '${'trip_details.pdf.error_generating_pdf'.tr()}: $e',
+        );
       }
     }
   }
@@ -1057,42 +1178,60 @@ class _TripMapPageState extends State<TripMapPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       body: Stack(
         children: [
           // Mapa
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _allActivities.isNotEmpty && _allActivities.first.place != null
-                  ? LatLng(
-                _allActivities.first.place!.latitude ?? 0,
-                _allActivities.first.place!.longitude ?? 0,
-              )
-                  : const LatLng(0, 0),
-              zoom: 13,
-            ),
-            markers: _markers,
-            polylines: _polylines,
-            myLocationEnabled: false, // Disable showing user's current location
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              if (_allActivities.isNotEmpty) {
-                final points = _allActivities
-                    .where((a) => a.place?.latitude != null && a.place?.longitude != null)
-                    .map((a) => LatLng(a.place!.latitude!, a.place!.longitude!))
-                    .toList();
-                if (points.isNotEmpty) {
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    _fitMapToRoute(points);
-                  });
-                }
-              }
-            },
-          ),
+                  initialCameraPosition: CameraPosition(
+                    target:
+                        _allActivities.isNotEmpty &&
+                            _allActivities.first.place != null
+                        ? LatLng(
+                            _allActivities.first.place!.latitude ?? 0,
+                            _allActivities.first.place!.longitude ?? 0,
+                          )
+                        : (widget.destinationLat != null &&
+                                  widget.destinationLng != null
+                              ? LatLng(
+                                  widget.destinationLat!,
+                                  widget.destinationLng!,
+                                )
+                              : const LatLng(0, 0)),
+                    zoom: 13,
+                  ),
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled:
+                      false, // Disable showing user's current location
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  onMapCreated: (controller) {
+                    _mapController = controller;
+                    if (_allActivities.isNotEmpty) {
+                      final points = _allActivities
+                          .where(
+                            (a) =>
+                                a.place?.latitude != null &&
+                                a.place?.longitude != null,
+                          )
+                          .map(
+                            (a) =>
+                                LatLng(a.place!.latitude!, a.place!.longitude!),
+                          )
+                          .toList();
+                      if (points.isNotEmpty) {
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          _fitMapToRoute(points);
+                        });
+                      }
+                    }
+                  },
+                ),
 
           // Header
           Positioned(
@@ -1106,10 +1245,7 @@ class _TripMapPageState extends State<TripMapPage> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.7),
-                      Colors.transparent,
-                    ],
+                    colors: [Colors.black.withOpacity(0.7), Colors.transparent],
                   ),
                 ),
                 child: Row(
@@ -1119,12 +1255,16 @@ class _TripMapPageState extends State<TripMapPage> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          color: isDark
+                              ? AppColors.surfaceDark
+                              : AppColors.surfaceLight,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.arrow_back,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                         ),
                       ),
                     ),
@@ -1145,12 +1285,16 @@ class _TripMapPageState extends State<TripMapPage> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          color: isDark
+                              ? AppColors.surfaceDark
+                              : AppColors.surfaceLight,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.download,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                         ),
                       ),
                     ),
@@ -1169,8 +1313,12 @@ class _TripMapPageState extends State<TripMapPage> {
               builder: (context, scrollController) {
                 return Container(
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    color: isDark
+                        ? AppColors.surfaceDark
+                        : AppColors.surfaceLight,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.2),
@@ -1190,7 +1338,9 @@ class _TripMapPageState extends State<TripMapPage> {
                           height: 4,
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.grey800 : AppColors.grey300,
+                            color: isDark
+                                ? AppColors.grey800
+                                : AppColors.grey300,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -1200,7 +1350,9 @@ class _TripMapPageState extends State<TripMapPage> {
                       Text(
                         AppConstants.yourRoute.tr(),
                         style: TextStyle(
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1209,7 +1361,9 @@ class _TripMapPageState extends State<TripMapPage> {
                       Text(
                         '${_allActivities.length} ${AppConstants.activities.tr().toLowerCase()}',
                         style: TextStyle(
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
                           fontSize: 14,
                         ),
                       ),
@@ -1241,7 +1395,8 @@ class _TripMapPageState extends State<TripMapPage> {
           isDark: isDark,
           isSelected: _selectedActivityIndex == i,
           onTap: () {
-            if (activity.place?.latitude != null && activity.place?.longitude != null) {
+            if (activity.place?.latitude != null &&
+                activity.place?.longitude != null) {
               _mapController?.animateCamera(
                 CameraUpdate.newLatLngZoom(
                   LatLng(activity.place!.latitude!, activity.place!.longitude!),
@@ -1259,10 +1414,7 @@ class _TripMapPageState extends State<TripMapPage> {
       // Rota entre atividades
       if (i < _allActivities.length - 1 && i < _routeSegments.length) {
         widgets.add(
-          _RouteSegmentItem(
-            segment: _routeSegments[i],
-            isDark: isDark,
-          ),
+          _RouteSegmentItem(segment: _routeSegments[i], isDark: isDark),
         );
       }
     }
@@ -1331,7 +1483,9 @@ class _ActivityItem extends StatelessWidget {
                   Text(
                     activity.title,
                     style: TextStyle(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1341,7 +1495,9 @@ class _ActivityItem extends StatelessWidget {
                     Text(
                       activity.startTime!,
                       style: TextStyle(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                         fontSize: 13,
                       ),
                     ),
@@ -1351,7 +1507,9 @@ class _ActivityItem extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
             ),
           ],
         ),
@@ -1364,10 +1522,7 @@ class _RouteSegmentItem extends StatelessWidget {
   final RouteSegment segment;
   final bool isDark;
 
-  const _RouteSegmentItem({
-    required this.segment,
-    required this.isDark,
-  });
+  const _RouteSegmentItem({required this.segment, required this.isDark});
 
   IconData _getTransportIcon() {
     switch (segment.type) {
@@ -1399,17 +1554,15 @@ class _RouteSegmentItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            _getTransportIcon(),
-            color: AppColors.primary,
-            size: 20,
-          ),
+          Icon(_getTransportIcon(), color: AppColors.primary, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               segment.instructions,
               style: TextStyle(
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
                 fontSize: 13,
               ),
             ),
@@ -1417,7 +1570,9 @@ class _RouteSegmentItem extends StatelessWidget {
           Text(
             '${segment.duration} • ${segment.distance}',
             style: TextStyle(
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
               fontSize: 12,
             ),
           ),
@@ -1427,15 +1582,7 @@ class _RouteSegmentItem extends StatelessWidget {
   }
 }
 
-enum TransportType {
-  walking,
-  transit,
-  subway,
-  train,
-  bus,
-  driving,
-  bicycling,
-}
+enum TransportType { walking, transit, subway, train, bus, driving, bicycling }
 
 class RouteSegment {
   final TransportType type;

@@ -9,7 +9,8 @@ const mapTravelMode = (mode: string): string => {
     driving: 'DRIVE',
     walking: 'WALK',
     bicycling: 'BICYCLE',
-    transit: 'TRANSIT'
+    transit: 'TRANSIT',
+    ferry: 'TRANSIT'
   };
   return modes[mode] || 'DRIVE';
 };

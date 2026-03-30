@@ -41,7 +41,7 @@ export interface RouteStep {
   maneuver?: string;
 }
 
-export type TravelModeType = 'driving' | 'walking' | 'bicycling' | 'transit';
+export type TravelModeType = 'driving' | 'walking' | 'bicycling' | 'transit' | 'ferry';
 
 export interface DistanceMatrixResult {
   origin: Waypoint;
