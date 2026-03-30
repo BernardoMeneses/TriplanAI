@@ -90,7 +90,7 @@ router.get('/nearby', async (req: Request, res: Response) => {
 // GET /api/maps/destinations/search - Pesquisar destinos (cidades/países)
 router.get('/destinations/search', async (req: Request, res: Response) => {
   try {
-    const { query, sessionToken, lat, lng, radius } = req.query;
+    const { query, sessionToken, lat, lng, radius, country } = req.query;
     if (!query || typeof query !== 'string') {
       return res.status(400).json({ error: 'Query é obrigatória' });
     }
@@ -99,11 +99,14 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
     // Default radius bias to 50km when a location is provided but no radius specified
     const radiusNum = radius ? Number(radius) : (location ? 50000 : undefined);
 
+    const countryParam = typeof country === 'string' ? country : undefined;
+
     const places = await mapsService.searchPlaces(
       query,
       location,
       radiusNum,
       typeof sessionToken === 'string' ? sessionToken : undefined,
+      countryParam,
     );
 
     // Para o primeiro resultado, buscar detalhes completos

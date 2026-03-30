@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:uuid/uuid.dart';
 import '../../common/app_colors.dart';
 import '../../services/destinations_service.dart';
@@ -33,6 +34,8 @@ class _LocationFilteredSearchModalState
   List<Destination> _results = [];
   bool _isLoading = false;
 
+  Timer? _debounce;
+
   late final String _sessionToken;
 
   String get _locationLabel {
@@ -49,6 +52,7 @@ class _LocationFilteredSearchModalState
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -58,45 +62,51 @@ class _LocationFilteredSearchModalState
     _sessionToken = Uuid().v4();
   }
 
-  void _onSearchChanged(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() {
-        _results = [];
-        _isLoading = false;
-      });
-      return;
-    }
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-    setState(() => _isLoading = true);
-
-    try {
-      String searchQuery = query;
-      // Sempre priorizar cidade sobre país para pesquisa mais específica
-      if (widget.cityFilter != null && widget.cityFilter!.trim().isNotEmpty) {
-        searchQuery = '$query, ${widget.cityFilter}';
-      } else if (widget.countryFilter != null &&
-          widget.countryFilter!.trim().isNotEmpty) {
-        searchQuery = '$query, ${widget.countryFilter}';
+    _debounce = Timer(const Duration(milliseconds: 400), () async {
+      final q = query.trim();
+      if (q.isEmpty) {
+        if (mounted)
+          setState(() {
+            _results = [];
+            _isLoading = false;
+          });
+        return;
       }
 
-      final results = await _destinationsService.searchDestinations(
-        searchQuery,
-        sessionToken: _sessionToken,
-        lat: widget.centerLat,
-        lng: widget.centerLng,
-      );
+      if (!mounted) return;
+      setState(() => _isLoading = true);
 
-      if (mounted) {
-        setState(() {
-          _results = results;
-          _isLoading = false;
-        });
+      try {
+        String searchQuery = q;
+        // Sempre priorizar cidade sobre país para pesquisa mais específica
+        if (widget.cityFilter != null && widget.cityFilter!.trim().isNotEmpty) {
+          searchQuery = '$q, ${widget.cityFilter}';
+        } else if (widget.countryFilter != null &&
+            widget.countryFilter!.trim().isNotEmpty) {
+          searchQuery = '$q, ${widget.countryFilter}';
+        }
+
+        final results = await _destinationsService.searchDestinations(
+          searchQuery,
+          sessionToken: _sessionToken,
+          lat: widget.centerLat,
+          lng: widget.centerLng,
+          country: widget.countryFilter,
+        );
+
+        if (mounted) {
+          setState(() {
+            _results = results;
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isLoading = false);
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    });
   }
 
   Future<void> _selectDestination(Destination destination) async {

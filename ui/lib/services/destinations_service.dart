@@ -77,6 +77,7 @@ class DestinationsService {
     String? sessionToken,
     double? lat,
     double? lng,
+    String? country,
   }) async {
     if (query.trim().isEmpty) return [];
 
@@ -87,6 +88,8 @@ class DestinationsService {
         params['lat'] = lat.toString();
         params['lng'] = lng.toString();
       }
+      if (country != null && country.trim().isNotEmpty)
+        params['country'] = country;
 
       final response = await _api.get(
         '/maps/destinations/search',

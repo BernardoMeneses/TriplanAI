@@ -198,7 +198,7 @@ export class MapsService {
     }
   }
 
-  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number, sessionToken?: string): Promise<PlaceDetails[]> {
+  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number, sessionToken?: string, country?: string): Promise<PlaceDetails[]> {
     try {
       console.log(`[MapsService] searchPlaces input="${query}"`);
       // First try Place Autocomplete for better fuzzy/partial matching
@@ -208,6 +208,14 @@ export class MapsService {
           key: GOOGLE_MAPS_API_KEY,
           language: Language.pt_PT,
         };
+        // If caller provided a country (name or ISO code), try to normalize it to a 2-letter ISO
+        const countryCode = this.normalizeCountryCode(country);
+        if (countryCode) {
+          autoParams.components = `country:${countryCode}`;
+          // strictbounds helps keep results within the country when combined with components
+          autoParams.strictbounds = true;
+          console.log(`[MapsService] using country filter for autocomplete: ${countryCode}`);
+        }
         if (location) {
           autoParams.location = location;
           autoParams.radius = radius || 5000;
@@ -255,6 +263,13 @@ export class MapsService {
         key: GOOGLE_MAPS_API_KEY,
         language: Language.pt_PT,
       };
+
+      // Try to bias textSearch to country if provided (region accepts a ccTLD country code)
+      const countryCodeForText = this.normalizeCountryCode(country);
+      if (countryCodeForText) {
+        params.region = countryCodeForText.toLowerCase();
+        console.log(`[MapsService] using region bias for textSearch: ${countryCodeForText}`);
+      }
 
       if (location) {
         params.location = location;
@@ -544,6 +559,25 @@ export class MapsService {
 
   private toRad(deg: number): number {
     return deg * (Math.PI / 180);
+  }
+
+  private normalizeCountryCode(country?: string): string | undefined {
+    if (!country) return undefined;
+    const trimmed = country.trim();
+    if (trimmed.length === 2) return trimmed.toUpperCase();
+    // remove diacritics and normalize
+    const key = trimmed.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const map: Record<string, string> = {
+      'ITALY': 'IT', 'ITALIA': 'IT', 'ITALIE': 'IT', 'ITALIEN': 'IT', 'ITÁLIA': 'IT',
+      'PORTUGAL': 'PT',
+      'SPAIN': 'ES', 'ESPANA': 'ES', 'ESPAÑA': 'ES', 'ESPANHA': 'ES',
+      'FRANCE': 'FR', 'FRANCA': 'FR', 'FRANÇA': 'FR',
+      'GERMANY': 'DE', 'DEUTSCHLAND': 'DE',
+      'BRAZIL': 'BR', 'BRASIL': 'BR',
+      'UNITED STATES': 'US', 'UNITED STATES OF AMERICA': 'US', 'USA': 'US',
+      'UNITED KINGDOM': 'GB', 'UK': 'GB', 'REINO UNIDO': 'GB'
+    };
+    return map[key] || undefined;
   }
 
   // Obter direções entre dois pontos com modo de transporte (usando nova Google Routes API)
