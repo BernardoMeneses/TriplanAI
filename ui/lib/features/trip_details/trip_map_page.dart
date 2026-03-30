@@ -82,6 +82,12 @@ class _TripMapPageState extends State<TripMapPage> {
         final lat = activity.place!.latitude!;
         final lng = activity.place!.longitude!;
         final title = activity.title;
+        final displayLabel =
+            (activity.place?.address != null &&
+                activity.place!.address!.trim().isNotEmpty)
+            ? activity.place!.address!
+            : title;
+
         markers.add(
           Marker(
             markerId: MarkerId(activity.id),
@@ -94,7 +100,7 @@ class _TripMapPageState extends State<TripMapPage> {
               onTap: () => _openInGoogleMaps(
                 lat,
                 lng,
-                title,
+                displayLabel,
                 placeId: activity.place?.googlePlaceId,
               ),
             ),
@@ -457,14 +463,24 @@ class _TripMapPageState extends State<TripMapPage> {
   }) async {
     Uri url;
 
-    // If we have a Google Place ID, prefer opening by place_id for deterministic results
+    // If we have a Google Place ID, include it but prefer showing the readable
+    // address/name in the search bar when we have one. This makes the Maps UI
+    // friendlier instead of showing raw coordinates.
     if (placeId != null && placeId.trim().isNotEmpty) {
       final encodedPlaceId = Uri.encodeComponent(placeId);
-      url = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query_place_id=$encodedPlaceId',
-      );
+      if (label.trim().isNotEmpty) {
+        final encodedLabel = Uri.encodeComponent(label);
+        url = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query=$encodedLabel&query_place_id=$encodedPlaceId',
+        );
+      } else {
+        url = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query_place_id=$encodedPlaceId',
+        );
+      }
     } else {
-      // Prefer name/address label when available, otherwise fallback to coordinates
+      // Prefer human-readable label/address when available, otherwise fall back
+      // to coordinates (rare case).
       final query = (label.trim().isNotEmpty)
           ? Uri.encodeComponent(label)
           : '$lat,$lng';

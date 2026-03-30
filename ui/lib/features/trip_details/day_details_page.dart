@@ -1963,7 +1963,7 @@ class _ActivityCardState extends State<_ActivityCard> {
       context,
       MaterialPageRoute(
         builder: (context) => NavigationPage(
-          destinationName: widget.title,
+          destinationName: currentItem.place?.address ?? widget.title,
           destinationLat: widget.latitude!,
           destinationLng: widget.longitude!,
           originName: originName,

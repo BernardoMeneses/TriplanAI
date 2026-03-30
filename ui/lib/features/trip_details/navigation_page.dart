@@ -1241,11 +1241,20 @@ class _NavigationPageState extends State<NavigationPage> {
   }) async {
     Uri url;
 
+    // Prefer showing a human readable label/address in the search bar while
+    // keeping the deterministic place_id when available.
     if (placeId != null && placeId.trim().isNotEmpty) {
       final encodedPlaceId = Uri.encodeComponent(placeId);
-      url = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query_place_id=$encodedPlaceId',
-      );
+      if (label.trim().isNotEmpty) {
+        final encodedLabel = Uri.encodeComponent(label);
+        url = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query=$encodedLabel&query_place_id=$encodedPlaceId',
+        );
+      } else {
+        url = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query_place_id=$encodedPlaceId',
+        );
+      }
     } else {
       final query = (label.trim().isNotEmpty)
           ? Uri.encodeComponent(label)
