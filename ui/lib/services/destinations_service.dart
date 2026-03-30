@@ -72,13 +72,19 @@ class DestinationsService {
   final ApiService _api = ApiService();
 
   /// Pesquisa destinos (cidades, países, regiões) pelo nome
-  Future<List<Destination>> searchDestinations(String query) async {
+  Future<List<Destination>> searchDestinations(
+    String query, {
+    String? sessionToken,
+  }) async {
     if (query.trim().isEmpty) return [];
 
     try {
+      final params = {'query': query};
+      if (sessionToken != null) params['sessionToken'] = sessionToken;
+
       final response = await _api.get(
         '/maps/destinations/search',
-        queryParams: {'query': query},
+        queryParams: params,
       );
 
       if (response is List) {

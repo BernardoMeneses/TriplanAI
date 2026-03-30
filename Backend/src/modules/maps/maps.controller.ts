@@ -90,13 +90,13 @@ router.get('/nearby', async (req: Request, res: Response) => {
 // GET /api/maps/destinations/search - Pesquisar destinos (cidades/países)
 router.get('/destinations/search', async (req: Request, res: Response) => {
   try {
-    const { query } = req.query;
+    const { query, sessionToken } = req.query;
     if (!query || typeof query !== 'string') {
       return res.status(400).json({ error: 'Query é obrigatória' });
     }
-    
-    const places = await mapsService.searchPlaces(query);
-    
+
+    const places = await mapsService.searchPlaces(query, undefined, undefined, typeof sessionToken === 'string' ? sessionToken : undefined);
+
     // Para o primeiro resultado, buscar detalhes completos
     const formattedResults = await Promise.all(places.map(async (place, index) => {
       // Extrair cidade e país dos componentes do endereço

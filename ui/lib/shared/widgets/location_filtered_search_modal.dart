@@ -1,7 +1,5 @@
-
-
-
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../../common/app_colors.dart';
 import '../../services/destinations_service.dart';
 import '../../shared/widgets/destination_search_modal.dart';
@@ -19,21 +17,26 @@ class LocationFilteredSearchModal extends StatefulWidget {
   });
 
   @override
-  State<LocationFilteredSearchModal> createState() => _LocationFilteredSearchModalState();
+  State<LocationFilteredSearchModal> createState() =>
+      _LocationFilteredSearchModalState();
 }
 
-class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModal> {
+class _LocationFilteredSearchModalState
+    extends State<LocationFilteredSearchModal> {
   final DestinationsService _destinationsService = DestinationsService();
   final TextEditingController _searchController = TextEditingController();
 
   List<Destination> _results = [];
   bool _isLoading = false;
 
+  late final String _sessionToken;
+
   String get _locationLabel {
     if (widget.cityFilter != null && widget.cityFilter!.trim().isNotEmpty) {
       return widget.cityFilter!;
     }
-    if (widget.countryFilter != null && widget.countryFilter!.trim().isNotEmpty) {
+    if (widget.countryFilter != null &&
+        widget.countryFilter!.trim().isNotEmpty) {
       return widget.countryFilter!;
     }
     return '';
@@ -43,6 +46,12 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionToken = Uuid().v4();
   }
 
   void _onSearchChanged(String query) async {
@@ -61,11 +70,15 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
       // Sempre priorizar cidade sobre país para pesquisa mais específica
       if (widget.cityFilter != null && widget.cityFilter!.trim().isNotEmpty) {
         searchQuery = '$query, ${widget.cityFilter}';
-      } else if (widget.countryFilter != null && widget.countryFilter!.trim().isNotEmpty) {
+      } else if (widget.countryFilter != null &&
+          widget.countryFilter!.trim().isNotEmpty) {
         searchQuery = '$query, ${widget.countryFilter}';
       }
 
-      final results = await _destinationsService.searchDestinations(searchQuery);
+      final results = await _destinationsService.searchDestinations(
+        searchQuery,
+        sessionToken: _sessionToken,
+      );
 
       if (mounted) {
         setState(() {
@@ -83,7 +96,9 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
   Future<void> _selectDestination(Destination destination) async {
     setState(() => _isLoading = true);
 
-    final details = await _destinationsService.getDestinationDetails(destination.placeId);
+    final details = await _destinationsService.getDestinationDetails(
+      destination.placeId,
+    );
 
     if (mounted) {
       Navigator.pop(
@@ -137,7 +152,9 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                           ),
                         ),
                         if (_locationLabel.isNotEmpty)
@@ -145,7 +162,9 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
                             'Searching in $_locationLabel',
                             style: TextStyle(
                               fontSize: 13,
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
                             ),
                           ),
                       ],
@@ -154,7 +173,9 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
                   IconButton(
                     icon: Icon(
                       Icons.close,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -165,18 +186,24 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
                 controller: _searchController,
                 autofocus: true,
                 style: TextStyle(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Search attractions, museums, restaurants...',
                   hintStyle: TextStyle(
-                    color: isDark ? AppColors.textHintDark : AppColors.textHintLight,
+                    color: isDark
+                        ? AppColors.textHintDark
+                        : AppColors.textHintLight,
                   ),
                   filled: true,
                   fillColor: isDark ? AppColors.grey800 : AppColors.grey100,
                   prefixIcon: Icon(
                     Icons.search,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -184,86 +211,99 @@ class _LocationFilteredSearchModalState extends State<LocationFilteredSearchModa
                   ),
                   suffixIcon: _isLoading
                       ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
                       : _searchController.text.isNotEmpty
                       ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        _results = [];
-                      });
-                    },
-                  )
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _results = [];
+                            });
+                          },
+                        )
                       : null,
                 ),
                 onChanged: _onSearchChanged,
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: _results.isEmpty && !_isLoading && _searchController.text.isNotEmpty
+                child:
+                    _results.isEmpty &&
+                        !_isLoading &&
+                        _searchController.text.isNotEmpty
                     ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.search_off,
-                        size: 64,
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No results found',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No results found',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                )
+                      )
                     : _results.isEmpty
                     ? Center(
-                  child: Text(
-                    'Search for attractions, museums, restaurants...',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    ),
-                  ),
-                )
+                        child: Text(
+                          'Search for attractions, museums, restaurants...',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      )
                     : ListView.builder(
-                  controller: scrollController,
-                  itemCount: _results.length,
-                  itemBuilder: (_, index) {
-                    final destination = _results[index];
-                    return ListTile(
-                      leading: Icon(
-                        _getIconForType(destination.types),
-                        color: AppColors.primary,
+                        controller: scrollController,
+                        itemCount: _results.length,
+                        itemBuilder: (_, index) {
+                          final destination = _results[index];
+                          return ListTile(
+                            leading: Icon(
+                              _getIconForType(destination.types),
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              destination.name,
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimaryLight,
+                              ),
+                            ),
+                            subtitle: Text(
+                              destination.subtitle,
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                            onTap: () => _selectDestination(destination),
+                          );
+                        },
                       ),
-                      title: Text(
-                        destination.name,
-                        style: TextStyle(
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      subtitle: Text(
-                        destination.subtitle,
-                        style: TextStyle(
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                        ),
-                      ),
-                      onTap: () => _selectDestination(destination),
-                    );
-                  },
-                ),
               ),
             ],
           ),

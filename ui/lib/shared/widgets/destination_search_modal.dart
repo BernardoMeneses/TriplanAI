@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:uuid/uuid.dart';
 import '../../common/app_colors.dart';
 import '../../services/destinations_service.dart';
 
@@ -35,6 +36,13 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
   List<Destination> _results = [];
   bool _isLoading = false;
   Timer? _debounce;
+  late final String _sessionToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionToken = Uuid().v4();
+  }
 
   @override
   void dispose() {
@@ -67,6 +75,7 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
       // Capture the query that started this request so we can ignore stale responses
       final results = await _destinationsService.searchDestinations(
         currentQuery,
+        sessionToken: _sessionToken,
       );
       if (!mounted) return;
 

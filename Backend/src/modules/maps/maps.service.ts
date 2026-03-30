@@ -131,13 +131,14 @@ export class MapsService {
     }
   }
 
-  async getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
+  async getPlaceDetails(placeId: string, sessionToken?: string): Promise<PlaceDetails | null> {
     try {
       const response = await mapsClient.placeDetails({
         params: {
           place_id: placeId,
           key: GOOGLE_MAPS_API_KEY,
           language: Language.pt_PT,
+          ...(sessionToken && { sessiontoken: sessionToken }),
           fields: [
             'place_id',
             'name',
@@ -197,7 +198,7 @@ export class MapsService {
     }
   }
 
-  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number): Promise<PlaceDetails[]> {
+  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number, sessionToken?: string): Promise<PlaceDetails[]> {
     try {
       console.log(`[MapsService] searchPlaces input="${query}"`);
       // First try Place Autocomplete for better fuzzy/partial matching
@@ -211,6 +212,10 @@ export class MapsService {
           autoParams.location = location;
           autoParams.radius = radius || 5000;
         }
+        if (sessionToken) {
+          autoParams.sessiontoken = sessionToken;
+          console.log(`[MapsService] using sessionToken for autocomplete: ${sessionToken}`);
+        }
 
         const autoResponse = await mapsClient.placeAutocomplete({ params: autoParams });
         const predictions = autoResponse.data.predictions || [];
@@ -218,7 +223,7 @@ export class MapsService {
 
         if (predictions.length > 0) {
           const detailedPlaces = await Promise.all(predictions.slice(0, 20).map(async (prediction) => {
-            const details = await this.getPlaceDetails(prediction.place_id);
+            const details = await this.getPlaceDetails(prediction.place_id, sessionToken);
             if (details) return details;
 
             return {
@@ -262,7 +267,7 @@ export class MapsService {
 
       // Buscar detalhes completos para cada resultado
       const detailedPlaces = await Promise.all(places.map(async (place) => {
-        let details = await this.getPlaceDetails(place.place_id || '');
+        let details = await this.getPlaceDetails(place.place_id || '', sessionToken);
         // Copiar diretamente o campo photoUrl e photos do details
         return details || {
           placeId: place.place_id || '',
