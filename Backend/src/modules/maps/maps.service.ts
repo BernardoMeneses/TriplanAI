@@ -199,6 +199,7 @@ export class MapsService {
 
   async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number): Promise<PlaceDetails[]> {
     try {
+      console.log(`[MapsService] searchPlaces input="${query}"`);
       // First try Place Autocomplete for better fuzzy/partial matching
       try {
         const autoParams: any = {
@@ -213,6 +214,7 @@ export class MapsService {
 
         const autoResponse = await mapsClient.placeAutocomplete({ params: autoParams });
         const predictions = autoResponse.data.predictions || [];
+        console.log(`[MapsService] autocomplete returned ${predictions.length} predictions for "${query}"`);
 
         if (predictions.length > 0) {
           const detailedPlaces = await Promise.all(predictions.slice(0, 20).map(async (prediction) => {
@@ -256,6 +258,7 @@ export class MapsService {
 
       const response = await mapsClient.textSearch({ params });
       const places = response.data.results.slice(0, 20);
+      console.log(`[MapsService] textSearch returned ${places.length} results for "${query}"`);
 
       // Buscar detalhes completos para cada resultado
       const detailedPlaces = await Promise.all(places.map(async (place) => {
