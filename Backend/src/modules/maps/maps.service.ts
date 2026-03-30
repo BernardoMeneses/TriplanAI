@@ -199,10 +199,54 @@ export class MapsService {
 
   async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number): Promise<PlaceDetails[]> {
     try {
+      // First try Place Autocomplete for better fuzzy/partial matching
+      try {
+        const autoParams: any = {
+          input: query,
+          key: GOOGLE_MAPS_API_KEY,
+          language: Language.pt_PT,
+        };
+        if (location) {
+          autoParams.location = location;
+          autoParams.radius = radius || 5000;
+        }
+
+        const autoResponse = await mapsClient.placeAutocomplete({ params: autoParams });
+        const predictions = autoResponse.data.predictions || [];
+
+        if (predictions.length > 0) {
+          const detailedPlaces = await Promise.all(predictions.slice(0, 20).map(async (prediction) => {
+            const details = await this.getPlaceDetails(prediction.place_id);
+            if (details) return details;
+
+            return {
+              placeId: prediction.place_id || '',
+              name: prediction.structured_formatting?.main_text || prediction.description || '',
+              formattedAddress: prediction.description || '',
+              location: { lat: 0, lng: 0 },
+              types: prediction.types || [],
+              rating: undefined,
+              priceLevel: undefined,
+              openingHours: undefined,
+              photos: [],
+              photoUrl: undefined,
+              phoneNumber: undefined,
+              website: undefined,
+            } as PlaceDetails;
+          }));
+
+          return detailedPlaces;
+        }
+      } catch (autocompleteError) {
+        // If autocomplete fails, fall back to textSearch below
+        console.warn('Place autocomplete failed, falling back to textSearch:', autocompleteError);
+      }
+
+      // Fallback: use Text Search for broader queries
       const params: any = {
         query,
         key: GOOGLE_MAPS_API_KEY,
-        language: Language.pt_PT
+        language: Language.pt_PT,
       };
 
       if (location) {
@@ -217,22 +261,27 @@ export class MapsService {
       const detailedPlaces = await Promise.all(places.map(async (place) => {
         let details = await this.getPlaceDetails(place.place_id || '');
         // Copiar diretamente o campo photoUrl e photos do details
-        return {
-          placeId: details?.placeId || place.place_id || '',
-          name: details?.name || place.name || '',
-          formattedAddress: details?.formattedAddress || place.formatted_address || '',
-          location: details?.location || {
+        return details || {
+          placeId: place.place_id || '',
+          name: place.name || '',
+          formattedAddress: place.formatted_address || '',
+          location: {
             lat: place.geometry?.location.lat || 0,
             lng: place.geometry?.location.lng || 0
           },
-          types: details?.types || place.types || [],
-          rating: details?.rating || place.rating,
-          priceLevel: details?.priceLevel || place.price_level,
-          photos: details?.photos || [],
-          photoUrl: details?.photoUrl || '',
-          phoneNumber: details?.phoneNumber,
-          website: details?.website
-        };
+          types: place.types || [],
+          rating: place.rating,
+          priceLevel: place.price_level,
+          openingHours: undefined,
+          photos: place.photos?.slice(0, 3).map(photo => 
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+          ) || [],
+          photoUrl: (place.photos && place.photos.length > 0)
+            ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+            : undefined,
+          phoneNumber: undefined,
+          website: undefined,
+        } as PlaceDetails;
       }));
       return detailedPlaces;
     } catch (error) {

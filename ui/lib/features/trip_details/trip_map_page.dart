@@ -91,7 +91,12 @@ class _TripMapPageState extends State<TripMapPage> {
             infoWindow: InfoWindow(
               title: '${i + 1}. $title',
               snippet: 'trip_details.tap_to_open_maps'.tr(),
-              onTap: () => _openInGoogleMaps(lat, lng, title),
+              onTap: () => _openInGoogleMaps(
+                lat,
+                lng,
+                title,
+                placeId: activity.place?.googlePlaceId,
+              ),
             ),
           ),
         );
@@ -444,16 +449,33 @@ class _TripMapPageState extends State<TripMapPage> {
   }
 
   // Abrir Google Maps ao clicar num marker
-  Future<void> _openInGoogleMaps(double lat, double lng, String label) async {
-    // Preferir pesquisar pelo nome/endereço (label). Se não houver label, usar coordenadas.
-    final query = (label.trim().isNotEmpty)
-        ? Uri.encodeComponent(label)
-        : '$lat,$lng';
-    final url = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$query',
-    );
+  Future<void> _openInGoogleMaps(
+    double lat,
+    double lng,
+    String label, {
+    String? placeId,
+  }) async {
+    Uri url;
+
+    // If we have a Google Place ID, prefer opening by place_id for deterministic results
+    if (placeId != null && placeId.trim().isNotEmpty) {
+      final encodedPlaceId = Uri.encodeComponent(placeId);
+      url = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query_place_id=$encodedPlaceId',
+      );
+    } else {
+      // Prefer name/address label when available, otherwise fallback to coordinates
+      final query = (label.trim().isNotEmpty)
+          ? Uri.encodeComponent(label)
+          : '$lat,$lng';
+      url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    }
 
     try {
+      // Debug: print the URL we will open to help diagnose issues
+      // ignore: avoid_print
+      print('Opening Google Maps URL: $url');
+
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
@@ -462,6 +484,7 @@ class _TripMapPageState extends State<TripMapPage> {
         }
       }
     } catch (e) {
+      // ignore: avoid_print
       print('Error opening Google Maps: $e');
     }
   }

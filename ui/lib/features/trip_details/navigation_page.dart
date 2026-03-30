@@ -1233,16 +1233,30 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   // Abrir Google Maps ao clicar num marker
-  Future<void> _openInGoogleMaps(double lat, double lng, String label) async {
-    // Preferir pesquisar pelo nome/endereço (label). Se não houver label, usar coordenadas.
-    final query = (label.trim().isNotEmpty)
-        ? Uri.encodeComponent(label)
-        : '$lat,$lng';
-    final url = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$query',
-    );
+  Future<void> _openInGoogleMaps(
+    double lat,
+    double lng,
+    String label, {
+    String? placeId,
+  }) async {
+    Uri url;
+
+    if (placeId != null && placeId.trim().isNotEmpty) {
+      final encodedPlaceId = Uri.encodeComponent(placeId);
+      url = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query_place_id=$encodedPlaceId',
+      );
+    } else {
+      final query = (label.trim().isNotEmpty)
+          ? Uri.encodeComponent(label)
+          : '$lat,$lng';
+      url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    }
 
     try {
+      // ignore: avoid_print
+      print('Opening Google Maps URL: $url');
+
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
@@ -1251,6 +1265,7 @@ class _NavigationPageState extends State<NavigationPage> {
         }
       }
     } catch (e) {
+      // ignore: avoid_print
       print('Error opening Google Maps: $e');
       if (mounted) {
         SnackBarHelper.showError(
