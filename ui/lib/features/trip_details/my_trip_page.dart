@@ -12,6 +12,8 @@ import 'package:flutter/services.dart';
 import '../../services/trip_cache_service.dart';
 import '../../services/connectivity_service.dart';
 import '../../services/notes_service.dart';
+import '../../services/subscription_service.dart';
+import '../../shared/widgets/feature_locked_dialog.dart';
 import 'day_details_page.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 
@@ -39,32 +41,37 @@ class _MyTripPageState extends State<MyTripPage> {
   final TripsService _tripsService = TripsService();
   final TripCacheService _cacheService = TripCacheService();
   final ConnectivityService _connectivityService = ConnectivityService();
-  
+
   // Connectivity state
   bool _isOnline = true;
   StreamSubscription<bool>? _connectivitySubscription;
   // Map dayNumber -> items count
   Map<int, int> _dayItemCounts = {};
-  
+
   /// ReadOnly efetivo - true se offline OU se widget.isReadOnly
   bool get _effectiveReadOnly => widget.isReadOnly || !_isOnline;
+
+  /// Mostra aviso visual de bloqueio quando a viagem foi partilhada/importada.
+  bool get _showSharedTripReadOnlyNotice => _trip.isMember;
 
   @override
   void initState() {
     super.initState();
     _trip = widget.trip;
     _loadDestinationImage();
-    
+
     // Iniciar verificação de conectividade
     _isOnline = _connectivityService.isOnline;
-    _connectivitySubscription = _connectivityService.connectivityStream.listen((isOnline) {
+    _connectivitySubscription = _connectivityService.connectivityStream.listen((
+      isOnline,
+    ) {
       if (mounted && _isOnline != isOnline) {
         setState(() {
           _isOnline = isOnline;
         });
       }
     });
-    
+
     // Sincronizar todos os dias em background (não bloqueia UI)
     if (!widget.isReadOnly) {
       _syncAllDays();
@@ -72,7 +79,7 @@ class _MyTripPageState extends State<MyTripPage> {
       _loadDayCounts();
     }
   }
-  
+
   @override
   void dispose() {
     _connectivitySubscription?.cancel();
@@ -103,7 +110,10 @@ class _MyTripPageState extends State<MyTripPage> {
     final Map<int, int> counts = {};
     for (int day = 1; day <= _trip.durationInDays; day++) {
       try {
-        final itinerary = await _cacheService.getOrCreateItineraryByDay(_trip.id, day);
+        final itinerary = await _cacheService.getOrCreateItineraryByDay(
+          _trip.id,
+          day,
+        );
         if (itinerary == null) {
           counts[day] = 0;
           continue;
@@ -111,7 +121,8 @@ class _MyTripPageState extends State<MyTripPage> {
         final items = await _cacheService.getItemsByItinerary(itinerary.id);
         counts[day] = items.length;
       } catch (e) {
-        if (mounted && kDebugMode) print('Erro ao carregar contadores dia $day: $e');
+        if (mounted && kDebugMode)
+          print('Erro ao carregar contadores dia $day: $e');
         counts[day] = 0;
       }
     }
@@ -145,12 +156,16 @@ class _MyTripPageState extends State<MyTripPage> {
       for (final query in queries) {
         if (selectedPhotoUrl != null) break;
 
-        final searchResults = await _destinationsService.searchDestinations(query);
+        final searchResults = await _destinationsService.searchDestinations(
+          query,
+        );
 
         if (searchResults.isNotEmpty && mounted) {
           // Pegar os primeiros resultados e tentar obter fotos
           for (final destination in searchResults.take(3)) {
-            final details = await _destinationsService.getDestinationDetails(destination.placeId);
+            final details = await _destinationsService.getDestinationDetails(
+              destination.placeId,
+            );
 
             if (details?.photoUrl != null) {
               selectedPhotoUrl = details!.photoUrl;
@@ -175,10 +190,18 @@ class _MyTripPageState extends State<MyTripPage> {
 
   String _formatDateRange() {
     final months = [
-      AppConstants.jan.tr(), AppConstants.feb.tr(), AppConstants.mar.tr(),
-      AppConstants.apr.tr(), AppConstants.may.tr(), AppConstants.jun.tr(),
-      AppConstants.jul.tr(), AppConstants.aug.tr(), AppConstants.sep.tr(),
-      AppConstants.oct.tr(), AppConstants.nov.tr(), AppConstants.dec.tr()
+      AppConstants.jan.tr(),
+      AppConstants.feb.tr(),
+      AppConstants.mar.tr(),
+      AppConstants.apr.tr(),
+      AppConstants.may.tr(),
+      AppConstants.jun.tr(),
+      AppConstants.jul.tr(),
+      AppConstants.aug.tr(),
+      AppConstants.sep.tr(),
+      AppConstants.oct.tr(),
+      AppConstants.nov.tr(),
+      AppConstants.dec.tr(),
     ];
 
     final startDay = _trip.startDate.day;
@@ -209,14 +232,18 @@ class _MyTripPageState extends State<MyTripPage> {
       });
       widget.onTripUpdated?.call();
       // Emitir evento para atualizar listas globalmente
-      try { AppEvents.emitTripsChanged(); } catch(_) {}
+      try {
+        AppEvents.emitTripsChanged();
+      } catch (_) {}
       // Recarregar a imagem do destino
       _loadDestinationImage();
     }
   }
 
   void _goToHome() {
-    try { AppEvents.emitTripsChanged(); } catch(_) {}
+    try {
+      AppEvents.emitTripsChanged();
+    } catch (_) {}
 
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
@@ -262,7 +289,13 @@ class _MyTripPageState extends State<MyTripPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 8),
-              SelectableText(code, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SelectableText(
+                code,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           actions: [
@@ -270,7 +303,10 @@ class _MyTripPageState extends State<MyTripPage> {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: code));
                 Navigator.pop(context);
-                SnackBarHelper.showSuccess(this.context, AppConstants.codeCopied.tr());
+                SnackBarHelper.showSuccess(
+                  this.context,
+                  AppConstants.codeCopied.tr(),
+                );
               },
               child: Text(AppConstants.copy.tr()),
             ),
@@ -283,7 +319,10 @@ class _MyTripPageState extends State<MyTripPage> {
       );
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(context, '${AppConstants.errorSharingTrip.tr()}: $e');
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorSharingTrip.tr()}: $e',
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -296,10 +335,14 @@ class _MyTripPageState extends State<MyTripPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isMember ? 'Deixar viagem' : AppConstants.deleteTripTitle.tr()),
-        content: Text(isMember
-            ? 'Tens a certeza que pretendes deixar de seguir esta viagem partilhada?'
-            : AppConstants.deleteTripMessage.tr()),
+        title: Text(
+          isMember ? 'Deixar viagem' : AppConstants.deleteTripTitle.tr(),
+        ),
+        content: Text(
+          isMember
+              ? 'Tens a certeza que pretendes deixar de seguir esta viagem partilhada?'
+              : AppConstants.deleteTripMessage.tr(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -307,9 +350,7 @@ class _MyTripPageState extends State<MyTripPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(isMember ? 'Deixar' : AppConstants.delete.tr()),
           ),
         ],
@@ -339,16 +380,23 @@ class _MyTripPageState extends State<MyTripPage> {
       if (mounted) {
         SnackBarHelper.showSuccess(
           context,
-          isMember ? 'Viagem removida das suas viagens' : AppConstants.tripDeletedSuccess.tr(),
+          isMember
+              ? 'Viagem removida das suas viagens'
+              : AppConstants.tripDeletedSuccess.tr(),
         );
         // Emit event to inform other pages
-        try { AppEvents.emitTripsChanged(); } catch (_) {}
+        try {
+          AppEvents.emitTripsChanged();
+        } catch (_) {}
         // Voltar para home após apagar
         _goToHome();
       }
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(context, '${AppConstants.errorDeletingTrip.tr()}: $e');
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorDeletingTrip.tr()}: $e',
+        );
       }
     } finally {
       if (mounted) {
@@ -357,9 +405,19 @@ class _MyTripPageState extends State<MyTripPage> {
     }
   }
 
-  void _showTripMenu() {
+  Future<void> _showTripMenu() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
+    bool canShare = false;
+    try {
+      canShare = await SubscriptionService().hasFeature('share_trips');
+    } catch (e) {
+      // If we fail to fetch subscription info, default to hiding the option
+      if (mounted && kDebugMode)
+        print('Error checking subscription for share_trips: $e');
+      canShare = false;
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -385,7 +443,10 @@ class _MyTripPageState extends State<MyTripPage> {
               // Aviso de modo offline
               if (_effectiveReadOnly)
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.orange.withOpacity(0.1),
@@ -394,7 +455,11 @@ class _MyTripPageState extends State<MyTripPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
+                      const Icon(
+                        Icons.cloud_off,
+                        color: Colors.orange,
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -408,10 +473,15 @@ class _MyTripPageState extends State<MyTripPage> {
                     ],
                   ),
                 ),
+
+              // Generate-share option: show for all users, but if feature is locked
+              // tapping will show the upgrade modal.
               ListTile(
                 leading: Icon(
                   Icons.vpn_key,
-                  color: _effectiveReadOnly ? Colors.grey : AppColors.primary,
+                  color: _effectiveReadOnly
+                      ? Colors.grey
+                      : (canShare ? AppColors.primary : Colors.grey),
                 ),
                 title: Text(
                   AppConstants.generateShareCodeTitle.tr(),
@@ -421,11 +491,24 @@ class _MyTripPageState extends State<MyTripPage> {
                 ),
                 subtitle: Text(AppConstants.generateShareCodeSubtitle.tr()),
                 enabled: !_effectiveReadOnly,
-                onTap: _effectiveReadOnly ? null : () {
-                  Navigator.pop(context);
-                  _generateTripCode();
-                },
+                onTap: _effectiveReadOnly
+                    ? null
+                    : () async {
+                        Navigator.pop(context);
+                        if (canShare) {
+                          _generateTripCode();
+                        } else {
+                          await showFeatureLockedDialog(
+                            context,
+                            title: AppConstants.generateShareCodeTitle.tr(),
+                            description: AppConstants.generateShareCodeSubtitle
+                                .tr(),
+                            suggestedPlan: SubscriptionPlan.basic,
+                          );
+                        }
+                      },
               ),
+
               ListTile(
                 leading: Icon(
                   Icons.edit,
@@ -438,10 +521,12 @@ class _MyTripPageState extends State<MyTripPage> {
                   ),
                 ),
                 enabled: !_effectiveReadOnly,
-                onTap: _effectiveReadOnly ? null : () {
-                  Navigator.pop(context);
-                  _editTrip();
-                },
+                onTap: _effectiveReadOnly
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _editTrip();
+                      },
               ),
               ListTile(
                 leading: Icon(
@@ -449,22 +534,101 @@ class _MyTripPageState extends State<MyTripPage> {
                   color: _effectiveReadOnly ? Colors.grey : Colors.red,
                 ),
                 title: Text(
-                  _trip.isMember ? 'Deixar viagem' : AppConstants.deleteTrip.tr(),
+                  _trip.isMember
+                      ? 'Deixar viagem'
+                      : AppConstants.deleteTrip.tr(),
                   style: TextStyle(
                     color: _effectiveReadOnly ? Colors.grey : Colors.red,
                   ),
                 ),
-                subtitle: Text(_trip.isMember ? 'Remover das tuas viagens' : AppConstants.deleteTripSubtitle.tr()),
+                subtitle: Text(
+                  _trip.isMember
+                      ? 'Remover das tuas viagens'
+                      : AppConstants.deleteTripSubtitle.tr(),
+                ),
                 enabled: !_effectiveReadOnly,
-                onTap: _effectiveReadOnly ? null : () {
-                  Navigator.pop(context);
-                  _deleteTrip();
-                },
+                onTap: _effectiveReadOnly
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _deleteTrip();
+                      },
               ),
               const SizedBox(height: 8),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSharedTripReadOnlyBanner() {
+    final String title = AppConstants.sharedTripReadOnlyTitle.tr();
+    final String subtitle = AppConstants.sharedTripReadOnlySubtitle.tr();
+
+    final Paint outlinePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..color = Colors.amber.shade500;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade400, width: 1.6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: Colors.black, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        foreground: outlinePaint,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 12,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -571,7 +735,10 @@ class _MyTripPageState extends State<MyTripPage> {
                       ),
                       if (!_effectiveReadOnly)
                         IconButton(
-                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white,
+                          ),
                           onPressed: _showTripMenu,
                         )
                       else
@@ -582,7 +749,10 @@ class _MyTripPageState extends State<MyTripPage> {
 
                 // Trip header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                   child: Column(
                     children: [
                       Text(
@@ -607,7 +777,11 @@ class _MyTripPageState extends State<MyTripPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.calendar_today, color: Colors.white70, size: 14),
+                          const Icon(
+                            Icons.calendar_today,
+                            color: Colors.white70,
+                            size: 14,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             _formatDateRange(),
@@ -636,26 +810,53 @@ class _MyTripPageState extends State<MyTripPage> {
                     ),
                     child: _isLoading
                         ? const Center(child: CircularProgressIndicator())
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(24),
-                            itemCount: _trip.durationInDays,
-                            itemBuilder: (context, index) {
-                              final currentDay = _trip.startDate.add(Duration(days: index));
-                              final dayOfWeek = _getDayOfWeek(currentDay.weekday);
-                              final dayNumber = index + 1;
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (_showSharedTripReadOnlyNotice)
+                                _buildSharedTripReadOnlyBanner(),
+                              Expanded(
+                                child: ListView.builder(
+                                  padding: EdgeInsets.fromLTRB(
+                                    24,
+                                    _showSharedTripReadOnlyNotice ? 8 : 24,
+                                    24,
+                                    24,
+                                  ),
+                                  itemCount: _trip.durationInDays,
+                                  itemBuilder: (context, index) {
+                                    final currentDay = _trip.startDate.add(
+                                      Duration(days: index),
+                                    );
+                                    final dayOfWeek = _getDayOfWeek(
+                                      currentDay.weekday,
+                                    );
+                                    final dayNumber = index + 1;
 
-                              return GestureDetector(
-                                onTap: () => _openDayDetails(dayNumber, currentDay),
-                                child: _DayItem(
-                                  dayNumber: dayNumber,
-                                  dayOfWeek: dayOfWeek,
-                                  date: currentDay,
-                                  activitiesCount: _dayItemCounts[dayNumber] ?? 0,
-                                  isCompleted: DateTime.now().isAfter(currentDay.add(const Duration(days: 1))),
-                                  isLast: index == _trip.durationInDays - 1,
+                                    return GestureDetector(
+                                      onTap: () => _openDayDetails(
+                                        dayNumber,
+                                        currentDay,
+                                      ),
+                                      child: _DayItem(
+                                        dayNumber: dayNumber,
+                                        dayOfWeek: dayOfWeek,
+                                        date: currentDay,
+                                        activitiesCount:
+                                            _dayItemCounts[dayNumber] ?? 0,
+                                        isCompleted: DateTime.now().isAfter(
+                                          currentDay.add(
+                                            const Duration(days: 1),
+                                          ),
+                                        ),
+                                        isLast:
+                                            index == _trip.durationInDays - 1,
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
+                              ),
+                            ],
                           ),
                   ),
                 ),
@@ -669,9 +870,13 @@ class _MyTripPageState extends State<MyTripPage> {
 
   String _getDayOfWeek(int weekday) {
     final days = [
-      AppConstants.monday.tr(), AppConstants.tuesday.tr(), AppConstants.wednesday.tr(),
-      AppConstants.thursday.tr(), AppConstants.friday.tr(), AppConstants.saturday.tr(),
-      AppConstants.sunday.tr()
+      AppConstants.monday.tr(),
+      AppConstants.tuesday.tr(),
+      AppConstants.wednesday.tr(),
+      AppConstants.thursday.tr(),
+      AppConstants.friday.tr(),
+      AppConstants.saturday.tr(),
+      AppConstants.sunday.tr(),
     ];
     return days[weekday - 1];
   }
@@ -695,7 +900,20 @@ class _DayItem extends StatelessWidget {
   });
 
   String _formatDate() {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${date.day} ${months[date.month - 1]}';
   }
 
@@ -761,7 +979,9 @@ class _DayItem extends StatelessWidget {
                         Text(
                           '${AppConstants.dayLabel.tr()} $dayNumber',
                           style: TextStyle(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -770,7 +990,9 @@ class _DayItem extends StatelessWidget {
                         Text(
                           '$dayOfWeek, ${_formatDate()}',
                           style: TextStyle(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                             fontSize: 14,
                           ),
                         ),
@@ -779,7 +1001,10 @@ class _DayItem extends StatelessWidget {
                   ),
                   if (activitiesCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),

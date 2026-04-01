@@ -1,5 +1,5 @@
-#Uncomment this line to define a global platform for your project
-platform :ios, '14.0'
+# Uncomment this line to define a global platform for your project
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -28,32 +28,79 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-  
-  # Google Maps
-  pod 'GoogleMaps'
-  pod 'Google-Maps-iOS-Utils'
-  
-  # Adapty for In-App Purchases
-  pod 'Adapty', '~> 3.0'
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
 end
 
 post_install do |installer|
+  require 'fileutils'
+
+  flutter_engine_dir = File.join(
+    flutter_root,
+    'bin',
+    'cache',
+    'artifacts',
+    'engine',
+    'ios',
+    'Flutter.xcframework'
+  )
+  flutter_framework_paths = [
+    File.join(flutter_engine_dir, 'ios-arm64'),
+    File.join(flutter_engine_dir, 'ios-arm64_x86_64-simulator')
+  ]
+  flutter_header_paths = [
+    File.join(flutter_engine_dir, 'ios-arm64', 'Flutter.framework', 'Headers'),
+    File.join(flutter_engine_dir, 'ios-arm64_x86_64-simulator', 'Flutter.framework', 'Headers')
+  ]
+
+  # Some plugin pod headers include <Flutter/Flutter.h>. Ensure CocoaPods exposes
+  # a public Flutter header/module path that those imports can resolve.
+  flutter_public_headers_dir = File.join(__dir__, 'Pods', 'Headers', 'Public', 'Flutter')
+  flutter_engine_headers_dir = File.join(flutter_engine_dir, 'ios-arm64', 'Flutter.framework', 'Headers')
+
+  FileUtils.mkdir_p(flutter_public_headers_dir)
+  if Dir.exist?(flutter_engine_headers_dir)
+    Dir.glob(File.join(flutter_engine_headers_dir, '*.h')).each do |header|
+      FileUtils.ln_sf(header, File.join(flutter_public_headers_dir, File.basename(header)))
+    end
+  end
+  File.write(
+    File.join(flutter_public_headers_dir, 'module.modulemap'),
+    <<~MODULEMAP
+      module Flutter {
+        umbrella header "Flutter.h"
+
+        export *
+        module * { export * }
+      }
+    MODULEMAP
+  )
+
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-    
-    # Fix for Xcode 15+
+
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
-      
-      # Fix for GoogleMaps and M1 simulator
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
-      
-      # Enable bitcode for all pods
-      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
+
+      framework_paths = config.build_settings['FRAMEWORK_SEARCH_PATHS'] || '$(inherited)'
+      header_paths = config.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)'
+
+      flutter_framework_paths.each do |path|
+        quoted = "\"#{path}\""
+        framework_paths = "#{framework_paths} #{quoted}" unless framework_paths.to_s.include?(path)
+      end
+
+      flutter_header_paths.each do |path|
+        quoted = "\"#{path}\""
+        header_paths = "#{header_paths} #{quoted}" unless header_paths.to_s.include?(path)
+      end
+
+      config.build_settings['FRAMEWORK_SEARCH_PATHS'] = framework_paths
+      config.build_settings['HEADER_SEARCH_PATHS'] = header_paths
     end
   end
 end

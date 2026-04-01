@@ -8,7 +8,7 @@ import '../../../services/trips_service.dart';
 import '../../../services/subscription_service.dart';
 import '../../../services/trip_cache_service.dart';
 import '../../../shared/widgets/destination_search_modal.dart';
-import '../../../shared/widgets/upgrade_dialog.dart';
+import '../../../shared/widgets/feature_locked_dialog.dart';
 import '../../trip_details/my_trip_page.dart';
 import 'dart:async';
 
@@ -35,10 +35,18 @@ class _DestinationCard extends StatelessWidget {
     if (startDate == null || endDate == null) return '';
 
     final months = [
-      AppConstants.jan.tr(), AppConstants.feb.tr(), AppConstants.mar.tr(),
-      AppConstants.apr.tr(), AppConstants.may.tr(), AppConstants.jun.tr(),
-      AppConstants.jul.tr(), AppConstants.aug.tr(), AppConstants.sep.tr(),
-      AppConstants.oct.tr(), AppConstants.nov.tr(), AppConstants.dec.tr()
+      AppConstants.jan.tr(),
+      AppConstants.feb.tr(),
+      AppConstants.mar.tr(),
+      AppConstants.apr.tr(),
+      AppConstants.may.tr(),
+      AppConstants.jun.tr(),
+      AppConstants.jul.tr(),
+      AppConstants.aug.tr(),
+      AppConstants.sep.tr(),
+      AppConstants.oct.tr(),
+      AppConstants.nov.tr(),
+      AppConstants.dec.tr(),
     ];
 
     final startDay = startDate!.day;
@@ -72,7 +80,9 @@ class _DestinationCard extends StatelessWidget {
               placeholder: (context, url) => Container(
                 height: 180,
                 color: isDark ? AppColors.grey800 : AppColors.grey200,
-                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
               errorWidget: (context, url, error) => Container(
                 height: 180,
@@ -119,10 +129,7 @@ class _DestinationCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
                 if (hasDate) ...[
@@ -160,7 +167,8 @@ class _DestinationCard extends StatelessWidget {
 
 class NewTripPage extends StatefulWidget {
   final Trip? existingTrip; // Para edição
-  final DestinationResult? initialDestination; // Para nova viagem com destino pré-selecionado
+  final DestinationResult?
+  initialDestination; // Para nova viagem com destino pré-selecionado
 
   const NewTripPage({super.key, this.existingTrip, this.initialDestination});
 
@@ -175,7 +183,6 @@ class _NewTripPageState extends State<NewTripPage> {
   DateTime? _startDate;
   DateTime? _endDate;
 
-  String? _destinationPlaceId;
   String? _destinationImageUrl;
   String? _destinationSubtitle;
   String? _destinationCity;
@@ -197,13 +204,21 @@ class _NewTripPageState extends State<NewTripPage> {
     if (widget.existingTrip != null) {
       _isEditMode = true;
       final trip = widget.existingTrip!;
+
+      final city = trip.destinationCity.trim();
+      final country = trip.destinationCountry.trim();
+      final destinationLabel = city.isNotEmpty
+          ? city
+          : (country.isNotEmpty ? country : trip.title);
+
       _destinationController.value = TextEditingValue(
-        text: trip.title,
-        selection: TextSelection.collapsed(offset: trip.title.length),
+        text: destinationLabel,
+        selection: TextSelection.collapsed(offset: destinationLabel.length),
       );
       _startDate = trip.startDate;
       _endDate = trip.endDate;
-      _destinationSubtitle = '${trip.destinationCity}, ${trip.destinationCountry}';
+      _destinationSubtitle =
+          '${trip.destinationCity}, ${trip.destinationCountry}';
     }
     // Se vier de uma pesquisa, preencher o destino
     else if (widget.initialDestination != null) {
@@ -212,7 +227,6 @@ class _NewTripPageState extends State<NewTripPage> {
         text: dest.title,
         selection: TextSelection.collapsed(offset: dest.title.length),
       );
-      _destinationPlaceId = dest.placeId;
       _destinationSubtitle = dest.subtitle;
       _destinationImageUrl = dest.imageUrl;
     }
@@ -220,17 +234,16 @@ class _NewTripPageState extends State<NewTripPage> {
 
   bool get _isFormValid =>
       _destinationController.text.trim().isNotEmpty &&
-          _startDate != null &&
-          _endDate != null;
+      _startDate != null &&
+      _endDate != null;
 
   String _getDateRangeText() {
     if (_startDate == null && _endDate == null) {
       return AppConstants.pickDates.tr();
     }
-    return
-      '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
-          ' - '
-          '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}';
+    return '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
+        ' - '
+        '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}';
   }
 
   Future<void> _selectDateRange() async {
@@ -272,7 +285,6 @@ class _NewTripPageState extends State<NewTripPage> {
     if (result != null) {
       setState(() {
         _destinationController.text = result.title;
-        _destinationPlaceId = result.placeId;
         _destinationSubtitle = result.subtitle;
         _destinationImageUrl = result.imageUrl;
         _destinationCity = result.city;
@@ -286,12 +298,47 @@ class _NewTripPageState extends State<NewTripPage> {
     _destinationController.dispose();
     super.dispose();
   }
+
   String _buildTripTitle() {
     final city = _destinationCity?.trim();
     final country = _destinationCountry?.trim();
     final fallback = _destinationController.text.trim();
 
-    if (city != null && city.isNotEmpty && country != null && country.isNotEmpty) {
+    String normalizeForEdit(String value) {
+      if (!_isEditMode) return value;
+
+      final tripPrefix = '${AppConstants.tripTo.tr()} ';
+      if (value.toLowerCase().startsWith(tripPrefix.toLowerCase())) {
+        return value.substring(tripPrefix.length).trim();
+      }
+      return value;
+    }
+
+    final normalizedFallback = normalizeForEdit(fallback);
+
+    if (_isEditMode) {
+      if (city != null &&
+          city.isNotEmpty &&
+          country != null &&
+          country.isNotEmpty) {
+        return '$city, $country';
+      }
+
+      if (city != null && city.isNotEmpty) {
+        return city;
+      }
+
+      if (country != null && country.isNotEmpty) {
+        return country;
+      }
+
+      return normalizedFallback;
+    }
+
+    if (city != null &&
+        city.isNotEmpty &&
+        country != null &&
+        country.isNotEmpty) {
       return '${AppConstants.tripTo.tr()} $city, $country';
     }
 
@@ -303,7 +350,7 @@ class _NewTripPageState extends State<NewTripPage> {
       return '${AppConstants.tripTo.tr()} $country';
     }
 
-    return '${AppConstants.tripTo.tr()} $fallback';
+    return '${AppConstants.tripTo.tr()} $normalizedFallback';
   }
 
   Future<void> _handleStartPlanning() async {
@@ -319,10 +366,11 @@ class _NewTripPageState extends State<NewTripPage> {
         if (!status.canCreateTrip(trips.length)) {
           if (mounted) {
             setState(() => _isLoading = false);
-            showUpgradeDialog(
-              context: context,
-              feature: AppConstants.tripLimitTitle.tr(),
+            await showFeatureLockedDialog(
+              context,
+              title: AppConstants.tripLimitTitle.tr(),
               description: AppConstants.tripLimitDesc.tr(),
+              suggestedPlan: SubscriptionPlan.basic,
             );
           }
           return;
@@ -366,7 +414,9 @@ class _NewTripPageState extends State<NewTripPage> {
         } else {
           // Se for nova viagem, substituir a rota atual pela página de detalhes
           // Isso garante que o botão voltar vá para home
-          debugPrint('DEBUG [new_trip_page] trip.userId: \x1B[36m\x1B[1m\x1B[4m\x1B[7m[36m${trip.userId}\x1B[0m | isReadOnly: \x1B[31mfalse\x1B[0m');
+          debugPrint(
+            'DEBUG [new_trip_page] trip.userId: \x1B[36m\x1B[1m\x1B[4m\x1B[7m[36m${trip.userId}\x1B[0m | isReadOnly: \x1B[31mfalse\x1B[0m',
+          );
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -377,9 +427,12 @@ class _NewTripPageState extends State<NewTripPage> {
       }
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(context, _isEditMode 
-          ? '${AppConstants.errorUpdatingTrip.tr()}: $e'
-          : '${AppConstants.errorCreatingTrip.tr()}: $e');
+        SnackBarHelper.showError(
+          context,
+          _isEditMode
+              ? '${AppConstants.errorUpdatingTrip.tr()}: $e'
+              : '${AppConstants.errorCreatingTrip.tr()}: $e',
+        );
       }
     } finally {
       if (mounted) {
@@ -393,16 +446,22 @@ class _NewTripPageState extends State<NewTripPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       appBar: AppBar(
-        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        backgroundColor: isDark
+            ? AppColors.surfaceDark
+            : AppColors.surfaceLight,
         elevation: 0,
         leading: _isEmbeddedInTab
             ? null
             : IconButton(
                 icon: Icon(
                   Icons.arrow_back,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
                 ),
                 onPressed: () => Navigator.pop(context),
               ),
@@ -414,11 +473,15 @@ class _NewTripPageState extends State<NewTripPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _isEditMode ? AppConstants.editYourTrip.tr() : AppConstants.yourNextTrip.tr(),
+              _isEditMode
+                  ? AppConstants.editYourTrip.tr()
+                  : AppConstants.yourNextTrip.tr(),
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
               ),
             ),
 
@@ -442,8 +505,12 @@ class _NewTripPageState extends State<NewTripPage> {
                             : _destinationController.text,
                         style: TextStyle(
                           color: _destinationController.text.isEmpty
-                              ? (isDark ? AppColors.textHintDark : AppColors.textHintLight)
-                              : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                              ? (isDark
+                                    ? AppColors.textHintDark
+                                    : AppColors.textHintLight)
+                              : (isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimaryLight),
                         ),
                       ),
                     ),
@@ -471,13 +538,19 @@ class _NewTripPageState extends State<NewTripPage> {
                         _getDateRangeText(),
                         style: TextStyle(
                           color: (_startDate == null && _endDate == null)
-                              ? (isDark ? AppColors.textHintDark : AppColors.textHintLight)
-                              : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                              ? (isDark
+                                    ? AppColors.textHintDark
+                                    : AppColors.textHintLight)
+                              : (isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimaryLight),
                         ),
                       ),
                     ),
-                    Icon(Icons.calendar_today_outlined,
-                        color: AppColors.primary),
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.primary,
+                    ),
                   ],
                 ),
               ),
@@ -501,12 +574,16 @@ class _NewTripPageState extends State<NewTripPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (_isFormValid && !_isLoading) ? _handleStartPlanning : null,
+                onPressed: (_isFormValid && !_isLoading)
+                    ? _handleStartPlanning
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _isFormValid
                       ? AppColors.primary
                       : (isDark ? AppColors.grey800 : AppColors.grey200),
-                  disabledBackgroundColor: isDark ? AppColors.grey800 : AppColors.grey200,
+                  disabledBackgroundColor: isDark
+                      ? AppColors.grey800
+                      : AppColors.grey200,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -515,23 +592,27 @@ class _NewTripPageState extends State<NewTripPage> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(
-                  _isEditMode ? AppConstants.saveChanges.tr() : AppConstants.startPlanning.tr(),
-                  style: TextStyle(
-                    color: _isFormValid
-                        ? Colors.white
-                        : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                        _isEditMode
+                            ? AppConstants.saveChanges.tr()
+                            : AppConstants.startPlanning.tr(),
+                        style: TextStyle(
+                          color: _isFormValid
+                              ? Colors.white
+                              : (isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
               ),
             ),
 

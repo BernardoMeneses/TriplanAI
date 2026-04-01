@@ -206,6 +206,8 @@
     "hours": "時間",
     "hours_not_listed": "営業時間未掲載",
     "my_trip": "マイ旅行",
+    "shared_trip_read_only_title": "共有旅行（閲覧専用）",
+    "shared_trip_read_only_subtitle": "この旅行は共有されています。日程や詳細は確認できますが、編集はできません。",
     "your_route": "あなたのルート",
     "share_trip": "旅行を共有",
     "share_trip_subtitle": "WhatsApp、Instagramなどで共有",

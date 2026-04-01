@@ -48,6 +48,9 @@ class _HomePageState extends State<HomePage> {
     AppEvents.onTripImported.listen((_) {
       if (mounted) _loadTrips(forceRefresh: true);
     });
+    AppEvents.onSubscriptionChanged.listen((_) {
+      if (mounted) _checkPremiumStatus();
+    });
   }
 
   Future<void> _checkPremiumStatus() async {
@@ -61,24 +64,27 @@ class _HomePageState extends State<HomePage> {
     setState(() => _isLoading = true);
 
     try {
-      final trips = await _tripCacheService.getTrips(forceRefresh: forceRefresh);
+      final trips = await _tripCacheService.getTrips(
+        forceRefresh: forceRefresh,
+      );
       final now = DateTime.now();
 
       if (!mounted) return;
 
       setState(() {
         _isOfflineMode = _tripCacheService.isOfflineMode;
-        _upcomingTrips = trips
-            .where((t) => t.endDate.isAfter(now))
-            .toList()
+        _upcomingTrips = trips.where((t) => t.endDate.isAfter(now)).toList()
           ..sort((a, b) => a.startDate.compareTo(b.startDate));
 
-        _pastTrips = trips
-            .where((t) =>
-        t.endDate.isBefore(now) ||
-            t.endDate.isAtSameMomentAs(now))
-            .toList()
-          ..sort((a, b) => b.endDate.compareTo(a.endDate));
+        _pastTrips =
+            trips
+                .where(
+                  (t) =>
+                      t.endDate.isBefore(now) ||
+                      t.endDate.isAtSameMomentAs(now),
+                )
+                .toList()
+              ..sort((a, b) => b.endDate.compareTo(a.endDate));
 
         _isLoading = false;
       });
@@ -106,15 +112,14 @@ class _HomePageState extends State<HomePage> {
     if (_isOfflineMode) return;
 
     try {
-      final query =
-          '${trip.destinationCity}, ${trip.destinationCountry}';
+      final query = '${trip.destinationCity}, ${trip.destinationCountry}';
 
-      final results =
-      await _destinationsService.searchDestinations(query);
+      final results = await _destinationsService.searchDestinations(query);
 
       if (results.isNotEmpty && mounted) {
-        final details = await _destinationsService
-            .getDestinationDetails(results.first.placeId);
+        final details = await _destinationsService.getDestinationDetails(
+          results.first.placeId,
+        );
 
         if (details?.photoUrl != null) {
           // Guardar em cache
@@ -139,7 +144,9 @@ class _HomePageState extends State<HomePage> {
     debugPrint('DEBUG trip.isMember: [35m${trip.isMember}[0m');
     final bool isOwner = currentUser != null && trip.userId == currentUser.id;
     final bool isReadOnly = !isOwner || _isOfflineMode || trip.isMember;
-    debugPrint('DEBUG isOwner: [32m$isOwner[0m | isReadOnly: [31m$isReadOnly[0m');
+    debugPrint(
+      'DEBUG isOwner: [32m$isOwner[0m | isReadOnly: [31m$isReadOnly[0m',
+    );
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -184,17 +191,14 @@ class _HomePageState extends State<HomePage> {
         onFavoritesTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const FavoritesPage(),
-            ),
+            MaterialPageRoute(builder: (_) => const FavoritesPage()),
           );
         },
         onProfileTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) =>
-                  ProfilePage(onLogout: widget.onLogout),
+              builder: (_) => ProfilePage(onLogout: widget.onLogout),
             ),
           );
         },
@@ -202,36 +206,36 @@ class _HomePageState extends State<HomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchBar(isDark),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSearchBar(isDark),
 
-            if (_upcomingTrips.isNotEmpty) ...[
-              const SizedBox(height: 32),
-              _buildSectionHeader(
-                  AppConstants.upcomingTrips.tr(), isDark),
-              const SizedBox(height: 16),
-              ..._upcomingTrips.map(
-                    (trip) => Padding(
-                  padding:
-                  const EdgeInsets.only(bottom: 16),
-                  child: _TripCard(
-                    trip: trip,
-                    imageUrl: _tripImages[trip.id],
-                    isDark: isDark,
-                    onTap: () => _openTripDetails(trip),
-                  ),
-                ),
+                  if (_upcomingTrips.isNotEmpty) ...[
+                    const SizedBox(height: 32),
+                    _buildSectionHeader(
+                      AppConstants.upcomingTrips.tr(),
+                      isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    ..._upcomingTrips.map(
+                      (trip) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _TripCard(
+                          trip: trip,
+                          imageUrl: _tripImages[trip.id],
+                          isDark: isDark,
+                          onTap: () => _openTripDetails(trip),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  if (_upcomingTrips.isEmpty) _buildEmptyState(isDark),
+                ],
               ),
-            ],
-
-            if (_upcomingTrips.isEmpty)
-              _buildEmptyState(isDark),
-          ],
-        ),
-      ),
+            ),
     );
   }
 
@@ -243,8 +247,7 @@ class _HomePageState extends State<HomePage> {
           color: isDark ? AppColors.grey800 : AppColors.grey100,
           borderRadius: BorderRadius.circular(12),
         ),
-        padding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
             Expanded(
@@ -288,11 +291,11 @@ class _HomePageState extends State<HomePage> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.park_outlined,
-                size: 80,
-                color: isDark
-                    ? AppColors.grey800
-                    : Colors.grey[300]),
+            Icon(
+              Icons.park_outlined,
+              size: 80,
+              color: isDark ? AppColors.grey800 : Colors.grey[300],
+            ),
             const SizedBox(height: 16),
             Text(
               AppConstants.noUpcomingTrips.tr(),
@@ -340,10 +343,18 @@ class _TripCard extends StatelessWidget {
 
   String _formatDateRange() {
     final months = [
-      AppConstants.jan.tr(), AppConstants.feb.tr(), AppConstants.mar.tr(),
-      AppConstants.apr.tr(), AppConstants.may.tr(), AppConstants.jun.tr(),
-      AppConstants.jul.tr(), AppConstants.aug.tr(), AppConstants.sep.tr(),
-      AppConstants.oct.tr(), AppConstants.nov.tr(), AppConstants.dec.tr()
+      AppConstants.jan.tr(),
+      AppConstants.feb.tr(),
+      AppConstants.mar.tr(),
+      AppConstants.apr.tr(),
+      AppConstants.may.tr(),
+      AppConstants.jun.tr(),
+      AppConstants.jul.tr(),
+      AppConstants.aug.tr(),
+      AppConstants.sep.tr(),
+      AppConstants.oct.tr(),
+      AppConstants.nov.tr(),
+      AppConstants.dec.tr(),
     ];
 
     final s = trip.startDate;
@@ -378,7 +389,9 @@ class _TripCard extends StatelessWidget {
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
                     color: isDark ? AppColors.grey800 : AppColors.grey200,
-                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                   errorWidget: (context, url, error) => Container(
                     decoration: BoxDecoration(
@@ -411,10 +424,7 @@ class _TripCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                   ),
                 ),
               ),
@@ -440,8 +450,7 @@ class _TripCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${_formatDateRange()} • ${trip.durationInDays} ${AppConstants.days.tr()}',
-                      style:
-                      const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
@@ -451,8 +460,7 @@ class _TripCard extends StatelessWidget {
                 right: 16,
                 child: CircleAvatar(
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.arrow_forward,
-                      color: AppColors.primary),
+                  child: Icon(Icons.arrow_forward, color: AppColors.primary),
                 ),
               ),
             ],

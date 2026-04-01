@@ -205,6 +205,8 @@
     "hours": "小时",
     "hours_not_listed": "营业时间未列出",
     "my_trip": "我的旅行",
+    "shared_trip_read_only_title": "共享行程（只读模式）",
+    "shared_trip_read_only_subtitle": "此行程已与您共享。您可以查看天数和详细信息，但无法进行编辑。",
     "your_route": "您的路线",
     "share_trip": "分享旅行",
     "share_trip_subtitle": "通过WhatsApp、Instagram等分享",

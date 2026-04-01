@@ -14,6 +14,8 @@ import '../../common/constants/app_constants.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
+import '../../services/subscription_service.dart';
+import '../../shared/widgets/feature_locked_dialog.dart';
 
 class NavigationPage extends StatefulWidget {
   final String destinationName;
@@ -750,6 +752,19 @@ class _NavigationPageState extends State<NavigationPage> {
 
   // Gerar e compartilhar rota em PDF
   Future<void> _downloadRoute() async {
+    // Check PDF export permission
+    final subStatus = await SubscriptionService().getStatus();
+    if (!subStatus.limits.canExportPdf) {
+      if (mounted) {
+        await showFeatureLockedDialog(
+          context,
+          title: AppConstants.pdfLockedTitle.tr(),
+          description: AppConstants.pdfLockedDesc.tr(),
+          suggestedPlan: SubscriptionPlan.basic,
+        );
+      }
+      return;
+    }
     if (_steps.isEmpty && !_isFlightMode) {
       SnackBarHelper.showWarning(
         context,

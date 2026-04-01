@@ -16,6 +16,7 @@ import '../../services/connectivity_service.dart';
 import '../../shared/widgets/location_filtered_search_modal.dart';
 import '../../shared/widgets/ai_chat_modal.dart';
 import '../../shared/widgets/upgrade_dialog.dart';
+import '../../shared/widgets/feature_locked_dialog.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/subscription_service.dart';
 import '../../services/geocoding_service.dart';
@@ -69,6 +70,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
   int _totalDays = 7;
   DateTime? _startDate;
   int _currentDayNumber = 1;
+  // ignore: unused_field
   bool _isReordering = false;
 
   // Connectivity state
@@ -437,6 +439,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
     }
   }
 
+  // ignore: unused_element
   Future<void> _reorderItems(List<ItineraryItem> items) async {
     // Skip reorder check if offline - can't write to backend
     if (_cacheService.isOfflineMode) {
@@ -496,6 +499,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
     super.dispose();
   }
 
+  // ignore: unused_element
   String _formatDate(DateTime date) {
     final months = [
       '${AppConstants.jan.tr()}',
@@ -553,15 +557,17 @@ class _DayDetailsPageState extends State<DayDetailsPage>
   // pois o sistema terá integração direta com Google Maps
 
   /// Gerar e compartilhar itinerário em PDF
+  // ignore: unused_element
   Future<void> _downloadItinerary() async {
     // Check PDF export permission
     final subStatus = await SubscriptionService().getStatus();
     if (!subStatus.limits.canExportPdf) {
       if (mounted) {
-        showUpgradeDialog(
-          context: context,
-          feature: AppConstants.pdfLockedTitle.tr(),
+        await showFeatureLockedDialog(
+          context,
+          title: AppConstants.pdfLockedTitle.tr(),
           description: AppConstants.pdfLockedDesc.tr(),
+          suggestedPlan: SubscriptionPlan.basic,
         );
       }
       return;
@@ -890,6 +896,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
   }
 
   /// Recalcula todos os horários dos itens após uma edição
+  // ignore: unused_element
   Future<void> _recalculateAllTimes() async {
     if (_items.isEmpty || _itineraryId == null) return;
 
@@ -1893,9 +1900,17 @@ class _ActivityCard extends StatefulWidget {
 }
 
 class _ActivityCardState extends State<_ActivityCard> {
+  bool _showDragHint = false;
+  Timer? _hintTimer;
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _hintTimer?.cancel();
+    super.dispose();
   }
 
   String _getOpeningHoursText(String? openingHours) {
@@ -2003,6 +2018,14 @@ class _ActivityCardState extends State<_ActivityCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GestureDetector(
+            onTapDown: (_) {
+              // Show a short hint that the item is draggable
+              _hintTimer?.cancel();
+              setState(() => _showDragHint = true);
+              _hintTimer = Timer(const Duration(milliseconds: 1400), () {
+                if (mounted) setState(() => _showDragHint = false);
+              });
+            },
             onTap: () {
               if (widget.latitude != null && widget.longitude != null) {
                 // ...existing code for opening details...
@@ -2098,6 +2121,8 @@ class _ActivityCardState extends State<_ActivityCard> {
                                 offset: const Offset(0, 2),
                               ),
                             ],
+
+                            // (drag handle and short-press hint moved to Stack children)
                           ),
                           child: Center(
                             child: Text(
@@ -2138,6 +2163,56 @@ class _ActivityCardState extends State<_ActivityCard> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                // Drag handle (immediate drag start) - top-right
+                if (!widget.isReadOnly)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: ReorderableDragStartListener(
+                      index: widget.itemIndex,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.35),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.open_with,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                // Short-press hint: central 4-direction icon that fades
+                if (_showDragHint)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: true,
+                      child: Center(
+                        child: AnimatedOpacity(
+                          opacity: _showDragHint ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.45),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.open_with,
+                                color: Colors.white,
+                                size: 44,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 // Botão de apagar canto superior direito (sempre visível se não readOnly)

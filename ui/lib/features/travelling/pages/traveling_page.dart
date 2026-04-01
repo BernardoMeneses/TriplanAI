@@ -8,11 +8,13 @@ import '../../../common/constants/app_constants.dart';
 import '../../../shared/widgets/custom_app_bar.dart';
 import '../../../common/app_events.dart';
 import '../../../services/trips_service.dart';
+import '../../../services/subscription_service.dart';
 import '../../../services/trip_cache_service.dart';
 import '../../../services/destinations_service.dart';
 import '../../profile/pages/profile_page.dart';
 import '../../trip_details/my_trip_page.dart';
 import '../../trip_details/import_trip_page.dart';
+import '../../../shared/widgets/feature_locked_dialog.dart';
 
 class TravelingPage extends StatefulWidget {
   final VoidCallback? onLogout;
@@ -23,7 +25,8 @@ class TravelingPage extends StatefulWidget {
   State<TravelingPage> createState() => _TravelingPageState();
 }
 
-class _TravelingPageState extends State<TravelingPage> with SingleTickerProviderStateMixin {
+class _TravelingPageState extends State<TravelingPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TripCacheService _tripCacheService = TripCacheService();
   final DestinationsService _destinationsService = DestinationsService();
@@ -64,10 +67,18 @@ class _TravelingPageState extends State<TravelingPage> with SingleTickerProvider
       if (mounted) {
         setState(() {
           _isOfflineMode = _tripCacheService.isOfflineMode;
-          _upcomingTrips = trips.where((trip) => trip.endDate.isAfter(now)).toList()
-            ..sort((a, b) => a.startDate.compareTo(b.startDate));
-          _pastTrips = trips.where((trip) => trip.endDate.isBefore(now) || trip.endDate.isAtSameMomentAs(now)).toList()
-            ..sort((a, b) => b.endDate.compareTo(a.endDate));
+          _upcomingTrips =
+              trips.where((trip) => trip.endDate.isAfter(now)).toList()
+                ..sort((a, b) => a.startDate.compareTo(b.startDate));
+          _pastTrips =
+              trips
+                  .where(
+                    (trip) =>
+                        trip.endDate.isBefore(now) ||
+                        trip.endDate.isAtSameMomentAs(now),
+                  )
+                  .toList()
+                ..sort((a, b) => b.endDate.compareTo(a.endDate));
           _isLoading = false;
         });
 
@@ -116,10 +127,14 @@ class _TravelingPageState extends State<TravelingPage> with SingleTickerProvider
 
     try {
       final query = '${trip.destinationCity}, ${trip.destinationCountry}';
-      final searchResults = await _destinationsService.searchDestinations(query);
+      final searchResults = await _destinationsService.searchDestinations(
+        query,
+      );
 
       if (searchResults.isNotEmpty && mounted) {
-        final details = await _destinationsService.getDestinationDetails(searchResults.first.placeId);
+        final details = await _destinationsService.getDestinationDetails(
+          searchResults.first.placeId,
+        );
 
         if (mounted && details?.photoUrl != null) {
           // Guardar em cache
@@ -138,7 +153,9 @@ class _TravelingPageState extends State<TravelingPage> with SingleTickerProvider
     final currentUser = AuthService().currentUser;
     final bool isOwner = currentUser != null && trip.userId == currentUser.id;
     final bool isReadOnly = !isOwner || _isOfflineMode || trip.isMember;
-    debugPrint('DEBUG [travelling_page] trip.userId: [36m[1m[4m[7m${trip.userId}[0m | currentUser.id: [33m[1m[4m[7m${currentUser?.id}[0m | trip.isMember: [35m${trip.isMember}[0m | isOwner: [32m$isOwner[0m | isReadOnly: [31m$isReadOnly[0m');
+    debugPrint(
+      'DEBUG [travelling_page] trip.userId: [36m[1m[4m[7m${trip.userId}[0m | currentUser.id: [33m[1m[4m[7m${currentUser?.id}[0m | trip.isMember: [35m${trip.isMember}[0m | isOwner: [32m$isOwner[0m | isReadOnly: [31m$isReadOnly[0m',
+    );
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -151,12 +168,21 @@ class _TravelingPageState extends State<TravelingPage> with SingleTickerProvider
     ).then((_) => _loadTrips());
   }
 
-  void _openImportTrip() {
+  void _openImportTrip() async {
+    final allowed = await SubscriptionService().hasFeature('share_trips');
+    if (!allowed) {
+      await showFeatureLockedDialog(
+        context,
+        title: AppConstants.importSharedTrip.tr(),
+        description: AppConstants.importTripDescription.tr(),
+        suggestedPlan: SubscriptionPlan.basic,
+      );
+      return;
+    }
+
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const ImportTripPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const ImportTripPage()),
     ).then((result) {
       if (result != null) {
         _loadTrips();
@@ -208,56 +234,56 @@ class _TravelingPageState extends State<TravelingPage> with SingleTickerProvider
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(
-              controller: _tabController,
-              children: [
-                // Upcoming trips
-                _upcomingTrips.isEmpty
-                    ? const EmptyTripsState()
-                    : RefreshIndicator(
-                  onRefresh: _loadTrips,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(24),
-                    itemCount: _upcomingTrips.length,
-                    itemBuilder: (context, index) {
-                      final trip = _upcomingTrips[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _TripCard(
-                          trip: trip,
-                          imageUrl: _tripImages[trip.id],
-                          onTap: () => _openTripDetails(trip),
-                        ),
-                      );
-                    },
+                    controller: _tabController,
+                    children: [
+                      // Upcoming trips
+                      _upcomingTrips.isEmpty
+                          ? const EmptyTripsState()
+                          : RefreshIndicator(
+                              onRefresh: _loadTrips,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.all(24),
+                                itemCount: _upcomingTrips.length,
+                                itemBuilder: (context, index) {
+                                  final trip = _upcomingTrips[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: _TripCard(
+                                      trip: trip,
+                                      imageUrl: _tripImages[trip.id],
+                                      onTap: () => _openTripDetails(trip),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                      // Past trips
+                      _pastTrips.isEmpty
+                          ? EmptyTripsState(
+                              message: AppConstants.noPastTrips.tr(),
+                              subtitle: AppConstants.noPastTripsSubtitle.tr(),
+                              icon: Icons.history,
+                            )
+                          : RefreshIndicator(
+                              onRefresh: _loadTrips,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.all(24),
+                                itemCount: _pastTrips.length,
+                                itemBuilder: (context, index) {
+                                  final trip = _pastTrips[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: _TripCard(
+                                      trip: trip,
+                                      imageUrl: _tripImages[trip.id],
+                                      onTap: () => _openTripDetails(trip),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                    ],
                   ),
-                ),
-                // Past trips
-                _pastTrips.isEmpty
-                    ? EmptyTripsState(
-                  message: AppConstants.noPastTrips.tr(),
-                  subtitle: AppConstants.noPastTripsSubtitle.tr(),
-                  icon: Icons.history,
-                )
-                    : RefreshIndicator(
-                  onRefresh: _loadTrips,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(24),
-                    itemCount: _pastTrips.length,
-                    itemBuilder: (context, index) {
-                      final trip = _pastTrips[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _TripCard(
-                          trip: trip,
-                          imageUrl: _tripImages[trip.id],
-                          onTap: () => _openTripDetails(trip),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -278,10 +304,18 @@ class _TripCard extends StatelessWidget {
 
   String _formatDateRange() {
     final months = [
-      AppConstants.jan.tr(), AppConstants.feb.tr(), AppConstants.mar.tr(),
-      AppConstants.apr.tr(), AppConstants.may.tr(), AppConstants.jun.tr(),
-      AppConstants.jul.tr(), AppConstants.aug.tr(), AppConstants.sep.tr(),
-      AppConstants.oct.tr(), AppConstants.nov.tr(), AppConstants.dec.tr()
+      AppConstants.jan.tr(),
+      AppConstants.feb.tr(),
+      AppConstants.mar.tr(),
+      AppConstants.apr.tr(),
+      AppConstants.may.tr(),
+      AppConstants.jun.tr(),
+      AppConstants.jul.tr(),
+      AppConstants.aug.tr(),
+      AppConstants.sep.tr(),
+      AppConstants.oct.tr(),
+      AppConstants.nov.tr(),
+      AppConstants.dec.tr(),
     ];
     final startDay = trip.startDate.day;
     final endDay = trip.endDate.day;
@@ -320,7 +354,9 @@ class _TripCard extends StatelessWidget {
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
                     color: isDark ? AppColors.grey800 : AppColors.grey200,
-                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                   errorWidget: (context, url, error) => Container(
                     color: isDark ? AppColors.grey800 : AppColors.grey200,
@@ -346,10 +382,7 @@ class _TripCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                   ),
                 ),
               ),
@@ -377,7 +410,11 @@ class _TripCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.calendar_today, color: Colors.white70, size: 14),
+                        const Icon(
+                          Icons.calendar_today,
+                          color: Colors.white70,
+                          size: 14,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '${_formatDateRange()} • ${trip.durationInDays} ${AppConstants.days.tr()}',
@@ -403,10 +440,7 @@ class _TripCard extends StatelessWidget {
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    Icons.arrow_forward,
-                    color: AppColors.primary,
-                  ),
+                  child: Icon(Icons.arrow_forward, color: AppColors.primary),
                 ),
               ),
             ],

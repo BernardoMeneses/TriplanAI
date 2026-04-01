@@ -10,7 +10,7 @@ import '../../common/constants/app_constants.dart';
 import '../../services/itinerary_items_service.dart';
 import '../../services/api_service.dart';
 import '../../services/subscription_service.dart';
-import '../../shared/widgets/upgrade_dialog.dart';
+import '../../shared/widgets/feature_locked_dialog.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
@@ -740,10 +740,11 @@ class _TripMapPageState extends State<TripMapPage> {
     final subStatus = await SubscriptionService().getStatus();
     if (!subStatus.limits.canExportPdf) {
       if (mounted) {
-        showUpgradeDialog(
-          context: context,
-          feature: AppConstants.pdfLockedTitle.tr(),
+        await showFeatureLockedDialog(
+          context,
+          title: AppConstants.pdfLockedTitle.tr(),
           description: AppConstants.pdfLockedDesc.tr(),
+          suggestedPlan: SubscriptionPlan.basic,
         );
       }
       return;

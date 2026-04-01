@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PremiumService, PLAN_LIMITS } from './premium.service';
+import { PremiumService } from './premium.service';
 
 const router = Router();
 const premiumService = new PremiumService();
@@ -189,24 +189,44 @@ router.post('/sync', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { productId, purchaseToken, expiresAt } = req.body;
+    const { productId, purchaseToken, expiresAt, plan: requestedPlan } =
+      req.body;
     
     console.log('📱 Premium sync request:', {
       userId,
       productId,
+      requestedPlan,
       purchaseToken: purchaseToken ? '***' : undefined,
       expiresAt,
       timestamp: new Date().toISOString(),
     });
 
-    // Determinar o plano baseado no productId
-    let plan: 'basic' | 'premium' = 'premium';
-    if (productId) {
-      if (productId.includes('basic')) {
+    // Determinar plano com prioridade ao productId; usar `plan` como fallback.
+    let plan: 'basic' | 'premium' | null = null;
+
+    if (typeof productId === 'string' && productId.trim().length > 0) {
+      const normalizedProductId = productId.toLowerCase();
+      if (normalizedProductId.includes('basic')) {
         plan = 'basic';
-      } else if (productId.includes('premium')) {
+      } else if (normalizedProductId.includes('premium')) {
         plan = 'premium';
       }
+    }
+
+    if (!plan && typeof requestedPlan === 'string') {
+      const normalizedPlan = requestedPlan.toLowerCase();
+      if (normalizedPlan === 'basic') {
+        plan = 'basic';
+      } else if (normalizedPlan === 'premium') {
+        plan = 'premium';
+      }
+    }
+
+    if (!plan) {
+      return res.status(400).json({
+        error:
+          'Missing or invalid subscription plan. Provide productId or plan (basic|premium).',
+      });
     }
 
     // Ativar o plano

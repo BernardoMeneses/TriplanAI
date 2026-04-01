@@ -1,12 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
+import '../common/app_events.dart';
 
 /// Tipos de plano de subscrição
-enum SubscriptionPlan {
-  free,
-  basic,
-  premium,
-}
+enum SubscriptionPlan { free, basic, premium }
 
 /// Limites de cada plano
 class PlanLimits {
@@ -88,9 +85,12 @@ class SubscriptionStatus {
     required this.plan,
     required this.limits,
     this.aiGenerationsUsed = 0,
-  }) : aiGenerationsRemaining = limits.isUnlimitedAI 
-      ? -1 
-      : (limits.aiGenerationsPerMonth - aiGenerationsUsed).clamp(0, limits.aiGenerationsPerMonth);
+  }) : aiGenerationsRemaining = limits.isUnlimitedAI
+           ? -1
+           : (limits.aiGenerationsPerMonth - aiGenerationsUsed).clamp(
+               0,
+               limits.aiGenerationsPerMonth,
+             );
 
   bool get isPaid => plan != SubscriptionPlan.free;
   bool get isPremium => plan == SubscriptionPlan.premium;
@@ -127,8 +127,8 @@ class SubscriptionService {
   /// Obtém status da subscrição (com cache)
   Future<SubscriptionStatus> getStatus({bool forceRefresh = false}) async {
     // Usar cache se disponível e não expirado
-    if (!forceRefresh && 
-        _cachedStatus != null && 
+    if (!forceRefresh &&
+        _cachedStatus != null &&
         _lastFetch != null &&
         DateTime.now().difference(_lastFetch!) < _cacheDuration) {
       return _cachedStatus!;
@@ -136,7 +136,7 @@ class SubscriptionService {
 
     try {
       final response = await _apiService.get('/premium/status');
-      
+
       final planStr = response['plan'] as String? ?? 'free';
       final plan = SubscriptionPlan.values.firstWhere(
         (p) => p.name == planStr,
@@ -148,24 +148,25 @@ class SubscriptionService {
         limits: PlanLimitsConfig.forPlan(plan),
         aiGenerationsUsed: response['ai_generations_used'] ?? 0,
       );
-      
+
       _lastFetch = DateTime.now();
-      
+
       if (kDebugMode) {
         print('💳 SubscriptionService: Plano ${plan.name}');
       }
-      
+
       return _cachedStatus!;
     } catch (e) {
       if (kDebugMode) {
         print('❌ SubscriptionService: Erro ao obter status: $e');
       }
-      
+
       // Retornar cache se disponível, senão free
-      return _cachedStatus ?? SubscriptionStatus(
-        plan: SubscriptionPlan.free,
-        limits: PlanLimitsConfig.free,
-      );
+      return _cachedStatus ??
+          SubscriptionStatus(
+            plan: SubscriptionPlan.free,
+            limits: PlanLimitsConfig.free,
+          );
     }
   }
 
@@ -180,6 +181,7 @@ class SubscriptionService {
     try {
       await _apiService.post('/premium/deactivate');
       clearCache();
+      AppEvents.emitSubscriptionChanged();
       return true;
     } catch (e) {
       if (kDebugMode) {
@@ -192,7 +194,7 @@ class SubscriptionService {
   /// Verifica se uma feature está disponível
   Future<bool> hasFeature(String feature) async {
     final status = await getStatus();
-    
+
     switch (feature) {
       case 'export_pdf':
         return status.limits.canExportPdf;

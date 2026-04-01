@@ -15,7 +15,6 @@ class PremiumPage extends StatefulWidget {
 class _PremiumPageState extends State<PremiumPage> {
   final AdaptyService _adaptyService = AdaptyService();
   bool _isLoading = false;
-  bool _isLoadingProducts = true;
   String _selectedPlan = 'yearly'; // 'monthly' or 'yearly'
   List<AdaptyPaywallProduct> _products = [];
 
@@ -31,33 +30,29 @@ class _PremiumPageState extends State<PremiumPage> {
       if (mounted) {
         setState(() {
           _products = products;
-          _isLoadingProducts = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingProducts = false;
-        });
-      }
+      // Keep current products state if loading fails.
     }
   }
 
   /// Encontrar produto por período (mensal ou anual)
   AdaptyPaywallProduct? _getProductForPlan(String plan) {
     if (_products.isEmpty) return null;
-    
+
     // Procurar por ID do produto que contenha 'monthly' ou 'yearly'
     for (final product in _products) {
       final id = product.vendorProductId.toLowerCase();
-      if (plan == 'monthly' && (id.contains('month') || id.contains('mensal'))) {
+      if (plan == 'monthly' &&
+          (id.contains('month') || id.contains('mensal'))) {
         return product;
       }
       if (plan == 'yearly' && (id.contains('year') || id.contains('anual'))) {
         return product;
       }
     }
-    
+
     // Se não encontrar, retornar o primeiro
     return _products.isNotEmpty ? _products.first : null;
   }
@@ -69,7 +64,9 @@ class _PremiumPageState extends State<PremiumPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(AppConstants.premium.tr()),
-        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        backgroundColor: isDark
+            ? AppColors.surfaceDark
+            : AppColors.surfaceLight,
         elevation: 0,
       ),
       body: Stack(
@@ -81,14 +78,8 @@ class _PremiumPageState extends State<PremiumPage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: isDark
-                    ? [
-                        AppColors.surfaceDark,
-                        AppColors.backgroundDark,
-                      ]
-                    : [
-                        AppColors.surfaceLight,
-                        AppColors.backgroundLight,
-                      ],
+                    ? [AppColors.surfaceDark, AppColors.backgroundDark]
+                    : [AppColors.surfaceLight, AppColors.backgroundLight],
               ),
             ),
           ),
@@ -96,7 +87,7 @@ class _PremiumPageState extends State<PremiumPage> {
             child: Column(
               children: [
                 const SizedBox(height: 32),
-                
+
                 // Premium Icon
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -110,22 +101,24 @@ class _PremiumPageState extends State<PremiumPage> {
                     color: Colors.amber[700],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Title
                 Text(
                   AppConstants.upgradeToPremium.tr(),
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Subtitle
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -133,14 +126,16 @@ class _PremiumPageState extends State<PremiumPage> {
                     AppConstants.activatePremiumSubtitle.tr(),
                     style: TextStyle(
                       fontSize: 16,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Features List
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -172,9 +167,9 @@ class _PremiumPageState extends State<PremiumPage> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Pricing Plans
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -193,9 +188,9 @@ class _PremiumPageState extends State<PremiumPage> {
                         savings: '${AppConstants.savePremium.tr()} 33%',
                         isMostPopular: true,
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Monthly Plan
                       _buildPricingCard(
                         context,
@@ -211,9 +206,9 @@ class _PremiumPageState extends State<PremiumPage> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Subscribe Button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -236,7 +231,9 @@ class _PremiumPageState extends State<PremiumPage> {
                               height: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : Text(
@@ -249,21 +246,23 @@ class _PremiumPageState extends State<PremiumPage> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Restore Purchases Button
                 TextButton(
                   onPressed: _isLoading ? null : _handleRestorePurchases,
                   child: Text(
                     AppConstants.restorePurchases.tr(),
                     style: TextStyle(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                       fontSize: 16,
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
               ],
             ),
@@ -279,7 +278,7 @@ class _PremiumPageState extends State<PremiumPage> {
     required String title,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -301,11 +300,7 @@ class _PremiumPageState extends State<PremiumPage> {
               color: AppColors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 24,
-            ),
+            child: Icon(icon, color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -314,15 +309,13 @@ class _PremiumPageState extends State<PremiumPage> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
               ),
             ),
           ),
-          Icon(
-            Icons.check_circle,
-            color: Colors.green[600],
-            size: 24,
-          ),
+          Icon(Icons.check_circle, color: Colors.green[600], size: 24),
         ],
       ),
     );
@@ -339,7 +332,7 @@ class _PremiumPageState extends State<PremiumPage> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSelected = _selectedPlan == planType;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -357,7 +350,7 @@ class _PremiumPageState extends State<PremiumPage> {
           ),
           boxShadow: [
             BoxShadow(
-              color: isSelected 
+              color: isSelected
                   ? AppColors.primary.withOpacity(0.2)
                   : Colors.black.withOpacity(0.05),
               blurRadius: 10,
@@ -376,12 +369,17 @@ class _PremiumPageState extends State<PremiumPage> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                   ),
                 ),
                 if (isMostPopular)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.amber,
                       borderRadius: BorderRadius.circular(20),
@@ -396,11 +394,7 @@ class _PremiumPageState extends State<PremiumPage> {
                     ),
                   ),
                 if (isSelected && !isMostPopular)
-                  Icon(
-                    Icons.check_circle,
-                    color: AppColors.primary,
-                    size: 24,
-                  ),
+                  Icon(Icons.check_circle, color: AppColors.primary, size: 24),
               ],
             ),
             const SizedBox(height: 12),
@@ -422,7 +416,9 @@ class _PremiumPageState extends State<PremiumPage> {
                     period,
                     style: TextStyle(
                       fontSize: 16,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                   ),
                 ),
@@ -454,7 +450,7 @@ class _PremiumPageState extends State<PremiumPage> {
 
   Future<void> _handleSubscribe() async {
     final product = _getProductForPlan(_selectedPlan);
-    
+
     if (product == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -482,7 +478,7 @@ class _PremiumPageState extends State<PremiumPage> {
 
     try {
       final result = await _adaptyService.makePurchase(product);
-      
+
       if (result.success) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -491,9 +487,7 @@ class _PremiumPageState extends State<PremiumPage> {
                 children: [
                   const Icon(Icons.check_circle, color: Colors.white),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(AppConstants.purchaseSuccessful.tr()),
-                  ),
+                  Expanded(child: Text(AppConstants.purchaseSuccessful.tr())),
                 ],
               ),
               backgroundColor: Colors.green,
@@ -514,7 +508,9 @@ class _PremiumPageState extends State<PremiumPage> {
                   const Icon(Icons.error, color: Colors.white),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(result.error ?? AppConstants.purchaseFailed.tr()),
+                    child: Text(
+                      result.error ?? AppConstants.purchaseFailed.tr(),
+                    ),
                   ),
                 ],
               ),
@@ -532,9 +528,7 @@ class _PremiumPageState extends State<PremiumPage> {
               children: [
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text(AppConstants.purchaseFailed.tr()),
-                ),
+                Expanded(child: Text(AppConstants.purchaseFailed.tr())),
               ],
             ),
             backgroundColor: AppColors.error,
@@ -551,7 +545,10 @@ class _PremiumPageState extends State<PremiumPage> {
     }
   }
 
-  String _getLocalizedPriceForPlan(String planType, {required String fallback}) {
+  String _getLocalizedPriceForPlan(
+    String planType, {
+    required String fallback,
+  }) {
     final product = _getProductForPlan(planType);
     return product?.price.localizedString ?? fallback;
   }
@@ -563,7 +560,7 @@ class _PremiumPageState extends State<PremiumPage> {
 
     try {
       final result = await _adaptyService.restorePurchases();
-      
+
       if (result.success && result.hasActiveSubscription) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -572,9 +569,7 @@ class _PremiumPageState extends State<PremiumPage> {
                 children: [
                   const Icon(Icons.check_circle, color: Colors.white),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(AppConstants.purchasesRestored.tr()),
-                  ),
+                  Expanded(child: Text(AppConstants.purchasesRestored.tr())),
                 ],
               ),
               backgroundColor: Colors.green,
@@ -592,9 +587,7 @@ class _PremiumPageState extends State<PremiumPage> {
                 children: [
                   const Icon(Icons.info, color: Colors.white),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(AppConstants.noPurchasesToRestore.tr()),
-                  ),
+                  Expanded(child: Text(AppConstants.noPurchasesToRestore.tr())),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -611,7 +604,9 @@ class _PremiumPageState extends State<PremiumPage> {
                   const Icon(Icons.error, color: Colors.white),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(result.error ?? AppConstants.restoreFailed.tr()),
+                    child: Text(
+                      result.error ?? AppConstants.restoreFailed.tr(),
+                    ),
                   ),
                 ],
               ),
@@ -629,9 +624,7 @@ class _PremiumPageState extends State<PremiumPage> {
               children: [
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text(AppConstants.restoreFailed.tr()),
-                ),
+                Expanded(child: Text(AppConstants.restoreFailed.tr())),
               ],
             ),
             backgroundColor: AppColors.error,

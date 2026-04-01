@@ -47,7 +47,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
 
       final GoogleSignInAuthentication auth = await account.authentication;
 
-      final response = await _authService.googleLogin(
+      await _authService.googleLogin(
         googleId: account.id,
         email: account.email,
         name: account.displayName ?? '',
@@ -58,14 +58,14 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Text('auth.account_created_success'.tr()),
-                ],
-              ),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('auth.account_created_success'.tr()),
+              ],
+            ),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
@@ -79,18 +79,19 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
       String errorMsg = e.toString();
 
       // Tratar erros específicos de provider diferente
-      if (errorMsg.contains('EMAIL_EXISTS_NATIVE') || errorMsg.contains('EMAIL_EXISTS_GOOGLE')) {
+      if (errorMsg.contains('EMAIL_EXISTS_NATIVE') ||
+          errorMsg.contains('EMAIL_EXISTS_GOOGLE')) {
         errorMsg = errorMsg.split('|').last;
         if (mounted) {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
               title: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: AppColors.primary),
-                    SizedBox(width: 12),
-                    Text('auth.account_exists'.tr()),
-                  ],
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.primary),
+                  SizedBox(width: 12),
+                  Text('auth.account_exists'.tr()),
+                ],
               ),
               content: Text(errorMsg),
               actions: [
@@ -115,7 +116,12 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
       }
 
       if (mounted) {
-        SnackBarHelper.showError(context, 'auth.google_register_error'.tr(args: [errorMsg.replaceAll('AuthException: ', '')]));
+        SnackBarHelper.showError(
+          context,
+          'auth.google_register_error'.tr(
+            args: [errorMsg.replaceAll('AuthException: ', '')],
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -144,10 +150,10 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
         ],
       );
 
-      final displayName = [
-        credential.givenName,
-        credential.familyName,
-      ].where((part) => part != null && part.trim().isNotEmpty).join(' ').trim();
+      final displayName = [credential.givenName, credential.familyName]
+          .where((part) => part != null && part.trim().isNotEmpty)
+          .join(' ')
+          .trim();
 
       await _authService.appleLogin(
         appleId: credential.userIdentifier ?? '',
@@ -186,7 +192,12 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
       );
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(context, AppConstants.appleRegisterError.tr(args: [e.toString().replaceAll('AuthException: ', '')]));
+        SnackBarHelper.showError(
+          context,
+          AppConstants.appleRegisterError.tr(
+            args: [e.toString().replaceAll('AuthException: ', '')],
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -202,14 +213,18 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color: isDark
+                ? AppColors.textPrimaryDark
+                : AppColors.textPrimaryLight,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -245,7 +260,9 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -253,7 +270,9 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
                       AppConstants.authChooseMethod.tr(),
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -341,7 +360,9 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
                     child: Text(
                       AppConstants.or.tr(),
                       style: TextStyle(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                         fontSize: 14,
                       ),
                     ),
@@ -375,10 +396,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
                     ),
                     elevation: 0,
                   ),
-                  icon: const Icon(
-                    Icons.email_outlined,
-                    color: Colors.white,
-                  ),
+                  icon: const Icon(Icons.email_outlined, color: Colors.white),
                   label: Text(
                     AppConstants.signInViaEmailPassword.tr(),
                     style: const TextStyle(
@@ -399,7 +417,9 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
                   Text(
                     'auth.already_have_account'.tr(),
                     style: TextStyle(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                   ),
                   TextButton(

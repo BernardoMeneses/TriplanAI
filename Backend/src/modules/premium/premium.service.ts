@@ -147,14 +147,17 @@ export class PremiumService {
   /**
    * Determina o plano baseado no product_id do Adapty
    */
-  private getPlanFromProductId(productId: string): SubscriptionPlan {
-    if (productId?.includes('basic')) {
+  private getPlanFromProductId(productId: string): SubscriptionPlan | null {
+    const normalizedProductId = (productId || '').toLowerCase();
+
+    if (normalizedProductId.includes('basic')) {
       return 'basic';
     }
-    if (productId?.includes('premium')) {
+    if (normalizedProductId.includes('premium')) {
       return 'premium';
     }
-    return 'premium';
+
+    return null;
   }
 
   /**
@@ -170,6 +173,13 @@ export class PremiumService {
     }
 
     const plan = this.getPlanFromProductId(product_id);
+
+    if (!plan && (event_type === 'subscription_started' || event_type === 'subscription_renewed')) {
+      console.warn(
+        `Unknown Adapty product_id in webhook for ${user.email}: ${product_id}`
+      );
+      return;
+    }
 
     switch (event_type) {
       case 'subscription_started':

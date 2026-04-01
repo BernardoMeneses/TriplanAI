@@ -70,46 +70,64 @@ class _NotesPageState extends State<NotesPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _notes.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.note_outlined, size: 64, color: Colors.grey),
-                      const SizedBox(height: 12),
-                      Text(AppConstants.notesNoNotes.tr()),
-                      const SizedBox(height: 8),
-                      ElevatedButton(onPressed: _create, child: Text(AppConstants.notesCreateOne.tr())),
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.note_outlined, size: 64, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  Text(AppConstants.notesNoNotes.tr()),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: _create,
+                    child: Text(AppConstants.notesCreateOne.tr()),
+                  ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: _notes.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final n = _notes[index];
+                final subtitle = n.body.isNotEmpty
+                    ? (n.body.length > 80
+                          ? n.body.substring(0, 80) + '…'
+                          : n.body)
+                    : AppConstants.notesNotePlaceholder.tr();
+                return ListTile(
+                  tileColor: Theme.of(context).cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  title: Text(
+                    n.title.isNotEmpty
+                        ? n.title
+                        : AppConstants.notesUntitled.tr(),
+                  ),
+                  subtitle: Text(subtitle),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) async {
+                      if (v == 'edit') await _edit(n);
+                      if (v == 'delete') await _delete(n.id);
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text(AppConstants.edit.tr()),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(AppConstants.delete.tr()),
+                      ),
                     ],
                   ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _notes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final n = _notes[index];
-                    final dt = DateTime.fromMillisecondsSinceEpoch(n.updatedAt);
-                    final subtitle = n.body.isNotEmpty ? (n.body.length > 80 ? n.body.substring(0, 80) + '…' : n.body) : AppConstants.notesNotePlaceholder.tr();
-                    return ListTile(
-                      tileColor: Theme.of(context).cardColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      title: Text(n.title.isNotEmpty ? n.title : AppConstants.notesUntitled.tr()),
-                      subtitle: Text(subtitle),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (v) async {
-                          if (v == 'edit') await _edit(n);
-                          if (v == 'delete') await _delete(n.id);
-                        },
-                        itemBuilder: (_) => [
-                          PopupMenuItem(value: 'edit', child: Text(AppConstants.edit.tr())),
-                          PopupMenuItem(value: 'delete', child: Text(AppConstants.delete.tr())),
-                        ],
-                      ),
-                      onTap: () => _edit(n),
-                      leading: const Icon(Icons.note),
-                    );
-                  },
-                ),
+                  onTap: () => _edit(n),
+                  leading: const Icon(Icons.note),
+                );
+              },
+            ),
     );
   }
 }
@@ -156,9 +174,17 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.note.title.isEmpty ? AppConstants.notesNewNote.tr() : widget.note.title),
+        title: Text(
+          widget.note.title.isEmpty
+              ? AppConstants.notesNewNote.tr()
+              : widget.note.title,
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.save), onPressed: _save, tooltip: AppConstants.notesSave.tr()),
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: _save,
+            tooltip: AppConstants.notesSave.tr(),
+          ),
         ],
       ),
       body: Padding(
@@ -167,13 +193,17 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           children: [
             TextField(
               controller: _titleCtrl,
-              decoration: InputDecoration(hintText: AppConstants.notesUntitled.tr()),
+              decoration: InputDecoration(
+                hintText: AppConstants.notesUntitled.tr(),
+              ),
             ),
             const SizedBox(height: 12),
             Expanded(
               child: TextField(
                 controller: _bodyCtrl,
-                decoration: InputDecoration(hintText: AppConstants.notesNotePlaceholder.tr()),
+                decoration: InputDecoration(
+                  hintText: AppConstants.notesNotePlaceholder.tr(),
+                ),
                 maxLines: null,
                 expands: true,
                 keyboardType: TextInputType.multiline,

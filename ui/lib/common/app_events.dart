@@ -2,12 +2,20 @@ import 'dart:async';
 
 class AppEvents {
   // Broadcast stream para eventos de importação de trip
-  static final StreamController<Map<String, dynamic>> _tripImportedController = StreamController.broadcast();
+  static final StreamController<Map<String, dynamic>> _tripImportedController =
+      StreamController.broadcast();
   // Broadcast stream para eventos gerais de alteração nas trips (import, delete, edit)
-  static final StreamController<void> _tripsChangedController = StreamController.broadcast();
+  static final StreamController<void> _tripsChangedController =
+      StreamController.broadcast();
+  // Broadcast stream para eventos de alteração na subscrição (upgrade/downgrade)
+  static final StreamController<void> _subscriptionChangedController =
+      StreamController.broadcast();
 
-  static Stream<Map<String, dynamic>> get onTripImported => _tripImportedController.stream;
+  static Stream<Map<String, dynamic>> get onTripImported =>
+      _tripImportedController.stream;
   static Stream<void> get onTripsChanged => _tripsChangedController.stream;
+  static Stream<void> get onSubscriptionChanged =>
+      _subscriptionChangedController.stream;
 
   static void emitTripImported(Map<String, dynamic> trip) {
     try {
@@ -21,8 +29,15 @@ class AppEvents {
     } catch (_) {}
   }
 
+  static void emitSubscriptionChanged() {
+    try {
+      _subscriptionChangedController.add(null);
+    } catch (_) {}
+  }
+
   static void dispose() {
     _tripImportedController.close();
     _tripsChangedController.close();
+    _subscriptionChangedController.close();
   }
 }

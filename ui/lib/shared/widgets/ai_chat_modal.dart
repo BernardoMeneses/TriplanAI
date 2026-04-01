@@ -6,7 +6,7 @@ import '../../common/constants/app_constants.dart';
 import 'snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../services/subscription_service.dart';
-import 'upgrade_dialog.dart';
+import 'feature_locked_dialog.dart';
 
 class AIChatModal extends StatefulWidget {
   final String? cityFilter;
@@ -48,35 +48,39 @@ class _AIChatModalState extends State<AIChatModal> {
 
   Future<void> _loadExistingConversation() async {
     setState(() => _isLoadingHistory = true);
-    
+
     if (widget.tripId != null) {
       try {
         // Try to load existing conversation for this trip and day
         final response = await _apiService.get(
-          '/ai/conversations?tripId=${widget.tripId}&dayNumber=${widget.dayNumber}'
+          '/ai/conversations?tripId=${widget.tripId}&dayNumber=${widget.dayNumber}',
         );
 
         if (response != null && response is List && response.isNotEmpty) {
           // Found existing conversation
           final conversation = response[0];
           _conversationId = conversation['id'];
-          
+
           // Load conversation with messages
-          final conversationData = await _apiService.get('/ai/conversations/$_conversationId');
-          
-          if (conversationData != null && conversationData['messages'] != null) {
+          final conversationData = await _apiService.get(
+            '/ai/conversations/$_conversationId',
+          );
+
+          if (conversationData != null &&
+              conversationData['messages'] != null) {
             setState(() {
               // Convert database messages to ChatMessage format
               _messages = (conversationData['messages'] as List).map((msg) {
                 List<PlaceSuggestion>? places;
-                
+
                 // Restore places from metadata if available
-                if (msg['metadata'] != null && msg['metadata']['places'] != null) {
+                if (msg['metadata'] != null &&
+                    msg['metadata']['places'] != null) {
                   places = (msg['metadata']['places'] as List)
                       .map((p) => PlaceSuggestion.fromJson(p))
                       .toList();
                 }
-                
+
                 return ChatMessage(
                   text: msg['content'],
                   isUser: msg['role'] == 'user',
@@ -85,7 +89,7 @@ class _AIChatModalState extends State<AIChatModal> {
               }).toList();
               _isLoadingHistory = false;
             });
-            
+
             _scrollToBottom();
             return;
           }
@@ -94,7 +98,7 @@ class _AIChatModalState extends State<AIChatModal> {
         print('Error loading existing conversation: $e');
       }
     }
-    
+
     // If no existing conversation found, show welcome message
     setState(() {
       _addWelcomeMessage();
@@ -103,16 +107,17 @@ class _AIChatModalState extends State<AIChatModal> {
   }
 
   void _addWelcomeMessage() {
-    _messages.add(ChatMessage(
-      text: AppConstants.aiChatWelcome.tr(),
-      isUser: false,
-    ));
+    _messages.add(
+      ChatMessage(text: AppConstants.aiChatWelcome.tr(), isUser: false),
+    );
 
-    _messages.add(ChatMessage(
-      text: AppConstants.aiChatSuggestionExample.tr(),
-      isUser: false,
-      isSuggestion: true,
-    ));
+    _messages.add(
+      ChatMessage(
+        text: AppConstants.aiChatSuggestionExample.tr(),
+        isUser: false,
+        isSuggestion: true,
+      ),
+    );
   }
 
   Future<void> _sendMessage(String message) async {
@@ -122,10 +127,11 @@ class _AIChatModalState extends State<AIChatModal> {
     final subStatus = await SubscriptionService().getStatus(forceRefresh: true);
     if (!subStatus.canUseAI) {
       if (mounted) {
-        showUpgradeDialog(
-          context: context,
-          feature: AppConstants.aiLimitTitle.tr(),
+        await showFeatureLockedDialog(
+          context,
+          title: AppConstants.aiLimitTitle.tr(),
           description: AppConstants.aiLimitDesc.tr(),
+          suggestedPlan: SubscriptionPlan.basic,
         );
       }
       return;
@@ -147,14 +153,17 @@ class _AIChatModalState extends State<AIChatModal> {
       // Get current app language to send to AI
       final language = context.locale.languageCode;
 
-      final response = await _apiService.post('/ai/suggestions', body: {
-        'query': message,
-        'location': location,
-        'dayNumber': widget.dayNumber,
-        'conversationId': _conversationId,
-        'tripId': widget.tripId,
-        'language': language,
-      });
+      final response = await _apiService.post(
+        '/ai/suggestions',
+        body: {
+          'query': message,
+          'location': location,
+          'dayNumber': widget.dayNumber,
+          'conversationId': _conversationId,
+          'tripId': widget.tripId,
+          'language': language,
+        },
+      );
 
       if (mounted) {
         // Save conversation ID for subsequent messages
@@ -170,11 +179,15 @@ class _AIChatModalState extends State<AIChatModal> {
         }
 
         setState(() {
-          _messages.add(ChatMessage(
-            text: response['response'] ?? AppConstants.aiChatFallbackResponse.tr(),
-            isUser: false,
-            places: places,
-          ));
+          _messages.add(
+            ChatMessage(
+              text:
+                  response['response'] ??
+                  AppConstants.aiChatFallbackResponse.tr(),
+              isUser: false,
+              places: places,
+            ),
+          );
           _isLoading = false;
         });
         _scrollToBottom();
@@ -182,10 +195,12 @@ class _AIChatModalState extends State<AIChatModal> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add(ChatMessage(
-            text: AppConstants.aiChatErrorResponse.tr(),
-            isUser: false,
-          ));
+          _messages.add(
+            ChatMessage(
+              text: AppConstants.aiChatErrorResponse.tr(),
+              isUser: false,
+            ),
+          );
           _isLoading = false;
         });
       }
@@ -209,7 +224,9 @@ class _AIChatModalState extends State<AIChatModal> {
     String? finalPlaceId = place.placeId;
     Map<String, dynamic>? placeDetails;
 
-    if (finalPlaceId == null || finalPlaceId.isEmpty || finalPlaceId.startsWith('temp_')) {
+    if (finalPlaceId == null ||
+        finalPlaceId.isEmpty ||
+        finalPlaceId.startsWith('temp_')) {
       // Buscar lugar no Google Places usando o nome e localização
       try {
         final location = widget.cityFilter != null
@@ -217,10 +234,12 @@ class _AIChatModalState extends State<AIChatModal> {
             : '';
 
         final searchResponse = await _apiService.get(
-            '/maps/destinations/search?query=${Uri.encodeComponent('${place.name} $location')}'
+          '/maps/destinations/search?query=${Uri.encodeComponent('${place.name} $location')}',
         );
 
-        if (searchResponse != null && searchResponse is List && searchResponse.isNotEmpty) {
+        if (searchResponse != null &&
+            searchResponse is List &&
+            searchResponse.isNotEmpty) {
           finalPlaceId = searchResponse[0]['placeId'];
           placeDetails = searchResponse[0];
           print('Search response for ${place.name}: $placeDetails');
@@ -231,7 +250,9 @@ class _AIChatModalState extends State<AIChatModal> {
     } else {
       // Get place details if we have the placeId
       try {
-        placeDetails = await _apiService.get('/maps/destinations/$finalPlaceId');
+        placeDetails = await _apiService.get(
+          '/maps/destinations/$finalPlaceId',
+        );
         print('Place details for $finalPlaceId: $placeDetails');
       } catch (e) {
         print('Error getting place details: $e');
@@ -240,7 +261,10 @@ class _AIChatModalState extends State<AIChatModal> {
 
     if (finalPlaceId == null || finalPlaceId.isEmpty) {
       if (mounted) {
-        SnackBarHelper.showError(context, AppConstants.aiChatPlaceNotFound.tr());
+        SnackBarHelper.showError(
+          context,
+          AppConstants.aiChatPlaceNotFound.tr(),
+        );
       }
       return;
     }
@@ -280,76 +304,90 @@ class _AIChatModalState extends State<AIChatModal> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.backgroundDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.85,
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.backgroundDark : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
                 ),
-                child: Row(
-                  children: [
-        Text(
-                      AppConstants.aiChatDayHeader.tr(namedArgs: {'day': widget.dayNumber.toString()}),
-                      style: TextStyle(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      widget.cityFilter ?? '',
-                      style: TextStyle(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
+              child: Row(
+                children: [
+                  Text(
+                    AppConstants.aiChatDayHeader.tr(
+                      namedArgs: {'day': widget.dayNumber.toString()},
+                    ),
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.cityFilter ?? '',
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
 
-              // Messages
-              Expanded(
-                child: _isLoadingHistory 
+            // Messages
+            Expanded(
+              child: _isLoadingHistory
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircularProgressIndicator(
-                            color: isDark ? AppColors.primary : AppColors.primaryDark,
+                            color: isDark
+                                ? AppColors.primary
+                                : AppColors.primaryDark,
                           ),
                           const SizedBox(height: 16),
                           Text(
                             AppConstants.aiChatLoadingConversation.tr(),
                             style: TextStyle(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
                               fontSize: 14,
                             ),
                           ),
@@ -361,134 +399,160 @@ class _AIChatModalState extends State<AIChatModal> {
                       padding: const EdgeInsets.all(16),
                       itemCount: _messages.length + (_isLoading ? 1 : 0),
                       itemBuilder: (context, index) {
-                    if (index == _messages.length && _isLoading) {
-                      return Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.grey800 : AppColors.grey200,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const SizedBox(
-                            width: 40,
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 8,
-                                  height: 8,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                        if (index == _messages.length && _isLoading) {
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.grey800
+                                    : AppColors.grey200,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const SizedBox(
+                                width: 40,
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 8,
+                                      height: 8,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    SizedBox(
+                                      width: 8,
+                                      height: 8,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    SizedBox(
+                                      width: 8,
+                                      height: 8,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(width: 4),
-                                SizedBox(
-                                  width: 8,
-                                  height: 8,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                                SizedBox(width: 4),
-                                SizedBox(
-                                  width: 8,
-                                  height: 8,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    }
+                          );
+                        }
 
-                    final message = _messages[index];
-                    return Column(
-                      crossAxisAlignment: message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                      children: [
-                        _MessageBubble(
-                          message: message,
-                          isDark: isDark,
-                          onTap: message.isSuggestion ? () => _sendMessage(message.text) : null,
-                        ),
-                        if (message.places != null && message.places!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Column(
-                              children: message.places!.map((place) {
-                                return _PlaceCard(
-                                  place: place,
-                                  isDark: isDark,
-                                  onAdd: () => _confirmAddPlace(place),
-                                );
-                              }).toList(),
+                        final message = _messages[index];
+                        return Column(
+                          crossAxisAlignment: message.isUser
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: [
+                            _MessageBubble(
+                              message: message,
+                              isDark: isDark,
+                              onTap: message.isSuggestion
+                                  ? () => _sendMessage(message.text)
+                                  : null,
                             ),
+                            if (message.places != null &&
+                                message.places!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Column(
+                                  children: message.places!.map((place) {
+                                    return _PlaceCard(
+                                      place: place,
+                                      isDark: isDark,
+                                      onAdd: () => _confirmAddPlace(place),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+
+            // Input
+            SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceDark : Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: AppConstants.aiChatInputHint.tr(),
+                          hintStyle: TextStyle(
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
-                      ],
-                    );
-                  },
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: isDark
+                              ? AppColors.grey800
+                              : AppColors.grey200,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        style: TextStyle(
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
+                        ),
+                        onSubmitted: _sendMessage,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () => _sendMessage(_messageController.text),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-              // Input
-              SafeArea(
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _messageController,
-                          decoration: InputDecoration(
-                            hintText: AppConstants.aiChatInputHint.tr(),
-                            hintStyle: TextStyle(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: isDark ? AppColors.grey800 : AppColors.grey200,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                          style: TextStyle(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          ),
-                          onSubmitted: _sendMessage,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: () => _sendMessage(_messageController.text),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.arrow_forward,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ));
-    }
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -518,7 +582,9 @@ class _MessageBubble extends StatelessWidget {
             color: message.isUser
                 ? AppColors.primary
                 : message.isSuggestion
-                ? (isDark ? AppColors.primary.withOpacity(0.2) : AppColors.primary.withOpacity(0.1))
+                ? (isDark
+                      ? AppColors.primary.withOpacity(0.2)
+                      : AppColors.primary.withOpacity(0.1))
                 : (isDark ? AppColors.grey800 : AppColors.grey200),
             borderRadius: BorderRadius.circular(16),
           ),
@@ -527,7 +593,9 @@ class _MessageBubble extends StatelessWidget {
             style: TextStyle(
               color: message.isUser
                   ? Colors.white
-                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                  : (isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight),
               fontSize: 15,
             ),
           ),
@@ -605,11 +673,7 @@ class _PlaceCard extends StatelessWidget {
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -619,19 +683,24 @@ class _PlaceCard extends StatelessWidget {
 
   IconData _getIconForCategory(String category) {
     final lowerCategory = category.toLowerCase();
-    if (lowerCategory.contains('hotel') || lowerCategory.contains('accommodation')) {
+    if (lowerCategory.contains('hotel') ||
+        lowerCategory.contains('accommodation')) {
       return Icons.hotel;
-    } else if (lowerCategory.contains('restaurant') || lowerCategory.contains('food')) {
+    } else if (lowerCategory.contains('restaurant') ||
+        lowerCategory.contains('food')) {
       return Icons.restaurant;
-    } else if (lowerCategory.contains('park') || lowerCategory.contains('garden')) {
+    } else if (lowerCategory.contains('park') ||
+        lowerCategory.contains('garden')) {
       return Icons.park;
     } else if (lowerCategory.contains('museum')) {
       return Icons.museum;
     } else if (lowerCategory.contains('shopping')) {
       return Icons.shopping_bag;
-    } else if (lowerCategory.contains('outdoor') || lowerCategory.contains('nature')) {
+    } else if (lowerCategory.contains('outdoor') ||
+        lowerCategory.contains('nature')) {
       return Icons.landscape;
-    } else if (lowerCategory.contains('activities') || lowerCategory.contains('experience')) {
+    } else if (lowerCategory.contains('activities') ||
+        lowerCategory.contains('experience')) {
       return Icons.local_activity;
     }
     return Icons.place;
@@ -709,9 +778,12 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
         if (openingHours is Map) {
           print('Opening hours is a Map');
           // Try weekdayText first
-          final weekdayText = openingHours['weekdayText'] ?? openingHours['weekday_text'];
+          final weekdayText =
+              openingHours['weekdayText'] ?? openingHours['weekday_text'];
           print('WeekdayText: $weekdayText');
-          if (weekdayText != null && weekdayText is List && weekdayText.isNotEmpty) {
+          if (weekdayText != null &&
+              weekdayText is List &&
+              weekdayText.isNotEmpty) {
             final now = DateTime.now();
             final dayIndex = now.weekday - 1; // 0 = Monday, 6 = Sunday
             print('Current day index: $dayIndex');
@@ -739,7 +811,8 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
           }
 
           // Check if open now
-          final isOpenNow = openingHours['isOpenNow'] ?? openingHours['open_now'];
+          final isOpenNow =
+              openingHours['isOpenNow'] ?? openingHours['open_now'];
           if (isOpenNow != null) {
             return isOpenNow ? 'Open now' : 'Closed now';
           }
@@ -759,7 +832,9 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
     }
 
     if (placeDetails != null) {
-      final description = placeDetails!['description'] ?? placeDetails!['editorial_summary']?['overview'];
+      final description =
+          placeDetails!['description'] ??
+          placeDetails!['editorial_summary']?['overview'];
       if (description != null && description.isNotEmpty) {
         return description;
       }
@@ -794,7 +869,8 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
           print('Found photo as string: ${photos[0]}');
           return photos[0];
         } else if (photos[0] is Map) {
-          final photoUrl = photos[0]['url'] ?? photos[0]['photo_reference'] ?? '';
+          final photoUrl =
+              photos[0]['url'] ?? photos[0]['photo_reference'] ?? '';
           print('Found photo in map: $photoUrl');
           return photoUrl;
         }
@@ -822,7 +898,11 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
       }
 
       // Fallback to other fields
-      final address = placeDetails!['address'] ?? placeDetails!['formatted_address'] ?? placeDetails!['vicinity'] ?? '';
+      final address =
+          placeDetails!['address'] ??
+          placeDetails!['formatted_address'] ??
+          placeDetails!['vicinity'] ??
+          '';
       print('Address found: $address');
       return address;
     }
@@ -857,7 +937,9 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                 Text(
                   AppConstants.aiChatAddYourSpot.tr(),
                   style: TextStyle(
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
@@ -865,7 +947,9 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                 IconButton(
                   icon: Icon(
                     Icons.close,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                   ),
                   onPressed: () => Navigator.pop(context, false),
                 ),
@@ -888,39 +972,57 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       child: imageUrl.isNotEmpty
                           ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.grey800 : AppColors.grey200,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.grey800 : AppColors.grey200,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.image, size: 64, color: Colors.grey),
-                          ),
-                        ),
-                      )
+                              imageUrl: imageUrl,
+                              height: 200,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppColors.grey800
+                                      : AppColors.grey200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppColors.grey800
+                                      : AppColors.grey200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image,
+                                    size: 64,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            )
                           : Container(
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.grey800 : AppColors.grey200,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.place, size: 64, color: Colors.grey),
-                        ),
-                      ),
+                              height: 200,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.grey800
+                                    : AppColors.grey200,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.place,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
 
@@ -930,7 +1032,10 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
@@ -965,7 +1070,9 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                     child: Text(
                       place.name,
                       style: TextStyle(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
@@ -978,9 +1085,13 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      description.isNotEmpty ? description : AppConstants.aiChatDefaultDescription.tr(),
+                      description.isNotEmpty
+                          ? description
+                          : AppConstants.aiChatDefaultDescription.tr(),
                       style: TextStyle(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                         fontSize: 14,
                         height: 1.5,
                       ),
@@ -998,14 +1109,20 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                         Icon(
                           Icons.location_on,
                           size: 18,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-              address.isNotEmpty ? address : AppConstants.aiChatAddressNotAvailable.tr(),
+                            address.isNotEmpty
+                                ? address
+                                : AppConstants.aiChatAddressNotAvailable.tr(),
                             style: TextStyle(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
                               fontSize: 13,
                             ),
                           ),
@@ -1025,14 +1142,20 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
                         Icon(
                           Icons.access_time,
                           size: 18,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-              openingHours.isNotEmpty ? openingHours : AppConstants.aiChatHoursNotAvailable.tr(),
+                            openingHours.isNotEmpty
+                                ? openingHours
+                                : AppConstants.aiChatHoursNotAvailable.tr(),
                             style: TextStyle(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
                               fontSize: 13,
                             ),
                           ),
@@ -1087,19 +1210,24 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
 
   IconData _getIconForCategory(String category) {
     final lowerCategory = category.toLowerCase();
-    if (lowerCategory.contains('hotel') || lowerCategory.contains('accommodation')) {
+    if (lowerCategory.contains('hotel') ||
+        lowerCategory.contains('accommodation')) {
       return Icons.hotel;
-    } else if (lowerCategory.contains('restaurant') || lowerCategory.contains('food')) {
+    } else if (lowerCategory.contains('restaurant') ||
+        lowerCategory.contains('food')) {
       return Icons.restaurant;
-    } else if (lowerCategory.contains('park') || lowerCategory.contains('garden')) {
+    } else if (lowerCategory.contains('park') ||
+        lowerCategory.contains('garden')) {
       return Icons.park;
     } else if (lowerCategory.contains('museum')) {
       return Icons.museum;
     } else if (lowerCategory.contains('shopping')) {
       return Icons.shopping_bag;
-    } else if (lowerCategory.contains('outdoor') || lowerCategory.contains('nature')) {
+    } else if (lowerCategory.contains('outdoor') ||
+        lowerCategory.contains('nature')) {
       return Icons.landscape;
-    } else if (lowerCategory.contains('activities') || lowerCategory.contains('experience')) {
+    } else if (lowerCategory.contains('activities') ||
+        lowerCategory.contains('experience')) {
       return Icons.local_activity;
     }
     return Icons.place;

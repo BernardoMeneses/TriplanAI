@@ -207,6 +207,8 @@
     "hours": "Std",
     "hours_not_listed": "Öffnungszeiten nicht aufgeführt",
     "my_trip": "Meine Reise",
+    "shared_trip_read_only_title": "Geteilte Reise im Nur-Lese-Modus",
+    "shared_trip_read_only_subtitle": "Diese Reise wurde mit Ihnen geteilt. Sie können Tage und Details ansehen, aber Bearbeitungen sind deaktiviert.",
     "your_route": "Ihre Route",
     "share_trip": "Reise teilen",
     "share_trip_subtitle": "Über WhatsApp, Instagram usw. teilen",

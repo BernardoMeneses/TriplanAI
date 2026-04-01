@@ -195,6 +195,10 @@ class AppConstants {
   static const String hours = 'trip_details.hours';
   static const String hoursNotListed = 'trip_details.hours_not_listed';
   static const String myTrip = 'trip_details.my_trip';
+  static const String sharedTripReadOnlyTitle =
+      'trip_details.shared_trip_read_only_title';
+  static const String sharedTripReadOnlySubtitle =
+      'trip_details.shared_trip_read_only_subtitle';
   static const String yourRoute = 'trip_details.your_route';
   static const String shareTrip = 'trip_details.share_trip';
   static const String shareTripSubtitle = 'trip_details.share_trip_subtitle';

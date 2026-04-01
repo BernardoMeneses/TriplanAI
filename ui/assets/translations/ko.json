@@ -207,6 +207,8 @@
     "hours": "시간",
     "hours_not_listed": "영업시간 미기재",
     "my_trip": "내 여행",
+    "shared_trip_read_only_title": "공유 여행(읽기 전용)",
+    "shared_trip_read_only_subtitle": "이 여행은 공유되었습니다. 날짜와 세부 정보는 확인할 수 있지만 편집은 비활성화되어 있습니다.",
     "your_route": "내 경로",
     "share_trip": "여행 공유",
     "share_trip_subtitle": "WhatsApp, Instagram 등으로 공유",

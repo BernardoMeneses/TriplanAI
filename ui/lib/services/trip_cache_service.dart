@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'trips_service.dart';
-import 'api_service.dart';
 import 'itinerary_items_service.dart';
 import 'connectivity_service.dart';
 
@@ -16,12 +15,11 @@ class TripCacheService {
   static const String _itineraryPrefix = 'cached_itinerary_';
   static const String _itineraryItemsPrefix = 'cached_items_';
   static const String _tripImagePrefix = 'cached_trip_image_';
-  
+
   final TripsService _tripsService = TripsService();
-  final ApiService _apiService = ApiService();
   final ItineraryItemsService _itemsService = ItineraryItemsService();
   final ConnectivityService _connectivityService = ConnectivityService();
-  
+
   /// Indica se a última operação usou cache offline
   bool _isOfflineMode = false;
   bool get isOfflineMode => _isOfflineMode;
@@ -53,12 +51,14 @@ class TripCacheService {
     final cachedTrips = await _getCachedTrips();
     if (cachedTrips.isNotEmpty) {
       if (kDebugMode) {
-        print('💾 TripCacheService: Usando ${cachedTrips.length} viagens do cache');
+        print(
+          '💾 TripCacheService: Usando ${cachedTrips.length} viagens do cache',
+        );
       }
-      
+
       // Atualizar em background (não bloqueia)
       _refreshTripsInBackground();
-      
+
       _isOfflineMode = false; // Temos dados, não é "offline mode" visual
       return cachedTrips;
     }
@@ -94,7 +94,9 @@ class TripCacheService {
     } catch (e) {
       // Falhou silenciosamente - cache continua válido
       if (kDebugMode) {
-        print('📴 TripCacheService: Atualização background falhou (usando cache)');
+        print(
+          '📴 TripCacheService: Atualização background falhou (usando cache)',
+        );
       }
     }
   }
@@ -166,14 +168,16 @@ class TripCacheService {
       final tripsJson = trips.map((t) => t.toJson()).toList();
       await prefs.setString(_tripsListKey, jsonEncode(tripsJson));
       await prefs.setInt(_lastSyncKey, DateTime.now().millisecondsSinceEpoch);
-      
+
       // Guardar também detalhes de cada viagem
       for (final trip in trips) {
         await _cacheTripDetails(trip);
       }
-      
+
       if (kDebugMode) {
-        print('💾 TripCacheService: ${trips.length} viagens guardadas em cache');
+        print(
+          '💾 TripCacheService: ${trips.length} viagens guardadas em cache',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
@@ -196,11 +200,13 @@ class TripCacheService {
       tripsList.add(trip.toJson());
       await prefs.setString(_tripsListKey, jsonEncode(tripsList));
       await _cacheTripDetails(trip);
-      if (kDebugMode) print('💾 TripCacheService: Viagem ${trip.id} adicionada ao cache');
+      if (kDebugMode)
+        print('💾 TripCacheService: Viagem ${trip.id} adicionada ao cache');
       // notificar listeners
       onTripsUpdated?.call(tripsList.map((j) => Trip.fromJson(j)).toList());
     } catch (e) {
-      if (kDebugMode) print('❌ TripCacheService: Erro ao adicionar viagem ao cache: $e');
+      if (kDebugMode)
+        print('❌ TripCacheService: Erro ao adicionar viagem ao cache: $e');
     }
   }
 
@@ -218,10 +224,12 @@ class TripCacheService {
       }
       // remover detalhes em cache
       await prefs.remove('$_tripDetailsPrefix$tripId');
-      if (kDebugMode) print('💾 TripCacheService: Viagem $tripId removida do cache');
+      if (kDebugMode)
+        print('💾 TripCacheService: Viagem $tripId removida do cache');
       onTripsUpdated?.call(tripsList.map((j) => Trip.fromJson(j)).toList());
     } catch (e) {
-      if (kDebugMode) print('❌ TripCacheService: Erro ao remover viagem do cache: $e');
+      if (kDebugMode)
+        print('❌ TripCacheService: Erro ao remover viagem do cache: $e');
     }
   }
 
@@ -229,7 +237,10 @@ class TripCacheService {
   Future<void> _cacheTripDetails(Trip trip) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('$_tripDetailsPrefix${trip.id}', jsonEncode(trip.toJson()));
+      await prefs.setString(
+        '$_tripDetailsPrefix${trip.id}',
+        jsonEncode(trip.toJson()),
+      );
     } catch (e) {
       if (kDebugMode) {
         print('❌ TripCacheService: Erro ao guardar detalhes da viagem: $e');
@@ -242,11 +253,11 @@ class TripCacheService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString(_tripsListKey);
-      
+
       if (cachedJson == null) {
         return [];
       }
-      
+
       final List<dynamic> tripsList = jsonDecode(cachedJson);
       return tripsList.map((json) => Trip.fromJson(json)).toList();
     } catch (e) {
@@ -262,11 +273,11 @@ class TripCacheService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString('$_tripDetailsPrefix$tripId');
-      
+
       if (cachedJson == null) {
         return null;
       }
-      
+
       return Trip.fromJson(jsonDecode(cachedJson));
     } catch (e) {
       if (kDebugMode) {
@@ -280,7 +291,9 @@ class TripCacheService {
   Future<DateTime?> getLastSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getInt(_lastSyncKey);
-    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+    return timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+        : null;
   }
 
   /// Verifica se há cache disponível
@@ -297,7 +310,9 @@ class TripCacheService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('$_tripImagePrefix$tripId', imageUrl);
       if (kDebugMode) {
-        print('💾 TripCacheService: Imagem da viagem $tripId guardada em cache');
+        print(
+          '💾 TripCacheService: Imagem da viagem $tripId guardada em cache',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
@@ -332,22 +347,27 @@ class TripCacheService {
       }
       return;
     }
-    
+
     try {
       if (kDebugMode) {
-        print('🔄 TripCacheService: Sincronizando $durationInDays dias da viagem $tripId');
+        print(
+          '🔄 TripCacheService: Sincronizando $durationInDays dias da viagem $tripId',
+        );
       }
-      
+
       for (int day = 1; day <= durationInDays; day++) {
         try {
           // Buscar e guardar itinerary em cache
-          final itinerary = await _itemsService.getOrCreateItineraryByDay(tripId, day);
+          final itinerary = await _itemsService.getOrCreateItineraryByDay(
+            tripId,
+            day,
+          );
           await _cacheItinerary(tripId, day, itinerary);
 
           // Buscar e guardar items em cache
           final items = await _itemsService.getItemsByItinerary(itinerary.id);
           await cacheItineraryItems(itinerary.id, items);
-          
+
           if (kDebugMode) {
             print('  ✅ Dia $day: ${items.length} items em cache');
           }
@@ -357,7 +377,7 @@ class TripCacheService {
           }
         }
       }
-      
+
       if (kDebugMode) {
         print('✅ TripCacheService: Sincronização completa');
       }
@@ -369,7 +389,10 @@ class TripCacheService {
   }
 
   /// Obtém itinerary por trip e dia - CACHE FIRST
-  Future<Itinerary?> getOrCreateItineraryByDay(String tripId, int dayNumber) async {
+  Future<Itinerary?> getOrCreateItineraryByDay(
+    String tripId,
+    int dayNumber,
+  ) async {
     // CACHE FIRST
     final cachedItinerary = await _getCachedItinerary(tripId, dayNumber);
     if (cachedItinerary != null) {
@@ -383,7 +406,10 @@ class TripCacheService {
 
     // Sem cache - tentar online
     try {
-      final itinerary = await _itemsService.getOrCreateItineraryByDay(tripId, dayNumber);
+      final itinerary = await _itemsService.getOrCreateItineraryByDay(
+        tripId,
+        dayNumber,
+      );
       await _cacheItinerary(tripId, dayNumber, itinerary);
       _isOfflineMode = false;
       return itinerary;
@@ -397,12 +423,18 @@ class TripCacheService {
   }
 
   /// Atualiza itinerary em background
-  Future<void> _refreshItineraryInBackground(String tripId, int dayNumber) async {
+  Future<void> _refreshItineraryInBackground(
+    String tripId,
+    int dayNumber,
+  ) async {
     final hasInternet = await _connectivityService.checkConnectivity();
     if (!hasInternet) return;
 
     try {
-      final itinerary = await _itemsService.getOrCreateItineraryByDay(tripId, dayNumber);
+      final itinerary = await _itemsService.getOrCreateItineraryByDay(
+        tripId,
+        dayNumber,
+      );
       await _cacheItinerary(tripId, dayNumber, itinerary);
     } catch (e) {
       // Falha silenciosa
@@ -411,9 +443,40 @@ class TripCacheService {
 
   /// Obtém items do itinerário - CACHE FIRST
   /// Obtém items do itinerário - CACHE FIRST
-Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceRefresh = false}) async {
-  // Se forceRefresh, ir direto à net e atualizar cache
-  if (forceRefresh) {
+  Future<List<ItineraryItem>> getItemsByItinerary(
+    String itineraryId, {
+    bool forceRefresh = false,
+  }) async {
+    // Se forceRefresh, ir direto à net e atualizar cache
+    if (forceRefresh) {
+      try {
+        final items = await _itemsService.getItemsByItinerary(itineraryId);
+        await cacheItineraryItems(itineraryId, items);
+        _isOfflineMode = false;
+        return items;
+      } catch (e) {
+        if (kDebugMode) {
+          print('📴 TripCacheService: forceRefresh falhou, usando cache');
+        }
+        _isOfflineMode = true;
+        return _getCachedItineraryItems(itineraryId);
+      }
+    }
+
+    // CACHE FIRST: Se tiver cache, retorna imediatamente
+    final cachedItems = await _getCachedItineraryItems(itineraryId);
+    if (cachedItems.isNotEmpty) {
+      if (kDebugMode) {
+        print(
+          '💾 TripCacheService: Usando ${cachedItems.length} items do cache',
+        );
+      }
+      // Atualizar em background (não bloqueia)
+      _refreshItemsInBackground(itineraryId);
+      return cachedItems;
+    }
+
+    // Sem cache - tentar online
     try {
       final items = await _itemsService.getItemsByItinerary(itineraryId);
       await cacheItineraryItems(itineraryId, items);
@@ -421,38 +484,12 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
       return items;
     } catch (e) {
       if (kDebugMode) {
-        print('📴 TripCacheService: forceRefresh falhou, usando cache');
+        print('📴 TripCacheService: Items não encontrados');
       }
       _isOfflineMode = true;
-      return _getCachedItineraryItems(itineraryId);
+      return [];
     }
   }
-
-  // CACHE FIRST: Se tiver cache, retorna imediatamente
-  final cachedItems = await _getCachedItineraryItems(itineraryId);
-  if (cachedItems.isNotEmpty) {
-    if (kDebugMode) {
-      print('💾 TripCacheService: Usando ${cachedItems.length} items do cache');
-    }
-    // Atualizar em background (não bloqueia)
-    _refreshItemsInBackground(itineraryId);
-    return cachedItems;
-  }
-
-  // Sem cache - tentar online
-  try {
-    final items = await _itemsService.getItemsByItinerary(itineraryId);
-    await cacheItineraryItems(itineraryId, items);
-    _isOfflineMode = false;
-    return items;
-  } catch (e) {
-    if (kDebugMode) {
-      print('📴 TripCacheService: Items não encontrados');
-    }
-    _isOfflineMode = true;
-    return [];
-  }
-}
 
   /// Atualiza items em background
   Future<void> _refreshItemsInBackground(String itineraryId) async {
@@ -468,7 +505,11 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
   }
 
   /// Guarda itinerary em cache
-  Future<void> _cacheItinerary(String tripId, int dayNumber, Itinerary itinerary) async {
+  Future<void> _cacheItinerary(
+    String tripId,
+    int dayNumber,
+    Itinerary itinerary,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_itineraryPrefix${tripId}_$dayNumber';
@@ -486,9 +527,9 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
       final prefs = await SharedPreferences.getInstance();
       final key = '$_itineraryPrefix${tripId}_$dayNumber';
       final cachedJson = prefs.getString(key);
-      
+
       if (cachedJson == null) return null;
-      
+
       return Itinerary.fromJson(jsonDecode(cachedJson));
     } catch (e) {
       if (kDebugMode) {
@@ -499,13 +540,16 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
   }
 
   /// Guarda items do itinerário em cache (public)
-  Future<void> cacheItineraryItems(String itineraryId, List<ItineraryItem> items) async {
+  Future<void> cacheItineraryItems(
+    String itineraryId,
+    List<ItineraryItem> items,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_itineraryItemsPrefix$itineraryId';
       final itemsJson = items.map((i) => i.toJson()).toList();
       await prefs.setString(key, jsonEncode(itemsJson));
-      
+
       if (kDebugMode) {
         print('💾 TripCacheService: ${items.length} items guardados em cache');
       }
@@ -517,14 +561,16 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
   }
 
   /// Obtém items do cache
-  Future<List<ItineraryItem>> _getCachedItineraryItems(String itineraryId) async {
+  Future<List<ItineraryItem>> _getCachedItineraryItems(
+    String itineraryId,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_itineraryItemsPrefix$itineraryId';
       final cachedJson = prefs.getString(key);
-      
+
       if (cachedJson == null) return [];
-      
+
       final List<dynamic> itemsList = jsonDecode(cachedJson);
       return itemsList.map((json) => ItineraryItem.fromJson(json)).toList();
     } catch (e) {
@@ -538,19 +584,23 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
   /// Limpa todo o cache de viagens
   Future<void> clearCache() async {
     final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((k) => 
-      k == _tripsListKey || 
-      k == _lastSyncKey || 
-      k.startsWith(_tripDetailsPrefix) ||
-      k.startsWith(_itineraryPrefix) ||
-      k.startsWith(_itineraryItemsPrefix) ||
-      k.startsWith(_tripImagePrefix)
-    ).toList();
-    
+    final keys = prefs
+        .getKeys()
+        .where(
+          (k) =>
+              k == _tripsListKey ||
+              k == _lastSyncKey ||
+              k.startsWith(_tripDetailsPrefix) ||
+              k.startsWith(_itineraryPrefix) ||
+              k.startsWith(_itineraryItemsPrefix) ||
+              k.startsWith(_tripImagePrefix),
+        )
+        .toList();
+
     for (final key in keys) {
       await prefs.remove(key);
     }
-    
+
     if (kDebugMode) {
       print('🗑️ TripCacheService: Cache limpo');
     }
@@ -571,22 +621,24 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
   /// Exporta todas as viagens para ficheiros .triplan locais
   Future<List<String>> exportAllTripsLocally() async {
     final exportedFiles = <String>[];
-    
+
     try {
       final trips = await _getCachedTrips();
       final backupDir = await _localBackupDir;
-      
+
       for (final trip in trips) {
         try {
           // Exportar viagem completa da API (com itinerários)
           final tripData = await _tripsService.exportTrip(trip.id);
-          final fileName = _sanitizeFileName('${trip.destinationCity}_${trip.id}.triplan');
+          final fileName = _sanitizeFileName(
+            '${trip.destinationCity}_${trip.id}.triplan',
+          );
           final filePath = '${backupDir.path}/$fileName';
-          
+
           final file = File(filePath);
           await file.writeAsString(jsonEncode(tripData));
           exportedFiles.add(filePath);
-          
+
           if (kDebugMode) {
             print('💾 Exportado: $fileName');
           }
@@ -596,7 +648,7 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
           }
         }
       }
-      
+
       if (kDebugMode) {
         print('✅ ${exportedFiles.length} viagens exportadas localmente');
       }
@@ -605,7 +657,7 @@ Future<List<ItineraryItem>> getItemsByItinerary(String itineraryId, {bool forceR
         print('❌ Erro ao exportar viagens: $e');
       }
     }
-    
+
     return exportedFiles;
   }
 

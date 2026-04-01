@@ -9,7 +9,6 @@ import '../../../services/auth_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/google_drive_backup_service.dart';
 import '../../../services/api_service.dart';
-import '../../../services/trip_cache_service.dart';
 import '../../../services/subscription_service.dart';
 import '../../../shared/widgets/language_selector_dialog.dart';
 import '../../../shared/widgets/upgrade_dialog.dart';
@@ -29,10 +28,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _notificationsEnabled = true;
   bool _isLoadingNotifications = true;
   bool _isBackingUp = false;
-  bool _hasAutoBackup = false;
   bool _canManualBackup = false;
   final GoogleDriveBackupService _backupService = GoogleDriveBackupService();
-  final TripCacheService _cacheService = TripCacheService();
 
   @override
   void initState() {
@@ -45,8 +42,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final status = await SubscriptionService().getStatus();
     if (mounted) {
       setState(() {
-        _hasAutoBackup = status.limits.canAutoBackup;
-        _canManualBackup = status.limits.canBackupCloud && !status.limits.canAutoBackup;
+        _canManualBackup =
+            status.limits.canBackupCloud && !status.limits.canAutoBackup;
       });
     }
   }
@@ -102,7 +99,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(AppConstants.profile.tr()),
-        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        backgroundColor: isDark
+            ? AppColors.surfaceDark
+            : AppColors.surfaceLight,
         elevation: 0,
       ),
       body: ListView(
@@ -117,13 +116,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundColor: isDark ? AppColors.grey800 : AppColors.grey200,
+                      backgroundColor: isDark
+                          ? AppColors.grey800
+                          : AppColors.grey200,
                       backgroundImage: user?.profilePictureUrl != null
                           ? NetworkImage(user!.profilePictureUrl!)
                           : null,
                       child: user?.profilePictureUrl == null
                           ? Text(
-                              user?.fullName.substring(0, 1).toUpperCase() ?? 'U',
+                              user?.fullName.substring(0, 1).toUpperCase() ??
+                                  'U',
                               style: TextStyle(
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
@@ -145,7 +147,9 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              color: isDark
+                                  ? AppColors.surfaceDark
+                                  : AppColors.surfaceLight,
                               width: 3,
                             ),
                           ),
@@ -165,7 +169,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -173,7 +179,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   '@${user?.username ?? ''}',
                   style: TextStyle(
                     fontSize: 16,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -181,13 +189,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   user?.email ?? '',
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
                   ),
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
 
           // Premium Section
@@ -220,9 +230,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildSection(
               context,
               title: 'backup.title'.tr(),
-              items: [
-                _buildBackupTile(context),
-              ],
+              items: [_buildBackupTile(context)],
             ),
             const SizedBox(height: 16),
           ],
@@ -283,7 +291,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 context,
                 icon: Icons.info_outline,
                 title: AppConstants.about.tr(),
-                subtitle: AppConstants.version.tr(namedArgs: {'version': AppConstants.appVersion}),
+                subtitle: AppConstants.version.tr(
+                  namedArgs: {'version': AppConstants.appVersion},
+                ),
                 onTap: () {
                   _showAboutDialog(context);
                 },
@@ -312,7 +322,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: () async {
                     await NotificationService().showTestNotification();
                     if (mounted) {
-                      SnackBarHelper.showSuccess(context, AppConstants.testNotificationSent.tr());
+                      SnackBarHelper.showSuccess(
+                        context,
+                        AppConstants.testNotificationSent.tr(),
+                      );
                     }
                   },
                 ),
@@ -366,18 +379,17 @@ class _ProfilePageState extends State<ProfilePage> {
     Color? iconColor,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return ListTile(
-      leading: Icon(
-        icon,
-        color: iconColor ?? AppColors.primary,
-      ),
+      leading: Icon(icon, color: iconColor ?? AppColors.primary),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          color: isDark
+              ? AppColors.textPrimaryDark
+              : AppColors.textPrimaryLight,
         ),
       ),
       subtitle: subtitle != null
@@ -385,7 +397,9 @@ class _ProfilePageState extends State<ProfilePage> {
               subtitle,
               style: TextStyle(
                 fontSize: 14,
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
             )
           : null,
@@ -409,7 +423,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required List<Widget> items,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -420,7 +434,9 @@ class _ProfilePageState extends State<ProfilePage> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
             ),
           ),
         ),
@@ -441,18 +457,17 @@ class _ProfilePageState extends State<ProfilePage> {
     required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return ListTile(
-      leading: Icon(
-        icon,
-        color: iconColor ?? AppColors.primary,
-      ),
+      leading: Icon(icon, color: iconColor ?? AppColors.primary),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          color: isDark
+              ? AppColors.textPrimaryDark
+              : AppColors.textPrimaryLight,
         ),
       ),
       subtitle: subtitle != null
@@ -460,13 +475,17 @@ class _ProfilePageState extends State<ProfilePage> {
               subtitle,
               style: TextStyle(
                 fontSize: 14,
-                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
             )
           : null,
       trailing: Icon(
         Icons.chevron_right,
-        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+        color: isDark
+            ? AppColors.textSecondaryDark
+            : AppColors.textSecondaryLight,
       ),
       onTap: onTap,
     );
@@ -483,7 +502,10 @@ class _ProfilePageState extends State<ProfilePage> {
               title: Text(AppConstants.chooseFromGallery.tr()),
               onTap: () {
                 Navigator.pop(context);
-                SnackBarHelper.showInfo(context, AppConstants.inDevelopment.tr());
+                SnackBarHelper.showInfo(
+                  context,
+                  AppConstants.inDevelopment.tr(),
+                );
               },
             ),
             ListTile(
@@ -491,16 +513,25 @@ class _ProfilePageState extends State<ProfilePage> {
               title: Text(AppConstants.takePhoto.tr()),
               onTap: () {
                 Navigator.pop(context);
-                SnackBarHelper.showInfo(context, AppConstants.inDevelopment.tr());
+                SnackBarHelper.showInfo(
+                  context,
+                  AppConstants.inDevelopment.tr(),
+                );
               },
             ),
             if (AuthService().currentUser?.profilePictureUrl != null)
               ListTile(
                 leading: const Icon(Icons.delete, color: AppColors.error),
-                title: Text(AppConstants.removePhoto.tr(), style: const TextStyle(color: AppColors.error)),
+                title: Text(
+                  AppConstants.removePhoto.tr(),
+                  style: const TextStyle(color: AppColors.error),
+                ),
                 onTap: () {
                   Navigator.pop(context);
-                  SnackBarHelper.showInfo(context, AppConstants.inDevelopment.tr());
+                  SnackBarHelper.showInfo(
+                    context,
+                    AppConstants.inDevelopment.tr(),
+                  );
                 },
               ),
           ],
@@ -511,25 +542,26 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildBackupTile(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return ListTile(
-      leading: Icon(
-        Icons.cloud_upload_outlined,
-        color: Colors.blue,
-      ),
+      leading: Icon(Icons.cloud_upload_outlined, color: Colors.blue),
       title: Text(
         'backup.google_drive'.tr(),
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          color: isDark
+              ? AppColors.textPrimaryDark
+              : AppColors.textPrimaryLight,
         ),
       ),
       subtitle: Text(
         'backup.google_drive_desc'.tr(),
         style: TextStyle(
           fontSize: 14,
-          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          color: isDark
+              ? AppColors.textSecondaryDark
+              : AppColors.textSecondaryLight,
         ),
       ),
       trailing: _isBackingUp
@@ -540,7 +572,9 @@ class _ProfilePageState extends State<ProfilePage> {
             )
           : Icon(
               Icons.chevron_right,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
             ),
       onTap: _isBackingUp ? null : () => _performBackup(context),
     );
@@ -561,7 +595,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     setState(() => _isBackingUp = true);
-    
+
     try {
       // Primeiro fazer sign in no Google Drive
       final signedIn = await _backupService.signIn();
@@ -574,7 +608,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // Fazer backup de todas as viagens
       final backupCount = await _backupService.backupAllTrips();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -587,8 +621,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    backupCount > 0 
-                        ? 'backup.success'.tr() 
+                    backupCount > 0
+                        ? 'backup.success'.tr()
                         : 'backup.no_trips'.tr(),
                   ),
                 ),
@@ -600,7 +634,10 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(context, 'backup.error'.tr(args: [e.toString()]));
+        SnackBarHelper.showError(
+          context,
+          'backup.error'.tr(args: [e.toString()]),
+        );
       }
     } finally {
       if (mounted) {
@@ -689,14 +726,23 @@ class _ProfilePageState extends State<ProfilePage> {
                 : () async {
                     // Request deletion by email (sends confirmation link)
                     try {
-                      await ApiService().post('/auth/delete-request', body: {'email': userEmail});
+                      await ApiService().post(
+                        '/auth/delete-request',
+                        body: {'email': userEmail},
+                      );
                       if (mounted) {
                         Navigator.pop(context);
-                        SnackBarHelper.showSuccess(this.context, AppConstants.deleteRequestSent.tr());
+                        SnackBarHelper.showSuccess(
+                          this.context,
+                          AppConstants.deleteRequestSent.tr(),
+                        );
                       }
                     } catch (e) {
                       if (mounted) {
-                        SnackBarHelper.showError(this.context, '${AppConstants.errorGeneric.tr()}: $e');
+                        SnackBarHelper.showError(
+                          this.context,
+                          '${AppConstants.errorGeneric.tr()}: $e',
+                        );
                       }
                     }
                   },
@@ -747,16 +793,10 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           question,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 4),
-        Text(
-          answer,
-          style: const TextStyle(fontSize: 14),
-        ),
+        Text(answer, style: const TextStyle(fontSize: 14)),
       ],
     );
   }
@@ -772,13 +812,14 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             const Text(
               'TriplanAI',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(AppConstants.version.tr(namedArgs: {'version': AppConstants.appVersion})),
+            Text(
+              AppConstants.version.tr(
+                namedArgs: {'version': AppConstants.appVersion},
+              ),
+            ),
             const SizedBox(height: 16),
             Text(
               AppConstants.aboutDescription.tr(),

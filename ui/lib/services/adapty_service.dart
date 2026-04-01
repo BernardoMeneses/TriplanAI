@@ -2,13 +2,14 @@ import 'package:adapty_flutter/adapty_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'subscription_service.dart';
 import 'api_service.dart';
+import '../common/app_events.dart';
 
 /// Serviço para integração com Adapty (pagamentos in-app)
 class AdaptyService {
   // Placement IDs do Adapty
   static const String basicPlacementId = 'BasicPlanPlacement';
   static const String premiumPlacementId = 'PremiumPlanPlacement';
-  
+
   // Singleton
   static final AdaptyService _instance = AdaptyService._internal();
   factory AdaptyService() => _instance;
@@ -16,26 +17,25 @@ class AdaptyService {
 
   final SubscriptionService _subscriptionService = SubscriptionService();
   final ApiService _apiService = ApiService();
-  
+
   bool _isInitialized = false;
-  AdaptyPaywall? _cachedPaywall;
-  List<AdaptyPaywallProduct>? _cachedProducts;
 
   /// Inicializar Adapty SDK
   Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     try {
       // Configurar Adapty com a chave API
       // NOTA: Substitua pela sua chave API pública do Adapty
       await Adapty().activate(
         configuration: AdaptyConfiguration(
-          apiKey: 'public_live_vVQAgUB7.ls2q7CnqdK1tT1QZqedq', // TODO: Colocar chave real aqui
+          apiKey:
+              'public_live_vVQAgUB7.ls2q7CnqdK1tT1QZqedq', // TODO: Colocar chave real aqui
         )..withLogLevel(AdaptyLogLevel.verbose),
       );
-      
+
       _isInitialized = true;
-      
+
       if (kDebugMode) {
         print('✅ AdaptyService: SDK inicializado');
       }
@@ -49,17 +49,16 @@ class AdaptyService {
   /// Identificar utilizador (chamar após login)
   Future<void> identifyUser(String? userId, String? email) async {
     if (!_isInitialized || userId == null) return;
-    
+
     try {
       await Adapty().identify(userId);
-      
+
       // Atualizar atributos do perfil
       if (email != null) {
-        final builder = AdaptyProfileParametersBuilder()
-          ..setEmail(email);
+        final builder = AdaptyProfileParametersBuilder()..setEmail(email);
         await Adapty().updateProfile(builder.build());
       }
-      
+
       if (kDebugMode) {
         print('✅ AdaptyService: Utilizador identificado: $userId');
       }
@@ -73,12 +72,10 @@ class AdaptyService {
   /// Logout do Adapty
   Future<void> logout() async {
     if (!_isInitialized) return;
-    
+
     try {
       await Adapty().logout();
-      _cachedPaywall = null;
-      _cachedProducts = null;
-      
+
       if (kDebugMode) {
         print('✅ AdaptyService: Logout realizado');
       }
@@ -93,28 +90,36 @@ class AdaptyService {
   /// Devolve null e preenche [lastError] em caso de falha.
   String? lastError;
 
-  Future<AdaptyPaywall?> getPaywall({String placementId = premiumPlacementId}) async {
+  Future<AdaptyPaywall?> getPaywall({
+    String placementId = premiumPlacementId,
+  }) async {
     if (!_isInitialized) {
       await initialize();
     }
-    
+
     try {
       if (kDebugMode) {
-        print('🔍 AdaptyService: A obter paywall para placement: "$placementId"');
+        print(
+          '🔍 AdaptyService: A obter paywall para placement: "$placementId"',
+        );
       }
-      
+
       final paywall = await Adapty().getPaywall(placementId: placementId);
-      
+
       if (kDebugMode) {
-        print('✅ AdaptyService: Paywall obtida: "${paywall.name}" (placement: "${paywall.placementId}")');
+        print(
+          '✅ AdaptyService: Paywall obtida: "${paywall.name}" (placement: "${paywall.placementId}")',
+        );
       }
-      
+
       lastError = null;
       return paywall;
     } on AdaptyError catch (e) {
       lastError = '[AdaptyError ${e.code}] ${e.message}';
       if (kDebugMode) {
-        print('❌ AdaptyService: AdaptyError ao obter paywall "$placementId": code=${e.code} msg=${e.message}');
+        print(
+          '❌ AdaptyService: AdaptyError ao obter paywall "$placementId": code=${e.code} msg=${e.message}',
+        );
       }
       return null;
     } catch (e) {
@@ -127,41 +132,54 @@ class AdaptyService {
   }
 
   /// Obter produtos da paywall
-  Future<List<AdaptyPaywallProduct>> getProducts({String placementId = premiumPlacementId}) async {
+  Future<List<AdaptyPaywallProduct>> getProducts({
+    String placementId = premiumPlacementId,
+  }) async {
     if (!_isInitialized) {
       await initialize();
     }
-    
+
     try {
       final paywall = await getPaywall(placementId: placementId);
       if (paywall == null) {
         // lastError already set by getPaywall
         if (kDebugMode) {
-          print('❌ AdaptyService: Paywall null para "$placementId" — verifica o Placement ID no Adapty Dashboard');
+          print(
+            '❌ AdaptyService: Paywall null para "$placementId" — verifica o Placement ID no Adapty Dashboard',
+          );
         }
         return [];
       }
-      
+
       final products = await Adapty().getPaywallProducts(paywall: paywall);
-      
+
       if (kDebugMode) {
-        print('✅ AdaptyService: ${products.length} produto(s) obtido(s) para "$placementId"');
+        print(
+          '✅ AdaptyService: ${products.length} produto(s) obtido(s) para "$placementId"',
+        );
         if (products.isEmpty) {
-          print('⚠️  AdaptyService: Nenhum produto — verifica se os produtos estão ligados ao Paywall no Adapty');
+          print(
+            '⚠️  AdaptyService: Nenhum produto — verifica se os produtos estão ligados ao Paywall no Adapty',
+          );
         }
         for (final p in products) {
-          print('   - vendorProductId: "${p.vendorProductId}" | preço: ${p.price.localizedString}');
+          print(
+            '   - vendorProductId: "${p.vendorProductId}" | preço: ${p.price.localizedString}',
+          );
         }
       }
-      
+
       if (products.isEmpty) {
-        lastError = 'Paywall "$placementId" encontrada mas sem produtos ligados.';
+        lastError =
+            'Paywall "$placementId" encontrada mas sem produtos ligados.';
       }
       return products;
     } on AdaptyError catch (e) {
       lastError = '[AdaptyError ${e.code}] ${e.message}';
       if (kDebugMode) {
-        print('❌ AdaptyService: AdaptyError ao obter produtos "$placementId": code=${e.code} msg=${e.message}');
+        print(
+          '❌ AdaptyService: AdaptyError ao obter produtos "$placementId": code=${e.code} msg=${e.message}',
+        );
       }
       return [];
     } catch (e) {
@@ -176,99 +194,90 @@ class AdaptyService {
   /// Fazer compra de um produto
   Future<PurchaseResult> makePurchase(AdaptyPaywallProduct product) async {
     if (!_isInitialized) {
-      return PurchaseResult(
-        success: false,
-        error: 'Adapty não inicializado',
-      );
+      return PurchaseResult(success: false, error: 'Adapty não inicializado');
     }
-    
+
     try {
       // Fazer a compra
       await Adapty().makePurchase(product: product);
-      
+
       // Obter o profile atualizado após a compra
       final profile = await Adapty().getProfile();
-      
+
       // Verificar se compra foi bem sucedida
       final isPremiumActive = profile.accessLevels['premium']?.isActive == true;
       final isBasicActive = profile.accessLevels['basic']?.isActive == true;
-      
+
       if (isPremiumActive || isBasicActive) {
         // Limpar cache do subscription service
         _subscriptionService.clearCache();
-        
+
         // Notificar backend (opcional - o webhook também fará isto)
-        await _syncWithBackend(profile);
-        
+        await _syncWithBackend(
+          profile,
+          purchasedProductId: product.vendorProductId,
+        );
+
+        // Emitir evento para atualizar UI via listeners
+        AppEvents.emitSubscriptionChanged();
+
         if (kDebugMode) {
           print('✅ AdaptyService: Compra realizada com sucesso!');
         }
-        
+
         return PurchaseResult(
           success: true,
           isPremium: isPremiumActive,
           isBasic: isBasicActive,
         );
       }
-      
-      return PurchaseResult(
-        success: false,
-        error: 'Compra não foi ativada',
-      );
+
+      return PurchaseResult(success: false, error: 'Compra não foi ativada');
     } on AdaptyError catch (e) {
       if (kDebugMode) {
         print('❌ AdaptyService: Erro Adapty na compra: ${e.message}');
       }
-      
+
       // Verificar se foi cancelado pelo utilizador
       if (e.code == AdaptyErrorCode.paymentCancelled) {
-        return PurchaseResult(
-          success: false,
-          cancelled: true,
-        );
+        return PurchaseResult(success: false, cancelled: true);
       }
-      
-      return PurchaseResult(
-        success: false,
-        error: e.message,
-      );
+
+      return PurchaseResult(success: false, error: e.message);
     } catch (e) {
       if (kDebugMode) {
         print('❌ AdaptyService: Erro na compra: $e');
       }
-      return PurchaseResult(
-        success: false,
-        error: e.toString(),
-      );
+      return PurchaseResult(success: false, error: e.toString());
     }
   }
 
   /// Restaurar compras anteriores
   Future<RestoreResult> restorePurchases() async {
     if (!_isInitialized) {
-      return RestoreResult(
-        success: false,
-        error: 'Adapty não inicializado',
-      );
+      return RestoreResult(success: false, error: 'Adapty não inicializado');
     }
-    
+
     try {
       final profile = await Adapty().restorePurchases();
-      
+
       final isPremiumActive = profile.accessLevels['premium']?.isActive == true;
       final isBasicActive = profile.accessLevels['basic']?.isActive == true;
-      
+
       if (isPremiumActive || isBasicActive) {
         // Limpar cache
         _subscriptionService.clearCache();
-        
+
         // Sincronizar com backend
         await _syncWithBackend(profile);
-        
+
+        // Emitir evento para atualizar UI via listeners
+        AppEvents.emitSubscriptionChanged();
+
         if (kDebugMode) {
           print('✅ AdaptyService: Compras restauradas!');
         }
-        
+
         return RestoreResult(
           success: true,
           hasActiveSubscription: true,
@@ -276,44 +285,41 @@ class AdaptyService {
           isBasic: isBasicActive,
         );
       }
-      
-      return RestoreResult(
-        success: true,
-        hasActiveSubscription: false,
-      );
+
+      return RestoreResult(success: true, hasActiveSubscription: false);
     } catch (e) {
       if (kDebugMode) {
         print('❌ AdaptyService: Erro ao restaurar: $e');
       }
-      return RestoreResult(
-        success: false,
-        error: e.toString(),
-      );
+      return RestoreResult(success: false, error: e.toString());
     }
   }
 
   /// Verificar se utilizador tem subscrição ativa no Adapty
   Future<bool> hasActiveSubscription() async {
     if (!_isInitialized) return false;
-    
+
     try {
       final profile = await Adapty().getProfile();
       return profile.accessLevels['premium']?.isActive == true ||
-             profile.accessLevels['basic']?.isActive == true;
+          profile.accessLevels['basic']?.isActive == true;
     } catch (e) {
       return false;
     }
   }
 
   /// Sincronizar estado com backend
-  Future<void> _syncWithBackend(AdaptyProfile profile) async {
+  Future<void> _syncWithBackend(
+    AdaptyProfile profile, {
+    String? purchasedProductId,
+  }) async {
     try {
       final isPremium = profile.accessLevels['premium']?.isActive == true;
       final isBasic = profile.accessLevels['basic']?.isActive == true;
-      
+
       String plan = 'free';
       DateTime? expiresAt;
-      
+
       if (isPremium) {
         plan = 'premium';
         expiresAt = profile.accessLevels['premium']?.expiresAt;
@@ -321,13 +327,17 @@ class AdaptyService {
         plan = 'basic';
         expiresAt = profile.accessLevels['basic']?.expiresAt;
       }
-      
+
       // Chamar endpoint para sincronizar (backup caso webhook falhe)
-      await _apiService.post('/premium/sync', body: {
-        'plan': plan,
-        'expires_at': expiresAt?.toIso8601String(),
-        'adapty_profile_id': profile.profileId,
-      });
+      await _apiService.post(
+        '/premium/sync',
+        body: {
+          'productId': purchasedProductId,
+          'plan': plan,
+          'expiresAt': expiresAt?.toIso8601String(),
+          'adapty_profile_id': profile.profileId,
+        },
+      );
     } catch (e) {
       // Não é crítico - o webhook fará a sincronização
       if (kDebugMode) {
