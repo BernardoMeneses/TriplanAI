@@ -183,10 +183,19 @@ export class PremiumService {
 
     switch (event_type) {
       case 'subscription_started':
-      case 'subscription_renewed':
+      case 'subscription_renewed': {
+        // Extra guard para manter type-safety em tempo de compilação.
+        if (!plan) {
+          console.warn(
+            `Cannot activate plan for ${user.email}: unknown product_id ${product_id}`
+          );
+          return;
+        }
+
         await this.setUserPlan(user.id, plan);
         console.log(`✅ Plan ${plan} activated for user ${user.email}`);
         break;
+      }
 
       case 'subscription_cancelled':
       case 'subscription_expired':
