@@ -3,6 +3,7 @@ import '../../common/app_colors.dart';
 import '../../services/theme_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
+import '../../services/trip_cache_service.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../common/constants/app_constants.dart';
 import '../../features/premium/subscription_plans_page.dart';
@@ -125,9 +126,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  void _showPlanInfoModal(BuildContext context) {
+  Future<void> _showPlanInfoModal(BuildContext context) async {
     final status = subscriptionStatus!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    int usedTrips = 0;
+    if (!status.limits.isUnlimitedTrips) {
+      try {
+        final trips = await TripCacheService().getTrips(forceRefresh: true);
+        usedTrips = trips.where((trip) => !trip.isMember).length;
+      } catch (_) {
+        usedTrips = 0;
+      }
+    }
+
+    if (!context.mounted) return;
+
     final planName = status.isPremium
         ? 'subscription.premium'.tr()
         : status.isBasic
@@ -194,7 +208,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Icons.card_travel,
                     status.limits.isUnlimitedTrips
                         ? 'subscription.unlimited_trips'.tr()
-                        : '${status.limits.maxTrips} ${'subscription.trips'.tr()}',
+                        : '$usedTrips/${status.limits.maxTrips} ${'subscription.trips'.tr()}',
                     isDark,
                   ),
                   const SizedBox(height: 10),

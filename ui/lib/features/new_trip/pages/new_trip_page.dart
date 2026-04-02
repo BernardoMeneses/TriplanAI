@@ -362,7 +362,7 @@ class _NewTripPageState extends State<NewTripPage> {
       // Check subscription limits for new trips (skip for edit mode)
       if (!_isEditMode) {
         final status = await SubscriptionService().getStatus();
-        final trips = await TripCacheService().getTrips();
+        final trips = await TripCacheService().getTrips(forceRefresh: true);
         if (!status.canCreateTrip(trips.length)) {
           if (mounted) {
             setState(() => _isLoading = false);
@@ -427,12 +427,27 @@ class _NewTripPageState extends State<NewTripPage> {
       }
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          _isEditMode
-              ? '${AppConstants.errorUpdatingTrip.tr()}: $e'
-              : '${AppConstants.errorCreatingTrip.tr()}: $e',
-        );
+        final errorText = e.toString();
+        if (errorText.contains('TRIP_LIMIT_REACHED')) {
+          await showFeatureLockedDialog(
+            context,
+            title: AppConstants.tripLimitTitle.tr(),
+            description: AppConstants.tripLimitDesc.tr(),
+            suggestedPlan: SubscriptionPlan.basic,
+          );
+        } else if (errorText.contains('TRIP_EDIT_LOCKED')) {
+          SnackBarHelper.showWarning(
+            context,
+            'Esta viagem já terminou. Cria uma nova viagem para um novo destino.',
+          );
+        } else {
+          SnackBarHelper.showError(
+            context,
+            _isEditMode
+                ? '${AppConstants.errorUpdatingTrip.tr()}: $e'
+                : '${AppConstants.errorCreatingTrip.tr()}: $e',
+          );
+        }
       }
     } finally {
       if (mounted) {

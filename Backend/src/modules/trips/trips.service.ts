@@ -20,6 +20,27 @@ export interface Trip {
 }
 
 export class TripsService {
+  async countTripsForUser(userId: string): Promise<number> {
+    const result = await query<{ total: number | string }>(
+      `SELECT COUNT(*)::int AS total
+       FROM trips t
+       WHERE t.user_id = $1
+          OR EXISTS (
+            SELECT 1
+            FROM trip_members tm
+            WHERE tm.trip_id = t.id
+              AND tm.user_id = $1
+          )`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return 0;
+    }
+
+    return Number(result.rows[0].total) || 0;
+  }
+
   async createTrip(userId: string, tripData: Partial<Trip>): Promise<Trip> {
     const result = await query<Trip>(
       `INSERT INTO trips (

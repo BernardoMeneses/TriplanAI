@@ -1,7 +1,34 @@
 import { Router, Request, Response } from 'express';
 import { tripsService } from './trips.service';
+import { PremiumService } from '../premium/premium.service';
+import { query } from '../../config/database';
 
 const router = Router();
+const premiumService = new PremiumService();
+
+async function enforceTripCreationLimit(userId: string, res: Response): Promise<boolean> {
+  const subscriptionStatus = await premiumService.getSubscriptionStatus(userId);
+  const maxTrips = subscriptionStatus.limits.maxTrips;
+
+  if (maxTrips === -1) {
+    return true;
+  }
+
+  const currentTrips = await tripsService.countTripsForUser(userId);
+  if (currentTrips < maxTrips) {
+    return true;
+  }
+
+  res.status(403).json({
+    error: `Atingiste o limite de ${maxTrips} viagens do plano ${subscriptionStatus.plan}. Faz upgrade para criar mais viagens.`,
+    code: 'TRIP_LIMIT_REACHED',
+    plan: subscriptionStatus.plan,
+    current_trips: currentTrips,
+    max_trips: maxTrips,
+  });
+
+  return false;
+}
 
 /**
  * @swagger
@@ -58,6 +85,12 @@ const router = Router();
 router.post('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
+
+    const canCreateTrip = await enforceTripCreationLimit(userId, res);
+    if (!canCreateTrip) {
+      return;
+    }
+
     const trip = await tripsService.createTrip(userId, req.body);
     res.status(201).json(trip);
   } catch (error) {
@@ -169,6 +202,23 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (trip.user_id !== userId) {
       return res.status(403).json({ error: 'Apenas o owner pode editar esta viagem.' });
     }
+
+    const endDate = new Date(trip.end_date as any);
+    const endDateIso = Number.isNaN(endDate.getTime())
+      ? null
+      : endDate.toISOString().slice(0, 10);
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const isFinishedByDate = endDateIso !== null && endDateIso < todayIso;
+    const status = (trip.status || '').toLowerCase();
+    const isFinishedByStatus = status === 'completed' || status === 'cancelled';
+
+    if (isFinishedByDate || isFinishedByStatus) {
+      return res.status(403).json({
+        error: 'Esta viagem já terminou e não pode ser editada. Cria uma nova viagem para um novo destino.',
+        code: 'TRIP_EDIT_LOCKED',
+      });
+    }
+
     const updatedTrip = await tripsService.updateTrip(req.params.id, req.body);
     res.json(updatedTrip);
   } catch (error) {
@@ -309,7 +359,6 @@ router.get('/by-code/:trip_code', async (req: Request, res: Response) => {
     // Verificar se o utilizador já é membro desta viagem
     let alreadyMember = false;
     if (userId && !owned) {
-      const { query } = await import('../../config/database');
       const memberCheck = await query(
         'SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2',
         [trip.id, userId]
@@ -366,6 +415,26 @@ router.post('/join', async (req: Request, res: Response) => {
     if (!trip_code) {
       return res.status(400).json({ error: 'trip_code obrigatório' });
     }
+
+    const tripByCode = await tripsService.getTripByCode(trip_code);
+    if (!tripByCode) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+
+    const alreadyMemberResult = await query(
+      'SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2',
+      [tripByCode.id, userId]
+    );
+    const alreadyMember = (alreadyMemberResult.rowCount ?? 0) > 0;
+
+    // Só bloqueia quando a ação vai adicionar uma nova viagem visível ao utilizador.
+    if (!alreadyMember && tripByCode.user_id !== userId) {
+      const canCreateTrip = await enforceTripCreationLimit(userId, res);
+      if (!canCreateTrip) {
+        return;
+      }
+    }
+
     const trip = await tripsService.joinTrip(userId, trip_code);
     if (!trip) {
       return res.status(404).json({ error: 'Viagem não encontrada' });
@@ -381,6 +450,11 @@ router.post('/import', async (req: Request, res: Response) => {
     const userId = (req as any).user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Utilizador não autenticado' });
+    }
+
+    const canCreateTrip = await enforceTripCreationLimit(userId, res);
+    if (!canCreateTrip) {
+      return;
     }
 
     const importData = req.body;

@@ -51,6 +51,19 @@ class _MyTripPageState extends State<MyTripPage> {
   /// ReadOnly efetivo - true se offline OU se widget.isReadOnly
   bool get _effectiveReadOnly => widget.isReadOnly || !_isOnline;
 
+  bool get _isTripFinished {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tripEnd = DateTime(
+      _trip.endDate.year,
+      _trip.endDate.month,
+      _trip.endDate.day,
+    );
+    return tripEnd.isBefore(today);
+  }
+
+  bool get _canEditTrip => !widget.isReadOnly && _isOnline && !_isTripFinished;
+
   /// Mostra aviso visual de bloqueio quando a viagem foi partilhada/importada.
   bool get _showSharedTripReadOnlyNotice => _trip.isMember;
 
@@ -219,6 +232,16 @@ class _MyTripPageState extends State<MyTripPage> {
   }
 
   Future<void> _editTrip() async {
+    if (!_canEditTrip) {
+      if (_isTripFinished) {
+        SnackBarHelper.showWarning(
+          context,
+          'Esta viagem já terminou. Cria uma nova viagem para um novo destino.',
+        );
+      }
+      return;
+    }
+
     // Navegar para a página de edição com os dados da viagem
     final result = await Navigator.pushNamed(
       context,
@@ -512,16 +535,14 @@ class _MyTripPageState extends State<MyTripPage> {
               ListTile(
                 leading: Icon(
                   Icons.edit,
-                  color: _effectiveReadOnly ? Colors.grey : AppColors.primary,
+                  color: _canEditTrip ? AppColors.primary : Colors.grey,
                 ),
                 title: Text(
                   AppConstants.editTrip.tr(),
-                  style: TextStyle(
-                    color: _effectiveReadOnly ? Colors.grey : null,
-                  ),
+                  style: TextStyle(color: _canEditTrip ? null : Colors.grey),
                 ),
-                enabled: !_effectiveReadOnly,
-                onTap: _effectiveReadOnly
+                enabled: _canEditTrip,
+                onTap: !_canEditTrip
                     ? null
                     : () {
                         Navigator.pop(context);
