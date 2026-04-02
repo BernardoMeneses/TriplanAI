@@ -3,7 +3,6 @@ import '../../common/app_colors.dart';
 import '../../services/theme_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
-import '../../services/trip_cache_service.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../common/constants/app_constants.dart';
 import '../../features/premium/subscription_plans_page.dart';
@@ -127,19 +126,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Future<void> _showPlanInfoModal(BuildContext context) async {
-    final status = subscriptionStatus!;
+    var status = subscriptionStatus!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    try {
+      status = await SubscriptionService().getStatus(forceRefresh: true);
+    } catch (_) {}
 
     int usedTrips = 0;
     if (!status.limits.isUnlimitedTrips) {
-      try {
-        final trips = await TripCacheService().getTrips(forceRefresh: true);
-        usedTrips = trips
-            .where((trip) => !trip.isMember)
-            .fold(0, (total, trip) => total + 1 + trip.replacementCount);
-      } catch (_) {
-        usedTrips = 0;
-      }
+      usedTrips = status.tripsUsed;
     }
 
     if (!context.mounted) return;

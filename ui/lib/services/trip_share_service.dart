@@ -5,20 +5,17 @@ import 'package:path_provider/path_provider.dart';
 import 'trips_service.dart';
 import 'encryption_service.dart';
 import 'subscription_service.dart';
-import 'trip_cache_service.dart';
 
 /// Serviço para exportar e importar viagens
 class TripShareService {
   final TripsService _tripsService = TripsService();
   final EncryptionService _encryptionService = EncryptionService();
   final SubscriptionService _subscriptionService = SubscriptionService();
-  final TripCacheService _tripCacheService = TripCacheService();
 
   Future<void> _ensureTripLimitNotReached() async {
-    final status = await _subscriptionService.getStatus();
-    final trips = await _tripCacheService.getTrips(forceRefresh: true);
+    final status = await _subscriptionService.getStatus(forceRefresh: true);
 
-    if (!status.canCreateTrip(trips.length)) {
+    if (!status.canCreateTrip(status.tripsUsed)) {
       throw Exception('TRIP_LIMIT_REACHED');
     }
   }

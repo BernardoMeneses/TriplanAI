@@ -60,7 +60,7 @@ export class PremiumService {
   /**
    * Obter status de subscrição de um utilizador
    */
-  async getSubscriptionStatus(userId: string): Promise<UserSubscriptionStatus & { ai_generations_used: number }> {
+  async getSubscriptionStatus(userId: string): Promise<UserSubscriptionStatus & { ai_generations_used: number; trips_used: number }> {
     const result = await query<{
       user_id: string;
       subscription_plan: SubscriptionPlan;
@@ -98,11 +98,43 @@ export class PremiumService {
       }
     }
 
+    const tripUsageResult = await query<{ total: number | string }>(
+      `SELECT COALESCE(
+          SUM(
+            CASE
+              WHEN t.user_id = $1 THEN
+                1 + COALESCE(
+                  CASE
+                    WHEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count') ~ '^[0-9]+$'
+                      THEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count')::int
+                    ELSE 0
+                  END,
+                  0
+                )
+              ELSE 1
+            END
+          ),
+          0
+        )::int AS total
+       FROM trips t
+       WHERE t.user_id = $1
+          OR EXISTS (
+            SELECT 1
+            FROM trip_members tm
+            WHERE tm.trip_id = t.id
+              AND tm.user_id = $1
+          )`,
+      [userId]
+    );
+
+    const tripsUsed = Number(tripUsageResult.rows[0]?.total ?? 0) || 0;
+
     return {
       user_id: userId,
       plan,
       limits: PLAN_LIMITS[plan],
       ai_generations_used: aiUsed,
+      trips_used: tripsUsed,
     };
   }
 

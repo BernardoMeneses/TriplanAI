@@ -31,6 +31,7 @@ router.get('/status', async (req: Request, res: Response) => {
       plan: status.plan,
       limits: status.limits,
       ai_generations_used: status.ai_generations_used,
+      trips_used: status.trips_used,
     });
   } catch (error) {
     console.error('Error checking subscription status:', error);

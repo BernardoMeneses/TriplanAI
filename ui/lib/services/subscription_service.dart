@@ -79,12 +79,14 @@ class SubscriptionStatus {
   final SubscriptionPlan plan;
   final PlanLimits limits;
   final int aiGenerationsUsed;
+  final int tripsUsed;
   final int aiGenerationsRemaining;
 
   SubscriptionStatus({
     required this.plan,
     required this.limits,
     this.aiGenerationsUsed = 0,
+    this.tripsUsed = 0,
   }) : aiGenerationsRemaining = limits.isUnlimitedAI
            ? -1
            : (limits.aiGenerationsPerMonth - aiGenerationsUsed).clamp(
@@ -147,6 +149,7 @@ class SubscriptionService {
         plan: plan,
         limits: PlanLimitsConfig.forPlan(plan),
         aiGenerationsUsed: response['ai_generations_used'] ?? 0,
+        tripsUsed: response['trips_used'] ?? 0,
       );
 
       _lastFetch = DateTime.now();

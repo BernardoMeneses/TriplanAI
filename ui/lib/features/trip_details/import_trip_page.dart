@@ -7,8 +7,10 @@ import '../../common/constants/app_constants.dart';
 import '../../services/trip_share_service.dart';
 import '../../services/trips_service.dart';
 import '../../services/encryption_service.dart';
+import '../../services/subscription_service.dart';
 import '../../common/app_events.dart';
 import '../../services/trip_cache_service.dart';
+import '../../shared/widgets/feature_locked_dialog.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 
 class ImportTripPage extends StatefulWidget {
@@ -204,6 +206,19 @@ class _ImportTripPageState extends State<ImportTripPage> {
     if (_tripPreview == null && _selectedFilePath == null) return;
 
     try {
+      final status = await SubscriptionService().getStatus(forceRefresh: true);
+      if (!status.canCreateTrip(status.tripsUsed)) {
+        if (mounted) {
+          await showFeatureLockedDialog(
+            context,
+            title: AppConstants.tripLimitTitle.tr(),
+            description: AppConstants.tripLimitDesc.tr(),
+            suggestedPlan: SubscriptionPlan.basic,
+          );
+        }
+        return;
+      }
+
       setState(() => _isImporting = true);
 
       Trip newTrip;
@@ -242,7 +257,15 @@ class _ImportTripPageState extends State<ImportTripPage> {
     } catch (e) {
       final msg = e.toString();
       if (mounted) {
-        if (msg.contains('Já és o dono desta viagem')) {
+        if (msg.contains('TRIP_LIMIT_REACHED') ||
+            msg.toLowerCase().contains('limite')) {
+          await showFeatureLockedDialog(
+            context,
+            title: AppConstants.tripLimitTitle.tr(),
+            description: AppConstants.tripLimitDesc.tr(),
+            suggestedPlan: SubscriptionPlan.basic,
+          );
+        } else if (msg.contains('Já és o dono desta viagem')) {
           SnackBarHelper.showWarning(
             context,
             AppConstants.tripAlreadyOwned.tr(),

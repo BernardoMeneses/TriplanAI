@@ -6,7 +6,6 @@ import '../../../common/constants/app_constants.dart';
 import '../../../shared/widgets/snackbar_helper.dart';
 import '../../../services/trips_service.dart';
 import '../../../services/subscription_service.dart';
-import '../../../services/trip_cache_service.dart';
 import '../../../shared/widgets/destination_search_modal.dart';
 import '../../../shared/widgets/feature_locked_dialog.dart';
 import '../../trip_details/my_trip_page.dart';
@@ -362,8 +361,7 @@ class _NewTripPageState extends State<NewTripPage> {
       // Check subscription limits for new trips (skip for edit mode)
       if (!_isEditMode) {
         final status = await SubscriptionService().getStatus();
-        final trips = await TripCacheService().getTrips(forceRefresh: true);
-        if (!status.canCreateTrip(trips.length)) {
+        if (!status.canCreateTrip(status.tripsUsed)) {
           if (mounted) {
             setState(() => _isLoading = false);
             await showFeatureLockedDialog(
@@ -428,7 +426,11 @@ class _NewTripPageState extends State<NewTripPage> {
     } catch (e) {
       if (mounted) {
         final errorText = e.toString();
-        if (errorText.contains('TRIP_LIMIT_REACHED')) {
+        final isTripLimitError =
+            errorText.contains('TRIP_LIMIT_REACHED') ||
+            errorText.toLowerCase().contains('limite');
+
+        if (isTripLimitError) {
           await showFeatureLockedDialog(
             context,
             title: AppConstants.tripLimitTitle.tr(),
