@@ -363,7 +363,8 @@ class _NewTripPageState extends State<NewTripPage> {
       if (!_isEditMode) {
         final status = await SubscriptionService().getStatus();
         final trips = await TripCacheService().getTrips();
-        if (!status.canCreateTrip(trips.length)) {
+        final ownedTripsCount = trips.where((trip) => !trip.isMember).length;
+        if (!status.canCreateTrip(ownedTripsCount)) {
           if (mounted) {
             setState(() => _isLoading = false);
             await showFeatureLockedDialog(

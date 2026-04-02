@@ -1,7 +1,34 @@
 import { Router, Request, Response } from 'express';
 import { tripsService } from './trips.service';
+import { PremiumService } from '../premium/premium.service';
 
 const router = Router();
+const premiumService = new PremiumService();
+
+async function enforceTripCreationLimit(userId: string, res: Response): Promise<boolean> {
+  const subscriptionStatus = await premiumService.getSubscriptionStatus(userId);
+  const maxTrips = subscriptionStatus.limits.maxTrips;
+
+  // -1 means unlimited
+  if (maxTrips === -1) {
+    return true;
+  }
+
+  const currentOwnedTrips = await tripsService.countOwnedTrips(userId);
+  if (currentOwnedTrips < maxTrips) {
+    return true;
+  }
+
+  res.status(403).json({
+    error: `Atingiste o limite de ${maxTrips} viagens do plano ${subscriptionStatus.plan}. Faz upgrade para criar mais viagens.`,
+    code: 'TRIP_LIMIT_REACHED',
+    plan: subscriptionStatus.plan,
+    current_trips: currentOwnedTrips,
+    max_trips: maxTrips,
+  });
+
+  return false;
+}
 
 /**
  * @swagger
@@ -58,6 +85,12 @@ const router = Router();
 router.post('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
+
+    const canCreateTrip = await enforceTripCreationLimit(userId, res);
+    if (!canCreateTrip) {
+      return;
+    }
+
     const trip = await tripsService.createTrip(userId, req.body);
     res.status(201).json(trip);
   } catch (error) {
@@ -381,6 +414,11 @@ router.post('/import', async (req: Request, res: Response) => {
     const userId = (req as any).user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Utilizador não autenticado' });
+    }
+
+    const canCreateTrip = await enforceTripCreationLimit(userId, res);
+    if (!canCreateTrip) {
+      return;
     }
 
     const importData = req.body;
