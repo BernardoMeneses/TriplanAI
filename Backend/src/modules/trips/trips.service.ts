@@ -20,11 +20,17 @@ export interface Trip {
 }
 
 export class TripsService {
-  async countOwnedTrips(userId: string): Promise<number> {
+  async countTripsForUser(userId: string): Promise<number> {
     const result = await query<{ total: number | string }>(
       `SELECT COUNT(*)::int AS total
-       FROM trips
-       WHERE user_id = $1`,
+       FROM trips t
+       WHERE t.user_id = $1
+          OR EXISTS (
+            SELECT 1
+            FROM trip_members tm
+            WHERE tm.trip_id = t.id
+              AND tm.user_id = $1
+          )`,
       [userId]
     );
 

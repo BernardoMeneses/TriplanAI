@@ -362,9 +362,8 @@ class _NewTripPageState extends State<NewTripPage> {
       // Check subscription limits for new trips (skip for edit mode)
       if (!_isEditMode) {
         final status = await SubscriptionService().getStatus();
-        final trips = await TripCacheService().getTrips();
-        final ownedTripsCount = trips.where((trip) => !trip.isMember).length;
-        if (!status.canCreateTrip(ownedTripsCount)) {
+        final trips = await TripCacheService().getTrips(forceRefresh: true);
+        if (!status.canCreateTrip(trips.length)) {
           if (mounted) {
             setState(() => _isLoading = false);
             await showFeatureLockedDialog(

@@ -4,11 +4,24 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'trips_service.dart';
 import 'encryption_service.dart';
+import 'subscription_service.dart';
+import 'trip_cache_service.dart';
 
 /// Serviço para exportar e importar viagens
 class TripShareService {
   final TripsService _tripsService = TripsService();
   final EncryptionService _encryptionService = EncryptionService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
+  final TripCacheService _tripCacheService = TripCacheService();
+
+  Future<void> _ensureTripLimitNotReached() async {
+    final status = await _subscriptionService.getStatus();
+    final trips = await _tripCacheService.getTrips(forceRefresh: true);
+
+    if (!status.canCreateTrip(trips.length)) {
+      throw Exception('TRIP_LIMIT_REACHED');
+    }
+  }
 
   /// Exporta uma viagem e retorna o caminho do arquivo
   Future<String> exportTripToFile(String tripId, String tripTitle) async {
@@ -56,7 +69,6 @@ class TripShareService {
     }
   }
 
-
   /// Partilha uma viagem exportada
   Future<void> shareTrip(String tripId, String tripTitle) async {
     try {
@@ -77,6 +89,8 @@ class TripShareService {
   /// Importa uma viagem de um arquivo .triplan encriptado
   Future<Trip> importTripFromFile(String filePath) async {
     try {
+      await _ensureTripLimitNotReached();
+
       // Ler arquivo
       final file = File(filePath);
       final encryptedData = await file.readAsString();
@@ -102,6 +116,8 @@ class TripShareService {
   /// Importa uma viagem de dados encriptados diretos
   Future<Trip> importTripFromEncryptedString(String encryptedData) async {
     try {
+      await _ensureTripLimitNotReached();
+
       // Desencriptar dados
       final tripData = _encryptionService.decrypt(encryptedData);
 

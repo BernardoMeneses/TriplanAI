@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { tripsService } from './trips.service';
 import { PremiumService } from '../premium/premium.service';
+import { query } from '../../config/database';
 
 const router = Router();
 const premiumService = new PremiumService();
@@ -14,8 +15,8 @@ async function enforceTripCreationLimit(userId: string, res: Response): Promise<
     return true;
   }
 
-  const currentOwnedTrips = await tripsService.countOwnedTrips(userId);
-  if (currentOwnedTrips < maxTrips) {
+  const currentTrips = await tripsService.countTripsForUser(userId);
+  if (currentTrips < maxTrips) {
     return true;
   }
 
@@ -23,7 +24,7 @@ async function enforceTripCreationLimit(userId: string, res: Response): Promise<
     error: `Atingiste o limite de ${maxTrips} viagens do plano ${subscriptionStatus.plan}. Faz upgrade para criar mais viagens.`,
     code: 'TRIP_LIMIT_REACHED',
     plan: subscriptionStatus.plan,
-    current_trips: currentOwnedTrips,
+    current_trips: currentTrips,
     max_trips: maxTrips,
   });
 
@@ -342,7 +343,6 @@ router.get('/by-code/:trip_code', async (req: Request, res: Response) => {
     // Verificar se o utilizador já é membro desta viagem
     let alreadyMember = false;
     if (userId && !owned) {
-      const { query } = await import('../../config/database');
       const memberCheck = await query(
         'SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2',
         [trip.id, userId]
@@ -399,6 +399,26 @@ router.post('/join', async (req: Request, res: Response) => {
     if (!trip_code) {
       return res.status(400).json({ error: 'trip_code obrigatório' });
     }
+
+    const tripByCode = await tripsService.getTripByCode(trip_code);
+    if (!tripByCode) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+
+    const alreadyMemberResult = await query(
+      'SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2',
+      [tripByCode.id, userId]
+    );
+    const alreadyMember = (alreadyMemberResult.rowCount ?? 0) > 0;
+
+    // Só bloqueia quando a ação vai adicionar uma nova viagem visível ao utilizador.
+    if (!alreadyMember && tripByCode.user_id !== userId) {
+      const canCreateTrip = await enforceTripCreationLimit(userId, res);
+      if (!canCreateTrip) {
+        return;
+      }
+    }
+
     const trip = await tripsService.joinTrip(userId, trip_code);
     if (!trip) {
       return res.status(404).json({ error: 'Viagem não encontrada' });
