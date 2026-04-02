@@ -446,6 +446,7 @@
     "title": "백업 및 동기화",
     "google_drive": "Google 드라이브 백업",
     "google_drive_desc": "여행을 Google 드라이브에 저장",
+    "account_trips_desc": "계정에 있는 기존 여행을 백업",
     "local_history": "로컬 기록",
     "local_history_desc": "로컬에 저장된 백업 보기",
     "local_backups": "로컬 백업",

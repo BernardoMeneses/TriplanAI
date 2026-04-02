@@ -565,9 +565,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final backupTitle = _useICloudProvider
         ? 'iCloud Drive'
         : 'backup.google_drive'.tr();
-    final backupSubtitle = _useICloudProvider
-        ? AppConstants.selectTriplanFile.tr()
-        : 'backup.google_drive_desc'.tr();
+    final backupSubtitle = 'backup.account_trips_desc'.tr();
 
     return ListTile(
       leading: Icon(Icons.cloud_upload_outlined, color: Colors.blue),
@@ -623,8 +621,8 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       subtitle: Text(
         _isAutoBackupPlan
-            ? '${'subscription.auto_backup'.tr()} • ${AppConstants.selectTriplanFile.tr()}'
-            : AppConstants.selectTriplanFile.tr(),
+            ? '${'subscription.auto_backup'.tr()} • ${'backup.account_trips_desc'.tr()}'
+            : 'backup.account_trips_desc'.tr(),
         style: TextStyle(
           fontSize: 14,
           color: isDark
@@ -640,7 +638,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ? null
           : () => SnackBarHelper.showInfo(
               context,
-              AppConstants.selectTriplanFile.tr(),
+              'backup.account_trips_desc'.tr(),
             ),
     );
   }

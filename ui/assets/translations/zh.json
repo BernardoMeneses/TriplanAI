@@ -445,6 +445,7 @@
     "title": "备份与同步",
     "google_drive": "Google云端硬盘备份",
     "google_drive_desc": "将旅行保存到Google云端硬盘",
+    "account_trips_desc": "备份你账户中现有的旅行",
     "local_history": "本地历史",
     "local_history_desc": "查看本地保存的备份",
     "local_backups": "本地备份",

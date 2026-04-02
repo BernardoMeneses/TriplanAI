@@ -448,6 +448,7 @@
     "title": "Backup & Sincronizzazione",
     "google_drive": "Backup Google Drive",
     "google_drive_desc": "Salva i viaggi su Google Drive",
+    "account_trips_desc": "Esegui il backup dei viaggi esistenti nel tuo account",
     "local_history": "Cronologia locale",
     "local_history_desc": "Visualizza backup salvati localmente",
     "local_backups": "Backup locali",

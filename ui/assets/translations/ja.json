@@ -447,6 +447,7 @@
     "title": "バックアップ＆同期",
     "google_drive": "Googleドライブバックアップ",
     "google_drive_desc": "旅行をGoogleドライブに保存",
+    "account_trips_desc": "アカウント内の既存の旅行をバックアップ",
     "local_history": "ローカル履歴",
     "local_history_desc": "ローカルに保存されたバックアップを表示",
     "local_backups": "ローカルバックアップ",

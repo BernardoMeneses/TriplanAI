@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,6 +18,44 @@ class TripShareService {
 
     if (!status.canCreateTrip(status.tripsUsed)) {
       throw Exception('TRIP_LIMIT_REACHED');
+    }
+  }
+
+  Map<String, dynamic> _normalizeBackupPayload(Map<String, dynamic> data) {
+    final payload = Map<String, dynamic>.from(data);
+
+    if (!payload.containsKey('trip')) {
+      throw Exception('Formato de ficheiro inválido');
+    }
+
+    if (!payload.containsKey('version')) {
+      // Compatibilidade com backups antigos sem campo version.
+      payload['version'] = '1.0';
+    }
+
+    return payload;
+  }
+
+  Map<String, dynamic> _parseBackupFileContent(String rawContent) {
+    // 1) Formato encriptado (share/export tradicional)
+    try {
+      final decrypted = _encryptionService.decrypt(rawContent);
+      return _normalizeBackupPayload(decrypted);
+    } catch (_) {
+      // 2) Formato JSON puro (backups automáticos locais/cloud)
+      try {
+        final decoded = jsonDecode(rawContent);
+        if (decoded is! Map) {
+          throw Exception('Formato de ficheiro inválido');
+        }
+
+        final payload = decoded.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+        return _normalizeBackupPayload(payload);
+      } catch (e) {
+        throw Exception('Formato de ficheiro inválido');
+      }
     }
   }
 
@@ -90,15 +129,10 @@ class TripShareService {
 
       // Ler arquivo
       final file = File(filePath);
-      final encryptedData = await file.readAsString();
+      final rawData = await file.readAsString();
 
-      // Desencriptar dados
-      final tripData = _encryptionService.decrypt(encryptedData);
-
-      // Validar estrutura básica
-      if (!tripData.containsKey('trip') || !tripData.containsKey('version')) {
-        throw Exception('Formato de arquivo inválido');
-      }
+      // Suporta ficheiros encriptados e JSON puro (retrocompatível).
+      final tripData = _parseBackupFileContent(rawData);
 
       // Importar para o backend
       final newTrip = await _tripsService.importTrip(tripData);
@@ -115,13 +149,7 @@ class TripShareService {
     try {
       await _ensureTripLimitNotReached();
 
-      // Desencriptar dados
-      final tripData = _encryptionService.decrypt(encryptedData);
-
-      // Validar estrutura básica
-      if (!tripData.containsKey('trip') || !tripData.containsKey('version')) {
-        throw Exception('Formato de dados inválido');
-      }
+      final tripData = _parseBackupFileContent(encryptedData);
 
       // Importar para o backend
       final newTrip = await _tripsService.importTrip(tripData);

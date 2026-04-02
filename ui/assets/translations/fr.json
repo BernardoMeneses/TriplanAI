@@ -451,6 +451,7 @@
     "title": "Sauvegarde et Synchronisation",
     "google_drive": "Sauvegarde Google Drive",
     "google_drive_desc": "Enregistrer les voyages sur Google Drive",
+    "account_trips_desc": "Sauvegarde les voyages existants de votre compte",
     "local_history": "Historique Local",
     "local_history_desc": "Voir les sauvegardes locales",
     "local_backups": "Sauvegardes Locales",

@@ -455,6 +455,7 @@
     "title": "Backup & Sync",
     "google_drive": "Google Drive Backup",
     "google_drive_desc": "Save trips to Google Drive",
+    "account_trips_desc": "Back up the existing trips in your account",
     "local_history": "Local History",
     "local_history_desc": "View locally saved backups",
     "local_backups": "Local Backups",

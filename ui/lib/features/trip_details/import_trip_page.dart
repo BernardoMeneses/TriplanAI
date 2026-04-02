@@ -1,14 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../common/app_colors.dart';
 import '../../common/constants/app_constants.dart';
-import '../../services/trip_share_service.dart';
 import '../../services/trips_service.dart';
-import '../../services/google_drive_backup_service.dart';
-import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
 import '../../common/app_events.dart';
 import '../../services/trip_cache_service.dart';
@@ -23,21 +17,12 @@ class ImportTripPage extends StatefulWidget {
 }
 
 class _ImportTripPageState extends State<ImportTripPage> {
-  final TripShareService _tripShareService = TripShareService();
   final TripsService _tripsService = TripsService();
-  final GoogleDriveBackupService _driveBackupService =
-      GoogleDriveBackupService();
   bool _isImporting = false;
-  bool _isImportingCloudBackups = false;
   Map<String, dynamic>? _tripPreview;
   final TextEditingController _codeController = TextEditingController();
   bool _isFetching = false;
   bool _notFound = false;
-
-  bool get _isAppleICloudFlow {
-    if (!Platform.isIOS) return false;
-    return AuthService().currentUser?.isAppleAccount ?? false;
-  }
 
   @override
   void initState() {
@@ -83,284 +68,6 @@ class _ImportTripPageState extends State<ImportTripPage> {
   void dispose() {
     _codeController.dispose();
     super.dispose();
-  }
-
-  Future<void> _showCloudImportOptions() async {
-    if (_isImportingCloudBackups || _isImporting || _isFetching) return;
-
-    final hasAccess = await _ensureCloudImportAccess();
-    if (!hasAccess || !mounted) return;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (bottomSheetContext) {
-        final useICloud = _isAppleICloudFlow;
-
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(useICloud ? Icons.apple : Icons.cloud),
-                title: Text(
-                  useICloud ? 'iCloud Drive' : 'backup.google_drive'.tr(),
-                ),
-                subtitle: Text(
-                  useICloud
-                      ? AppConstants.selectTriplanFile.tr()
-                      : 'backup.google_drive_desc'.tr(),
-                ),
-                onTap: () {
-                  Navigator.of(bottomSheetContext).pop();
-                  if (useICloud) {
-                    _importFromICloudOrFiles();
-                  } else {
-                    _importFromGoogleDrive();
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<bool> _ensureCloudImportAccess() async {
-    final status = await SubscriptionService().getStatus(forceRefresh: true);
-    if (status.limits.canBackupCloud) {
-      return true;
-    }
-
-    if (mounted) {
-      await showFeatureLockedDialog(
-        context,
-        title: AppConstants.backupLockedTitle.tr(),
-        description: AppConstants.backupLockedDesc.tr(),
-        suggestedPlan: SubscriptionPlan.basic,
-      );
-    }
-
-    return false;
-  }
-
-  Future<void> _importFromGoogleDrive() async {
-    if (_isImportingCloudBackups) return;
-
-    final hasAccess = await _ensureCloudImportAccess();
-    if (!hasAccess) return;
-
-    setState(() => _isImportingCloudBackups = true);
-    try {
-      var signedIn = await _driveBackupService.isSignedIn();
-      if (!signedIn) {
-        signedIn = await _driveBackupService.signIn();
-      }
-      if (!signedIn) {
-        signedIn = await _driveBackupService.signIn(
-          forceAccountSelection: true,
-        );
-      }
-
-      if (!signedIn) {
-        if (mounted) {
-          SnackBarHelper.showError(context, 'backup.sign_in_failed'.tr());
-        }
-        return;
-      }
-
-      final backups = await _driveBackupService.listBackups();
-      final triplanBackups = backups
-          .where(
-            (file) =>
-                file.id != null &&
-                (file.name ?? '').toLowerCase().endsWith('.triplan'),
-          )
-          .toList();
-
-      if (triplanBackups.isEmpty) {
-        if (mounted) {
-          SnackBarHelper.showInfo(context, 'backup.no_local_backups'.tr());
-        }
-        return;
-      }
-
-      final localFiles = <File>[];
-      for (final backup in triplanBackups) {
-        final restoredFile = await _driveBackupService.restoreBackup(
-          backup.id!,
-          backup.name ?? 'backup.triplan',
-        );
-        if (restoredFile != null) {
-          localFiles.add(restoredFile);
-        }
-      }
-
-      await _importBackupFiles(localFiles, cleanupLocalFiles: true);
-    } catch (e) {
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorImportingTrip.tr()}: $e',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isImportingCloudBackups = false);
-      }
-    }
-  }
-
-  Future<void> _importFromICloudOrFiles() async {
-    if (_isImportingCloudBackups) return;
-
-    final hasAccess = await _ensureCloudImportAccess();
-    if (!hasAccess) return;
-
-    setState(() => _isImportingCloudBackups = true);
-    try {
-      final localBackups = await TripCacheService().getLocalBackupFiles();
-      if (localBackups.isNotEmpty) {
-        await _importBackupFiles(localBackups, cleanupLocalFiles: false);
-        return;
-      }
-
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['triplan'],
-        allowMultiple: true,
-        withData: true,
-      );
-
-      if (result == null || result.files.isEmpty) {
-        return;
-      }
-
-      final tempDir = await getTemporaryDirectory();
-      final filesToImport = <File>[];
-      final tempFiles = <File>[];
-
-      for (final platformFile in result.files) {
-        if (platformFile.path != null && platformFile.path!.isNotEmpty) {
-          filesToImport.add(File(platformFile.path!));
-          continue;
-        }
-
-        final bytes = platformFile.bytes;
-        if (bytes == null || bytes.isEmpty) continue;
-
-        final safeName = platformFile.name.isNotEmpty
-            ? platformFile.name
-            : 'backup_${DateTime.now().millisecondsSinceEpoch}.triplan';
-        final tempFile = File('${tempDir.path}/import_$safeName');
-        await tempFile.writeAsBytes(bytes, flush: true);
-        filesToImport.add(tempFile);
-        tempFiles.add(tempFile);
-      }
-
-      await _importBackupFiles(filesToImport, cleanupLocalFiles: false);
-
-      for (final tempFile in tempFiles) {
-        try {
-          if (await tempFile.exists()) {
-            await tempFile.delete();
-          }
-        } catch (_) {}
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorImportingTrip.tr()}: $e',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isImportingCloudBackups = false);
-      }
-    }
-  }
-
-  Future<void> _importBackupFiles(
-    List<File> files, {
-    bool cleanupLocalFiles = false,
-  }) async {
-    if (files.isEmpty) {
-      if (mounted) {
-        SnackBarHelper.showInfo(context, 'backup.no_local_backups'.tr());
-      }
-      return;
-    }
-
-    int importedCount = 0;
-    int duplicateCount = 0;
-
-    for (final file in files) {
-      try {
-        final importedTrip = await _tripShareService.importTripFromFile(
-          file.path,
-        );
-        importedCount++;
-
-        try {
-          await TripCacheService().addTripToCache(importedTrip);
-        } catch (_) {}
-      } catch (e) {
-        final message = e.toString();
-
-        if (_isTripLimitError(message)) {
-          if (mounted) {
-            await showFeatureLockedDialog(
-              context,
-              title: AppConstants.tripLimitTitle.tr(),
-              description: AppConstants.tripLimitDesc.tr(),
-              suggestedPlan: SubscriptionPlan.basic,
-            );
-          }
-          break;
-        }
-
-        if (_isAlreadyImportedError(message)) {
-          duplicateCount++;
-        }
-      } finally {
-        if (cleanupLocalFiles) {
-          try {
-            if (await file.exists()) {
-              await file.delete();
-            }
-          } catch (_) {}
-        }
-      }
-    }
-
-    if (!mounted) return;
-
-    if (importedCount > 0) {
-      SnackBarHelper.showSuccess(
-        context,
-        '${AppConstants.tripImportedSuccess.tr()} ($importedCount)',
-      );
-
-      try {
-        AppEvents.emitTripsChanged();
-      } catch (_) {}
-    } else if (duplicateCount > 0) {
-      SnackBarHelper.showInfo(context, AppConstants.tripAlreadyImported.tr());
-    }
-  }
-
-  bool _isTripLimitError(String message) {
-    return message.contains('TRIP_LIMIT_REACHED') ||
-        message.toLowerCase().contains('limite');
-  }
-
-  bool _isAlreadyImportedError(String message) {
-    return message.contains('Já és membro') ||
-        message.contains('Viagem já importada') ||
-        message.toLowerCase().contains('already imported');
   }
 
   Future<void> _fetchByCode() async {
@@ -713,37 +420,6 @@ class _ImportTripPageState extends State<ImportTripPage> {
             ),
             const SizedBox(height: 12),
 
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withOpacity(0.35)),
-              ),
-              child: ListTile(
-                leading: const Icon(
-                  Icons.cloud_download_outlined,
-                  color: AppColors.primary,
-                ),
-                title: Text(AppConstants.selectTriplanFile.tr()),
-                subtitle: Text(
-                  _isAppleICloudFlow ? 'iCloud Drive' : 'Google Drive',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white70 : Colors.black54,
-                  ),
-                ),
-                trailing: _isImportingCloudBackups
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.chevron_right),
-                onTap: (_isImporting || _isImportingCloudBackups || _isFetching)
-                    ? null
-                    : _showCloudImportOptions,
-              ),
-            ),
-
             const SizedBox(height: 24),
 
             // Preview da viagem ou estado "not found"
@@ -763,9 +439,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
             // Botão de importar
             if (_tripPreview != null)
               ElevatedButton(
-                onPressed: (_isImporting || _isImportingCloudBackups)
-                    ? null
-                    : _importTrip,
+                onPressed: _isImporting ? null : _importTrip,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,

@@ -446,6 +446,7 @@
     "title": "Backup & Sync",
     "google_drive": "Google Drive Backup",
     "google_drive_desc": "Reisen auf Google Drive speichern",
+    "account_trips_desc": "Sichere die vorhandenen Reisen in deinem Konto",
     "local_history": "Lokaler Verlauf",
     "local_history_desc": "Lokal gespeicherte Backups anzeigen",
     "local_backups": "Lokale Backups",

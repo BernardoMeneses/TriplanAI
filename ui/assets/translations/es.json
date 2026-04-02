@@ -448,6 +448,7 @@
     "title": "Copia de Seguridad y Sincronización",
     "google_drive": "Copia de Seguridad Google Drive",
     "google_drive_desc": "Guardar viajes en Google Drive",
+    "account_trips_desc": "Haz copia de seguridad de los viajes existentes en tu cuenta",
     "local_history": "Historial Local",
     "local_history_desc": "Ver copias guardadas localmente",
     "local_backups": "Copias Locales",
