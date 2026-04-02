@@ -250,9 +250,32 @@ class _MyTripPageState extends State<MyTripPage> {
     );
 
     if (result != null && result is Trip) {
+      final previousCity = _trip.destinationCity.trim().toLowerCase();
+      final previousCountry = _trip.destinationCountry.trim().toLowerCase();
+      final nextCity = result.destinationCity.trim().toLowerCase();
+      final nextCountry = result.destinationCountry.trim().toLowerCase();
+      final destinationChanged =
+          previousCity != nextCity || previousCountry != nextCountry;
+
+      if (destinationChanged) {
+        await _cacheService.clearTripDataAfterDestinationChange(_trip.id);
+        try {
+          await NotesService.deleteAllForTrip(_trip.id);
+        } catch (_) {}
+      }
+
       setState(() {
         _trip = result;
+        if (destinationChanged) {
+          _dayItemCounts = {};
+        }
       });
+
+      if (destinationChanged) {
+        _syncAllDays();
+        _loadDayCounts();
+      }
+
       widget.onTripUpdated?.call();
       // Emitir evento para atualizar listas globalmente
       try {

@@ -239,8 +239,16 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     const updatedTrip = await tripsService.updateTrip(req.params.id, req.body);
 
-    if (updatedTrip && destinationChanged) {
+    if (!updatedTrip) {
+      return res.status(404).json({ error: 'Viagem não encontrada' });
+    }
+
+    if (destinationChanged) {
+      await tripsService.resetTripDataAfterDestinationChange(req.params.id);
       await tripsService.incrementTripReplacementCount(req.params.id);
+
+      const refreshedTrip = await tripsService.getTripById(req.params.id);
+      return res.json(refreshedTrip ?? updatedTrip);
     }
 
     res.json(updatedTrip);

@@ -78,6 +78,14 @@ export class TripsService {
     );
   }
 
+  async resetTripDataAfterDestinationChange(tripId: string): Promise<void> {
+    // Remove plan artifacts tied to the previous destination.
+    await query('DELETE FROM trip_routes WHERE trip_id = $1', [tripId]);
+    await query('DELETE FROM trip_notes WHERE trip_id = $1', [tripId]);
+    await query('DELETE FROM itineraries WHERE trip_id = $1', [tripId]);
+    await query('DELETE FROM places WHERE trip_id = $1', [tripId]);
+  }
+
   async createTrip(userId: string, tripData: Partial<Trip>): Promise<Trip> {
     const result = await query<Trip>(
       `INSERT INTO trips (

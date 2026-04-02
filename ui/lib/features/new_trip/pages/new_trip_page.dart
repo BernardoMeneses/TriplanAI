@@ -6,6 +6,7 @@ import '../../../common/constants/app_constants.dart';
 import '../../../shared/widgets/snackbar_helper.dart';
 import '../../../services/trips_service.dart';
 import '../../../services/subscription_service.dart';
+import '../../../services/google_drive_backup_service.dart';
 import '../../../shared/widgets/destination_search_modal.dart';
 import '../../../shared/widgets/feature_locked_dialog.dart';
 import '../../trip_details/my_trip_page.dart';
@@ -178,6 +179,8 @@ class NewTripPage extends StatefulWidget {
 class _NewTripPageState extends State<NewTripPage> {
   final TextEditingController _destinationController = TextEditingController();
   final TripsService _tripsService = TripsService();
+  final GoogleDriveBackupService _googleDriveBackupService =
+      GoogleDriveBackupService();
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -358,9 +361,11 @@ class _NewTripPageState extends State<NewTripPage> {
     setState(() => _isLoading = true);
 
     try {
+      SubscriptionStatus? status;
+
       // Check subscription limits for new trips (skip for edit mode)
       if (!_isEditMode) {
-        final status = await SubscriptionService().getStatus();
+        status = await SubscriptionService().getStatus(forceRefresh: true);
         if (!status.canCreateTrip(status.tripsUsed)) {
           if (mounted) {
             setState(() => _isLoading = false);
@@ -403,6 +408,10 @@ class _NewTripPageState extends State<NewTripPage> {
           startDate: _startDate!,
           endDate: _endDate!,
         );
+
+        if (status?.limits.canAutoBackup == true) {
+          unawaited(_autoBackupNewTripToDrive(trip.id));
+        }
       }
 
       if (mounted) {
@@ -456,6 +465,15 @@ class _NewTripPageState extends State<NewTripPage> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _autoBackupNewTripToDrive(String tripId) async {
+    try {
+      final isSignedIn = await _googleDriveBackupService.isSignedIn();
+      if (!isSignedIn) return;
+
+      await _googleDriveBackupService.backupTripById(tripId);
+    } catch (_) {}
   }
 
   @override

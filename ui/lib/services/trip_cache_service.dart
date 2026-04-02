@@ -334,6 +334,54 @@ class TripCacheService {
     }
   }
 
+  /// Limpa cache visual e de planeamento quando o destino da viagem muda.
+  Future<void> clearTripDataAfterDestinationChange(String tripId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final itineraryPrefix = '$_itineraryPrefix${tripId}_';
+      final keys = prefs.getKeys();
+
+      final keysToRemove = <String>{
+        _tripsListKey,
+        _lastSyncKey,
+        '$_tripDetailsPrefix$tripId',
+        '$_tripImagePrefix$tripId',
+      };
+
+      for (final key in keys) {
+        if (!key.startsWith(itineraryPrefix)) continue;
+
+        final itineraryJson = prefs.getString(key);
+        if (itineraryJson != null) {
+          try {
+            final itineraryMap =
+                jsonDecode(itineraryJson) as Map<String, dynamic>;
+            final itineraryId = itineraryMap['id']?.toString();
+            if (itineraryId != null && itineraryId.isNotEmpty) {
+              keysToRemove.add('$_itineraryItemsPrefix$itineraryId');
+            }
+          } catch (_) {}
+        }
+
+        keysToRemove.add(key);
+      }
+
+      for (final key in keysToRemove) {
+        await prefs.remove(key);
+      }
+
+      if (kDebugMode) {
+        print(
+          '🧹 TripCacheService: cache reset após mudança de destino $tripId',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ TripCacheService: erro ao limpar cache da viagem $tripId: $e');
+      }
+    }
+  }
+
   // ============ CACHE DE ITINERÁRIOS E ITEMS ============
 
   /// Sincroniza todos os itinerários e items de uma viagem para cache

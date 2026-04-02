@@ -28,7 +28,11 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _notificationsEnabled = true;
   bool _isLoadingNotifications = true;
   bool _isBackingUp = false;
+  bool _isSigningInDrive = false;
   bool _canManualBackup = false;
+  bool _canCloudBackup = false;
+  bool _isAutoBackupPlan = false;
+  bool _isDriveSignedIn = false;
   final GoogleDriveBackupService _backupService = GoogleDriveBackupService();
 
   @override
@@ -39,11 +43,16 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadSubscriptionStatus() async {
-    final status = await SubscriptionService().getStatus();
+    final status = await SubscriptionService().getStatus(forceRefresh: true);
+    final isDriveSignedIn = await _backupService.isSignedIn();
+
     if (mounted) {
       setState(() {
+        _canCloudBackup = status.limits.canBackupCloud;
+        _isAutoBackupPlan = status.limits.canAutoBackup;
         _canManualBackup =
             status.limits.canBackupCloud && !status.limits.canAutoBackup;
+        _isDriveSignedIn = isDriveSignedIn;
       });
     }
   }
@@ -225,12 +234,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
           const SizedBox(height: 16),
 
-          // Backup Section (only show for Basic plan - manual backup)
-          if (_canManualBackup) ...[
+          // Backup Section
+          if (_canCloudBackup) ...[
             _buildSection(
               context,
               title: 'backup.title'.tr(),
-              items: [_buildBackupTile(context)],
+              items: [
+                _buildGoogleDriveSignInTile(context),
+                if (_canManualBackup) _buildBackupTile(context),
+              ],
             ),
             const SizedBox(height: 16),
           ],
@@ -580,6 +592,75 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildGoogleDriveSignInTile(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ListTile(
+      leading: Icon(Icons.login, color: Colors.blue),
+      title: Text(
+        '${'auth.sign_in'.tr()} Google Drive',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: isDark
+              ? AppColors.textPrimaryDark
+              : AppColors.textPrimaryLight,
+        ),
+      ),
+      subtitle: Text(
+        _isAutoBackupPlan
+            ? '${'subscription.auto_backup'.tr()} • ${'backup.google_drive_desc'.tr()}'
+            : 'backup.google_drive_desc'.tr(),
+        style: TextStyle(
+          fontSize: 14,
+          color: isDark
+              ? AppColors.textSecondaryDark
+              : AppColors.textSecondaryLight,
+        ),
+      ),
+      trailing: _isSigningInDrive
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              _isDriveSignedIn ? Icons.check_circle : Icons.chevron_right,
+              color: _isDriveSignedIn
+                  ? Colors.green
+                  : (isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight),
+            ),
+      onTap: _isSigningInDrive ? null : () => _signInGoogleDrive(context),
+    );
+  }
+
+  Future<void> _signInGoogleDrive(BuildContext context) async {
+    setState(() => _isSigningInDrive = true);
+
+    try {
+      final signedIn = await _backupService.signIn();
+      if (!mounted) return;
+
+      setState(() {
+        _isDriveSignedIn = signedIn;
+      });
+
+      if (!signedIn) {
+        SnackBarHelper.showError(context, 'backup.sign_in_failed'.tr());
+      }
+    } catch (_) {
+      if (mounted) {
+        SnackBarHelper.showError(context, 'backup.sign_in_failed'.tr());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSigningInDrive = false);
+      }
+    }
+  }
+
   Future<void> _performBackup(BuildContext context) async {
     // Check cloud backup permission
     final subStatus = await SubscriptionService().getStatus();
@@ -597,11 +678,12 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isBackingUp = true);
 
     try {
-      // Primeiro fazer sign in no Google Drive
-      final signedIn = await _backupService.signIn();
-      if (!signedIn) {
+      if (!_isDriveSignedIn) {
         if (mounted) {
-          SnackBarHelper.showError(context, 'backup.sign_in_failed'.tr());
+          SnackBarHelper.showWarning(
+            context,
+            '${'auth.sign_in'.tr()} Google Drive',
+          );
         }
         return;
       }
