@@ -13,11 +13,7 @@ class GoogleDriveBackupService {
   static const String _backupFolderName = 'TriplanAI Backups';
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      'email',
-      drive.DriveApi.driveFileScope,
-      drive.DriveApi.driveAppdataScope,
-    ],
+    scopes: ['email', drive.DriveApi.driveFileScope],
   );
 
   final TripCacheService _cacheService = TripCacheService();
@@ -37,25 +33,51 @@ class GoogleDriveBackupService {
   }
 
   /// Faz login no Google e obtém acesso ao Drive
-  Future<bool> signIn() async {
+  Future<bool> signIn({bool forceAccountSelection = false}) async {
     try {
-      // Forçar escolha de conta: faz signOut antes de signIn
-      await _googleSignIn.signOut();
-      final account = await _googleSignIn.signIn();
+      if (forceAccountSelection) {
+        // Permite reescolher conta explicitamente.
+        await _googleSignIn.signOut();
+      }
+
+      GoogleSignInAccount? account = _googleSignIn.currentUser;
+      account ??= await _googleSignIn.signInSilently();
+      account ??= await _googleSignIn.signIn();
+
       if (account == null) {
         return false;
       }
 
-      final httpClient = await _googleSignIn.authenticatedClient();
-      if (httpClient == null) {
+      final hasDriveScope = await _googleSignIn.requestScopes([
+        drive.DriveApi.driveFileScope,
+      ]);
+
+      if (!hasDriveScope) {
+        if (kDebugMode) {
+          print('❌ GoogleDriveBackupService: Permissão Drive não concedida');
+        }
         return false;
       }
 
-      _driveApi = drive.DriveApi(httpClient);
-      if (kDebugMode) {
-        print('✅ GoogleDriveBackupService: Login bem sucedido');
+      for (var attempt = 0; attempt < 3; attempt++) {
+        final httpClient = await _googleSignIn.authenticatedClient();
+        if (httpClient != null) {
+          _driveApi = drive.DriveApi(httpClient);
+          if (kDebugMode) {
+            print(
+              '✅ GoogleDriveBackupService: Login bem sucedido (${account.email})',
+            );
+          }
+          return true;
+        }
+
+        await Future<void>.delayed(const Duration(milliseconds: 250));
       }
-      return true;
+
+      if (kDebugMode) {
+        print('❌ GoogleDriveBackupService: authenticatedClient retornou null');
+      }
+      return false;
     } catch (e) {
       if (kDebugMode) {
         print('❌ GoogleDriveBackupService: Erro no login: $e');

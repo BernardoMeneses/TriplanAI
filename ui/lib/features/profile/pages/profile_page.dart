@@ -640,7 +640,12 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isSigningInDrive = true);
 
     try {
-      final signedIn = await _backupService.signIn();
+      var signedIn = await _backupService.signIn();
+      if (!signedIn) {
+        // Retry forcing account chooser when first attempt silently fails.
+        signedIn = await _backupService.signIn(forceAccountSelection: true);
+      }
+
       if (!mounted) return;
 
       setState(() {

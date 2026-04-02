@@ -2,11 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../common/app_colors.dart';
 import '../../common/constants/app_constants.dart';
 import '../../services/trip_share_service.dart';
 import '../../services/trips_service.dart';
-import '../../services/encryption_service.dart';
+import '../../services/google_drive_backup_service.dart';
 import '../../services/subscription_service.dart';
 import '../../common/app_events.dart';
 import '../../services/trip_cache_service.dart';
@@ -23,8 +24,10 @@ class ImportTripPage extends StatefulWidget {
 class _ImportTripPageState extends State<ImportTripPage> {
   final TripShareService _tripShareService = TripShareService();
   final TripsService _tripsService = TripsService();
+  final GoogleDriveBackupService _driveBackupService =
+      GoogleDriveBackupService();
   bool _isImporting = false;
-  String? _selectedFilePath;
+  bool _isImportingCloudBackups = false;
   Map<String, dynamic>? _tripPreview;
   final TextEditingController _codeController = TextEditingController();
   bool _isFetching = false;
@@ -76,49 +79,270 @@ class _ImportTripPageState extends State<ImportTripPage> {
     super.dispose();
   }
 
-  // ignore: unused_element
-  Future<void> _pickFile() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['triplan'],
-        withData: true,
+  Future<void> _showCloudImportOptions() async {
+    if (_isImportingCloudBackups || _isImporting || _isFetching) return;
+
+    final hasAccess = await _ensureCloudImportAccess();
+    if (!hasAccess || !mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (bottomSheetContext) {
+        final isIOS = Platform.isIOS;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.cloud),
+                title: Text('backup.google_drive'.tr()),
+                subtitle: Text('backup.google_drive_desc'.tr()),
+                onTap: () {
+                  Navigator.of(bottomSheetContext).pop();
+                  _importFromGoogleDrive();
+                },
+              ),
+              ListTile(
+                leading: Icon(isIOS ? Icons.apple : Icons.folder_open),
+                title: Text(
+                  isIOS ? 'iCloud Drive' : AppConstants.selectTriplanFile.tr(),
+                ),
+                subtitle: Text(
+                  isIOS
+                      ? AppConstants.selectTriplanFile.tr()
+                      : 'backup.local_history_desc'.tr(),
+                ),
+                onTap: () {
+                  Navigator.of(bottomSheetContext).pop();
+                  _importFromICloudOrFiles();
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<bool> _ensureCloudImportAccess() async {
+    final status = await SubscriptionService().getStatus(forceRefresh: true);
+    if (status.limits.canBackupCloud) {
+      return true;
+    }
+
+    if (mounted) {
+      await showFeatureLockedDialog(
+        context,
+        title: AppConstants.backupLockedTitle.tr(),
+        description: AppConstants.backupLockedDesc.tr(),
+        suggestedPlan: SubscriptionPlan.basic,
       );
+    }
 
-      if (result != null && result.files.single.path != null) {
-        final filePath = result.files.single.path!;
+    return false;
+  }
 
-        // Ler e desencriptar o arquivo
-        final file = File(filePath);
-        final encryptedData = await file.readAsString();
+  Future<void> _importFromGoogleDrive() async {
+    if (_isImportingCloudBackups) return;
 
-        // Tentar desencriptar para validar
-        try {
-          // Apenas desencriptamos para preview, não importamos ainda
-          final data = await _validateAndDecryptFile(encryptedData);
+    final hasAccess = await _ensureCloudImportAccess();
+    if (!hasAccess) return;
 
-          setState(() {
-            _selectedFilePath = filePath;
-            _tripPreview = data;
-          });
-        } catch (e) {
-          if (mounted) {
-            SnackBarHelper.showError(
-              context,
-              '${AppConstants.fileInvalidOrCorrupted.tr()}: $e',
-            );
-          }
-          return;
+    setState(() => _isImportingCloudBackups = true);
+    try {
+      var signedIn = await _driveBackupService.isSignedIn();
+      if (!signedIn) {
+        signedIn = await _driveBackupService.signIn();
+      }
+      if (!signedIn) {
+        signedIn = await _driveBackupService.signIn(
+          forceAccountSelection: true,
+        );
+      }
+
+      if (!signedIn) {
+        if (mounted) {
+          SnackBarHelper.showError(context, 'backup.sign_in_failed'.tr());
+        }
+        return;
+      }
+
+      final backups = await _driveBackupService.listBackups();
+      final triplanBackups = backups
+          .where(
+            (file) =>
+                file.id != null &&
+                (file.name ?? '').toLowerCase().endsWith('.triplan'),
+          )
+          .toList();
+
+      if (triplanBackups.isEmpty) {
+        if (mounted) {
+          SnackBarHelper.showInfo(context, 'backup.no_local_backups'.tr());
+        }
+        return;
+      }
+
+      final localFiles = <File>[];
+      for (final backup in triplanBackups) {
+        final restoredFile = await _driveBackupService.restoreBackup(
+          backup.id!,
+          backup.name ?? 'backup.triplan',
+        );
+        if (restoredFile != null) {
+          localFiles.add(restoredFile);
         }
       }
+
+      await _importBackupFiles(localFiles, cleanupLocalFiles: true);
     } catch (e) {
       if (mounted) {
         SnackBarHelper.showError(
           context,
-          '${AppConstants.errorReadingFile.tr()}: $e',
+          '${AppConstants.errorImportingTrip.tr()}: $e',
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isImportingCloudBackups = false);
+      }
     }
+  }
+
+  Future<void> _importFromICloudOrFiles() async {
+    if (_isImportingCloudBackups) return;
+
+    final hasAccess = await _ensureCloudImportAccess();
+    if (!hasAccess) return;
+
+    setState(() => _isImportingCloudBackups = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['triplan'],
+        allowMultiple: true,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final filesToImport = <File>[];
+
+      for (final platformFile in result.files) {
+        if (platformFile.path != null && platformFile.path!.isNotEmpty) {
+          filesToImport.add(File(platformFile.path!));
+          continue;
+        }
+
+        final bytes = platformFile.bytes;
+        if (bytes == null || bytes.isEmpty) continue;
+
+        final safeName = platformFile.name.isNotEmpty
+            ? platformFile.name
+            : 'backup_${DateTime.now().millisecondsSinceEpoch}.triplan';
+        final tempFile = File('${tempDir.path}/import_$safeName');
+        await tempFile.writeAsBytes(bytes, flush: true);
+        filesToImport.add(tempFile);
+      }
+
+      await _importBackupFiles(filesToImport, cleanupLocalFiles: true);
+    } catch (e) {
+      if (mounted) {
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorImportingTrip.tr()}: $e',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isImportingCloudBackups = false);
+      }
+    }
+  }
+
+  Future<void> _importBackupFiles(
+    List<File> files, {
+    bool cleanupLocalFiles = false,
+  }) async {
+    if (files.isEmpty) {
+      if (mounted) {
+        SnackBarHelper.showInfo(context, 'backup.no_local_backups'.tr());
+      }
+      return;
+    }
+
+    int importedCount = 0;
+    int duplicateCount = 0;
+
+    for (final file in files) {
+      try {
+        final importedTrip = await _tripShareService.importTripFromFile(
+          file.path,
+        );
+        importedCount++;
+
+        try {
+          await TripCacheService().addTripToCache(importedTrip);
+        } catch (_) {}
+      } catch (e) {
+        final message = e.toString();
+
+        if (_isTripLimitError(message)) {
+          if (mounted) {
+            await showFeatureLockedDialog(
+              context,
+              title: AppConstants.tripLimitTitle.tr(),
+              description: AppConstants.tripLimitDesc.tr(),
+              suggestedPlan: SubscriptionPlan.basic,
+            );
+          }
+          break;
+        }
+
+        if (_isAlreadyImportedError(message)) {
+          duplicateCount++;
+        }
+      } finally {
+        if (cleanupLocalFiles) {
+          try {
+            if (await file.exists()) {
+              await file.delete();
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (!mounted) return;
+
+    if (importedCount > 0) {
+      SnackBarHelper.showSuccess(
+        context,
+        '${AppConstants.tripImportedSuccess.tr()} ($importedCount)',
+      );
+
+      try {
+        AppEvents.emitTripsChanged();
+      } catch (_) {}
+    } else if (duplicateCount > 0) {
+      SnackBarHelper.showInfo(context, AppConstants.tripAlreadyImported.tr());
+    }
+  }
+
+  bool _isTripLimitError(String message) {
+    return message.contains('TRIP_LIMIT_REACHED') ||
+        message.toLowerCase().contains('limite');
+  }
+
+  bool _isAlreadyImportedError(String message) {
+    return message.contains('Já és membro') ||
+        message.contains('Viagem já importada') ||
+        message.toLowerCase().contains('already imported');
   }
 
   Future<void> _fetchByCode() async {
@@ -147,7 +371,6 @@ class _ImportTripPageState extends State<ImportTripPage> {
           );
         setState(() {
           _tripPreview = null;
-          _selectedFilePath = null;
         });
         return;
       }
@@ -161,7 +384,6 @@ class _ImportTripPageState extends State<ImportTripPage> {
       // Expect backend to return a map with 'trip' and optionally 'itineraries'
       setState(() {
         _tripPreview = data as Map<String, dynamic>?;
-        _selectedFilePath = null; // indicate this came from code
         _notFound = _tripPreview == null;
       });
     } catch (e) {
@@ -188,22 +410,8 @@ class _ImportTripPageState extends State<ImportTripPage> {
     }
   }
 
-  Future<Map<String, dynamic>> _validateAndDecryptFile(
-    String encryptedData,
-  ) async {
-    // Importar serviço de encriptação
-    final encryptionService = EncryptionService();
-    final data = encryptionService.decrypt(encryptedData);
-
-    if (!data.containsKey('trip') || !data.containsKey('version')) {
-      throw Exception(AppConstants.fileFormatInvalid);
-    }
-
-    return data;
-  }
-
   Future<void> _importTrip() async {
-    if (_tripPreview == null && _selectedFilePath == null) return;
+    if (_tripPreview == null) return;
 
     try {
       final status = await SubscriptionService().getStatus(forceRefresh: true);
@@ -221,18 +429,9 @@ class _ImportTripPageState extends State<ImportTripPage> {
 
       setState(() => _isImporting = true);
 
-      Trip newTrip;
-
-      if (_selectedFilePath != null) {
-        // legacy: import from file
-        newTrip = await _tripShareService.importTripFromFile(
-          _selectedFilePath!,
-        );
-      } else {
-        // Join via share code (live-sync membership, no copy created)
-        final code = _codeController.text.trim().toUpperCase();
-        newTrip = await _tripsService.joinTrip(code);
-      }
+      // Join via share code (live-sync membership, no copy created)
+      final code = _codeController.text.trim().toUpperCase();
+      final newTrip = await _tripsService.joinTrip(code);
 
       if (mounted) {
         SnackBarHelper.showSuccess(
@@ -496,35 +695,38 @@ class _ImportTripPageState extends State<ImportTripPage> {
             ),
             const SizedBox(height: 12),
 
-            const SizedBox(height: 16),
-
-            // Secondary: keep file import available for backups/syncs
-            if (_selectedFilePath != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.green),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        AppConstants.archiveSelected.tr(),
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withOpacity(0.35)),
               ),
-            ],
+              child: ListTile(
+                leading: const Icon(
+                  Icons.cloud_download_outlined,
+                  color: AppColors.primary,
+                ),
+                title: Text(AppConstants.selectTriplanFile.tr()),
+                subtitle: Text(
+                  Platform.isIOS
+                      ? 'Google Drive / iCloud Drive'
+                      : 'Google Drive',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+                trailing: _isImportingCloudBackups
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chevron_right),
+                onTap: (_isImporting || _isImportingCloudBackups || _isFetching)
+                    ? null
+                    : _showCloudImportOptions,
+              ),
+            ),
 
             const SizedBox(height: 24),
 
@@ -545,7 +747,9 @@ class _ImportTripPageState extends State<ImportTripPage> {
             // Botão de importar
             if (_tripPreview != null)
               ElevatedButton(
-                onPressed: _isImporting ? null : _importTrip,
+                onPressed: (_isImporting || _isImportingCloudBackups)
+                    ? null
+                    : _importTrip,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
