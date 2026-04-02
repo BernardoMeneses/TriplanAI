@@ -362,7 +362,7 @@ class _NewTripPageState extends State<NewTripPage> {
       // Check subscription limits for new trips (skip for edit mode)
       if (!_isEditMode) {
         final status = await SubscriptionService().getStatus();
-        final trips = await TripCacheService().getTrips(forceRefresh: true);
+        final trips = await TripCacheService().getTrips();
         if (!status.canCreateTrip(trips.length)) {
           if (mounted) {
             setState(() => _isLoading = false);
