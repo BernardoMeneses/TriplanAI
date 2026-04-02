@@ -10,6 +10,7 @@ class User {
   final String fullName;
   final String? phone;
   final String? profilePictureUrl;
+  final String? authProvider;
 
   User({
     required this.id,
@@ -18,7 +19,16 @@ class User {
     required this.fullName,
     this.phone,
     this.profilePictureUrl,
+    this.authProvider,
   });
+
+  bool get isAppleAccount {
+    final provider = authProvider?.toLowerCase();
+    if (provider == 'apple') return true;
+
+    // Fallback for older cached sessions that may not include auth_provider.
+    return email.toLowerCase().endsWith('privaterelay.appleid.com');
+  }
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -28,6 +38,7 @@ class User {
       fullName: json['full_name'] ?? '',
       phone: json['phone'],
       profilePictureUrl: json['profile_picture_url'],
+      authProvider: json['auth_provider']?.toString(),
     );
   }
 
@@ -39,6 +50,7 @@ class User {
       'full_name': fullName,
       'phone': phone,
       'profile_picture_url': profilePictureUrl,
+      'auth_provider': authProvider,
     };
   }
 }
@@ -70,7 +82,7 @@ class AuthService {
       if (kDebugMode) {
         print('🔐 AuthService: Iniciando...');
       }
-      
+
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString(_tokenKey);
       final cachedUserJson = prefs.getString(_userKey);
@@ -84,37 +96,47 @@ class AuthService {
 
         // Tentar obter dados do utilizador online
         try {
-          final userData = await _api.get('/auth/me').timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              if (kDebugMode) {
-                print('⏱️ AuthService: Timeout ao validar token');
-              }
-              throw Exception('Timeout validating token');
-            },
-          );
+          final userData = await _api
+              .get('/auth/me')
+              .timeout(
+                const Duration(seconds: 10),
+                onTimeout: () {
+                  if (kDebugMode) {
+                    print('⏱️ AuthService: Timeout ao validar token');
+                  }
+                  throw Exception('Timeout validating token');
+                },
+              );
           _currentUser = User.fromJson(userData);
-          
+
           // Guardar dados do utilizador e timestamp em cache
           await _saveUserToCache(prefs);
-          
+
           if (kDebugMode) {
-            print('✅ AuthService: User autenticado online: ${_currentUser?.email}');
+            print(
+              '✅ AuthService: User autenticado online: ${_currentUser?.email}',
+            );
           }
           return true;
         } catch (e) {
           // Verificar se podemos usar cache offline
           if (cachedUserJson != null && lastAuthTimestamp != null) {
-            final lastAuth = DateTime.fromMillisecondsSinceEpoch(lastAuthTimestamp);
-            final hoursSinceLastAuth = DateTime.now().difference(lastAuth).inHours;
-            
+            final lastAuth = DateTime.fromMillisecondsSinceEpoch(
+              lastAuthTimestamp,
+            );
+            final hoursSinceLastAuth = DateTime.now()
+                .difference(lastAuth)
+                .inHours;
+
             if (hoursSinceLastAuth < _offlineCacheHours) {
               // Usar dados em cache - ainda válido
               try {
                 final cachedUserData = jsonDecode(cachedUserJson);
                 _currentUser = User.fromJson(cachedUserData);
                 if (kDebugMode) {
-                  print('📴 AuthService: Modo offline - usando cache (${hoursSinceLastAuth}h desde última validação)');
+                  print(
+                    '📴 AuthService: Modo offline - usando cache (${hoursSinceLastAuth}h desde última validação)',
+                  );
                   print('✅ AuthService: User em cache: ${_currentUser?.email}');
                 }
                 return true;
@@ -125,20 +147,24 @@ class AuthService {
               }
             } else {
               if (kDebugMode) {
-                print('⚠️ AuthService: Cache expirado (${hoursSinceLastAuth}h > ${_offlineCacheHours}h)');
+                print(
+                  '⚠️ AuthService: Cache expirado (${hoursSinceLastAuth}h > ${_offlineCacheHours}h)',
+                );
               }
             }
           }
-          
+
           // Token inválido ou cache expirado, limpar
           if (kDebugMode) {
-            print('❌ AuthService: Erro ao validar token e sem cache válido: $e');
+            print(
+              '❌ AuthService: Erro ao validar token e sem cache válido: $e',
+            );
           }
           await logout();
           return false;
         }
       }
-      
+
       if (kDebugMode) {
         print('🔐 AuthService: Nenhum token encontrado');
       }
@@ -165,10 +191,10 @@ class AuthService {
   /// Login com email e password
   Future<User> login(String email, String password) async {
     try {
-      final response = await _api.post('/auth/login', body: {
-        'email': email,
-        'password': password,
-      });
+      final response = await _api.post(
+        '/auth/login',
+        body: {'email': email, 'password': password},
+      );
 
       _token = response['token'];
       _currentUser = User.fromJson(response['user']);
@@ -188,15 +214,24 @@ class AuthService {
   }
 
   /// Registar novo utilizador
-  Future<User> register(String email, String password, String fullName, String username, {String? phone}) async {
+  Future<User> register(
+    String email,
+    String password,
+    String fullName,
+    String username, {
+    String? phone,
+  }) async {
     try {
-      final response = await _api.post('/auth/register', body: {
-        'email': email,
-        'username': username,
-        'password': password,
-        'full_name': fullName,
-        if (phone != null && phone.isNotEmpty) 'phone': phone,
-      });
+      final response = await _api.post(
+        '/auth/register',
+        body: {
+          'email': email,
+          'username': username,
+          'password': password,
+          'full_name': fullName,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+        },
+      );
 
       if (response == null) {
         throw AuthException('Resposta vazia do servidor');
@@ -225,15 +260,24 @@ class AuthService {
   }
 
   /// Registar novo utilizador sem fazer login automático
-  Future<Map<String, dynamic>> registerWithoutLogin(String email, String password, String fullName, String username, {String? phone}) async {
+  Future<Map<String, dynamic>> registerWithoutLogin(
+    String email,
+    String password,
+    String fullName,
+    String username, {
+    String? phone,
+  }) async {
     try {
-      final response = await _api.post('/auth/register', body: {
-        'email': email,
-        'username': username,
-        'password': password,
-        'full_name': fullName,
-        if (phone != null && phone.isNotEmpty) 'phone': phone,
-      });
+      final response = await _api.post(
+        '/auth/register',
+        body: {
+          'email': email,
+          'username': username,
+          'password': password,
+          'full_name': fullName,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+        },
+      );
 
       if (response == null) {
         throw AuthException('Resposta vazia do servidor');
@@ -248,9 +292,7 @@ class AuthService {
   /// Request password reset email
   Future<void> requestPasswordReset(String email) async {
     try {
-      await _api.post('/auth/forgot-password', body: {
-        'email': email,
-      });
+      await _api.post('/auth/forgot-password', body: {'email': email});
     } catch (e) {
       throw AuthException(e.toString());
     }
@@ -266,14 +308,17 @@ class AuthService {
     String? refreshToken,
   }) async {
     try {
-      final response = await _api.post('/auth/google', body: {
-        'googleId': googleId,
-        'email': email,
-        'name': name,
-        if (picture != null) 'picture': picture,
-        if (accessToken != null) 'accessToken': accessToken,
-        if (refreshToken != null) 'refreshToken': refreshToken,
-      });
+      final response = await _api.post(
+        '/auth/google',
+        body: {
+          'googleId': googleId,
+          'email': email,
+          'name': name,
+          if (picture != null) 'picture': picture,
+          if (accessToken != null) 'accessToken': accessToken,
+          if (refreshToken != null) 'refreshToken': refreshToken,
+        },
+      );
 
       _token = response['token'];
       _currentUser = User.fromJson(response['user']);
@@ -301,14 +346,17 @@ class AuthService {
     String? authorizationCode,
   }) async {
     try {
-      final response = await _api.post('/auth/apple', body: {
-        'appleId': appleId,
-        'identityToken': identityToken,
-        if (email != null && email.isNotEmpty) 'email': email,
-        if (name != null && name.isNotEmpty) 'name': name,
-        if (authorizationCode != null && authorizationCode.isNotEmpty)
-          'authorizationCode': authorizationCode,
-      });
+      final response = await _api.post(
+        '/auth/apple',
+        body: {
+          'appleId': appleId,
+          'identityToken': identityToken,
+          if (email != null && email.isNotEmpty) 'email': email,
+          if (name != null && name.isNotEmpty) 'name': name,
+          if (authorizationCode != null && authorizationCode.isNotEmpty)
+            'authorizationCode': authorizationCode,
+        },
+      );
 
       _token = response['token'];
       _currentUser = User.fromJson(response['user']);
@@ -337,7 +385,7 @@ class AuthService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
     await prefs.remove(_lastAuthKey);
-    
+
     if (kDebugMode) {
       print('🔐 AuthService: Logout - cache limpo');
     }
@@ -345,13 +393,13 @@ class AuthService {
 
   /// Verifica se estamos em modo offline
   bool get isOfflineMode => _token != null && _currentUser != null;
-  
+
   /// Retorna quanto tempo falta para o cache expirar (em horas)
   Future<int?> getCacheRemainingHours() async {
     final prefs = await SharedPreferences.getInstance();
     final lastAuthTimestamp = prefs.getInt(_lastAuthKey);
     if (lastAuthTimestamp == null) return null;
-    
+
     final lastAuth = DateTime.fromMillisecondsSinceEpoch(lastAuthTimestamp);
     final hoursSinceLastAuth = DateTime.now().difference(lastAuth).inHours;
     final remaining = _offlineCacheHours - hoursSinceLastAuth;

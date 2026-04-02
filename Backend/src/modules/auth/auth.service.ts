@@ -162,7 +162,7 @@ export class AuthService {
   async getUserById(userId: string): Promise<Omit<User, 'password_hash'> | null> {
     const result = await query<User>(
       `SELECT id, email, username, full_name, phone, profile_picture_url, preferences, 
-              created_at, updated_at, last_login, is_active 
+              auth_provider, created_at, updated_at, last_login, is_active 
        FROM users WHERE id = $1`,
       [userId]
     );
@@ -191,7 +191,7 @@ export class AuthService {
     values.push(userId);
     const result = await query<User>(
       `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex} 
-       RETURNING id, email, full_name, phone, profile_picture_url, preferences, created_at, updated_at, is_active`,
+       RETURNING id, email, username, full_name, phone, profile_picture_url, preferences, auth_provider, created_at, updated_at, is_active`,
       values
     );
     return result.rows[0] || null;

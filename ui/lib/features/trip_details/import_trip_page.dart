@@ -8,6 +8,7 @@ import '../../common/constants/app_constants.dart';
 import '../../services/trip_share_service.dart';
 import '../../services/trips_service.dart';
 import '../../services/google_drive_backup_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
 import '../../common/app_events.dart';
 import '../../services/trip_cache_service.dart';
@@ -32,6 +33,11 @@ class _ImportTripPageState extends State<ImportTripPage> {
   final TextEditingController _codeController = TextEditingController();
   bool _isFetching = false;
   bool _notFound = false;
+
+  bool get _isAppleICloudFlow {
+    if (!Platform.isIOS) return false;
+    return AuthService().currentUser?.isAppleAccount ?? false;
+  }
 
   @override
   void initState() {
@@ -89,33 +95,29 @@ class _ImportTripPageState extends State<ImportTripPage> {
       context: context,
       showDragHandle: true,
       builder: (bottomSheetContext) {
-        final isIOS = Platform.isIOS;
+        final useICloud = _isAppleICloudFlow;
+
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.cloud),
-                title: Text('backup.google_drive'.tr()),
-                subtitle: Text('backup.google_drive_desc'.tr()),
-                onTap: () {
-                  Navigator.of(bottomSheetContext).pop();
-                  _importFromGoogleDrive();
-                },
-              ),
-              ListTile(
-                leading: Icon(isIOS ? Icons.apple : Icons.folder_open),
+                leading: Icon(useICloud ? Icons.apple : Icons.cloud),
                 title: Text(
-                  isIOS ? 'iCloud Drive' : AppConstants.selectTriplanFile.tr(),
+                  useICloud ? 'iCloud Drive' : 'backup.google_drive'.tr(),
                 ),
                 subtitle: Text(
-                  isIOS
+                  useICloud
                       ? AppConstants.selectTriplanFile.tr()
-                      : 'backup.local_history_desc'.tr(),
+                      : 'backup.google_drive_desc'.tr(),
                 ),
                 onTap: () {
                   Navigator.of(bottomSheetContext).pop();
-                  _importFromICloudOrFiles();
+                  if (useICloud) {
+                    _importFromICloudOrFiles();
+                  } else {
+                    _importFromGoogleDrive();
+                  }
                 },
               ),
               const SizedBox(height: 8),
@@ -219,6 +221,12 @@ class _ImportTripPageState extends State<ImportTripPage> {
 
     setState(() => _isImportingCloudBackups = true);
     try {
+      final localBackups = await TripCacheService().getLocalBackupFiles();
+      if (localBackups.isNotEmpty) {
+        await _importBackupFiles(localBackups, cleanupLocalFiles: false);
+        return;
+      }
+
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['triplan'],
@@ -232,6 +240,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
 
       final tempDir = await getTemporaryDirectory();
       final filesToImport = <File>[];
+      final tempFiles = <File>[];
 
       for (final platformFile in result.files) {
         if (platformFile.path != null && platformFile.path!.isNotEmpty) {
@@ -248,9 +257,18 @@ class _ImportTripPageState extends State<ImportTripPage> {
         final tempFile = File('${tempDir.path}/import_$safeName');
         await tempFile.writeAsBytes(bytes, flush: true);
         filesToImport.add(tempFile);
+        tempFiles.add(tempFile);
       }
 
-      await _importBackupFiles(filesToImport, cleanupLocalFiles: true);
+      await _importBackupFiles(filesToImport, cleanupLocalFiles: false);
+
+      for (final tempFile in tempFiles) {
+        try {
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       if (mounted) {
         SnackBarHelper.showError(
@@ -707,9 +725,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
                 ),
                 title: Text(AppConstants.selectTriplanFile.tr()),
                 subtitle: Text(
-                  Platform.isIOS
-                      ? 'Google Drive / iCloud Drive'
-                      : 'Google Drive',
+                  _isAppleICloudFlow ? 'iCloud Drive' : 'Google Drive',
                   style: TextStyle(
                     fontSize: 12,
                     color: isDark ? Colors.white70 : Colors.black54,

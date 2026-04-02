@@ -666,12 +666,74 @@ class TripCacheService {
     return backupDir;
   }
 
-  /// Exporta todas as viagens para ficheiros .triplan locais
-  Future<List<String>> exportAllTripsLocally() async {
+  /// Exporta uma única viagem para ficheiro .triplan local.
+  Future<String?> exportTripLocally(String tripId) async {
+    try {
+      final tripData = await _tripsService.exportTrip(tripId);
+      final trip = tripData['trip'] as Map<String, dynamic>?;
+      final destination =
+          trip?['destination_city']?.toString().trim().isNotEmpty == true
+          ? trip!['destination_city'].toString()
+          : 'trip';
+
+      final backupDir = await _localBackupDir;
+      final fileName = _sanitizeFileName('${destination}_$tripId.triplan');
+      final filePath = '${backupDir.path}/$fileName';
+
+      final file = File(filePath);
+      await file.writeAsString(jsonEncode(tripData));
+
+      if (kDebugMode) {
+        print('💾 Exportado (single): $fileName');
+      }
+
+      return filePath;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erro ao exportar viagem $tripId: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Exporta todas as viagens para ficheiros .triplan locais.
+  ///
+  /// Se `forceFromApi` for true, tenta sincronizar primeiro com a API para
+  /// garantir que viagens antigas/existentes também ficam em backup.
+  Future<List<String>> exportAllTripsLocally({
+    bool forceFromApi = false,
+  }) async {
     final exportedFiles = <String>[];
 
     try {
-      final trips = await _getCachedTrips();
+      List<Trip> trips = [];
+
+      if (forceFromApi) {
+        try {
+          trips = await _tripsService.getTrips();
+          if (trips.isNotEmpty) {
+            await _cacheTrips(trips);
+          }
+        } catch (_) {
+          // fallback para cache local abaixo
+        }
+      }
+
+      if (trips.isEmpty) {
+        trips = await _getCachedTrips();
+      }
+
+      if (trips.isEmpty) {
+        try {
+          trips = await _tripsService.getTrips();
+          if (trips.isNotEmpty) {
+            await _cacheTrips(trips);
+          }
+        } catch (_) {
+          // sem dados online/cache, retorna lista vazia
+        }
+      }
+
       final backupDir = await _localBackupDir;
 
       for (final trip in trips) {

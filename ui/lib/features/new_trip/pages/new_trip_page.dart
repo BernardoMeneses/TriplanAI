@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../common/app_colors.dart';
@@ -7,6 +9,8 @@ import '../../../shared/widgets/snackbar_helper.dart';
 import '../../../services/trips_service.dart';
 import '../../../services/subscription_service.dart';
 import '../../../services/google_drive_backup_service.dart';
+import '../../../services/trip_cache_service.dart';
+import '../../../services/auth_service.dart';
 import '../../../shared/widgets/destination_search_modal.dart';
 import '../../../shared/widgets/feature_locked_dialog.dart';
 import '../../trip_details/my_trip_page.dart';
@@ -181,6 +185,7 @@ class _NewTripPageState extends State<NewTripPage> {
   final TripsService _tripsService = TripsService();
   final GoogleDriveBackupService _googleDriveBackupService =
       GoogleDriveBackupService();
+  final TripCacheService _tripCacheService = TripCacheService();
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -410,7 +415,7 @@ class _NewTripPageState extends State<NewTripPage> {
         );
 
         if (status?.limits.canAutoBackup == true) {
-          unawaited(_autoBackupNewTripToDrive(trip.id));
+          unawaited(_autoBackupNewTrip(trip.id));
         }
       }
 
@@ -467,8 +472,20 @@ class _NewTripPageState extends State<NewTripPage> {
     }
   }
 
-  Future<void> _autoBackupNewTripToDrive(String tripId) async {
+  Future<void> _autoBackupNewTrip(String tripId) async {
     try {
+      final isAppleICloudFlow =
+          !kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.iOS &&
+          (AuthService().currentUser?.isAppleAccount ?? false);
+
+      if (isAppleICloudFlow) {
+        await _tripCacheService.exportTripLocally(tripId);
+        // Sync all trips so older/existing trips are also exported for iCloud import.
+        await _tripCacheService.exportAllTripsLocally(forceFromApi: true);
+        return;
+      }
+
       final isSignedIn = await _googleDriveBackupService.isSignedIn();
       if (!isSignedIn) return;
 

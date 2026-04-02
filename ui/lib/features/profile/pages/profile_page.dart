@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../common/app_colors.dart';
@@ -10,6 +11,7 @@ import '../../../services/notification_service.dart';
 import '../../../services/google_drive_backup_service.dart';
 import '../../../services/api_service.dart';
 import '../../../services/subscription_service.dart';
+import '../../../services/trip_cache_service.dart';
 import '../../../shared/widgets/language_selector_dialog.dart';
 import '../../../shared/widgets/upgrade_dialog.dart';
 import '../../premium/subscription_plans_page.dart';
@@ -34,6 +36,10 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isAutoBackupPlan = false;
   bool _isDriveSignedIn = false;
   final GoogleDriveBackupService _backupService = GoogleDriveBackupService();
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  bool get _useICloudProvider =>
+      _isIOS && (AuthService().currentUser?.isAppleAccount ?? false);
 
   @override
   void initState() {
@@ -240,7 +246,9 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               title: 'backup.title'.tr(),
               items: [
-                _buildGoogleDriveSignInTile(context),
+                _useICloudProvider
+                    ? _buildICloudProviderTile(context)
+                    : _buildGoogleDriveSignInTile(context),
                 if (_canManualBackup) _buildBackupTile(context),
               ],
             ),
@@ -554,11 +562,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildBackupTile(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backupTitle = _useICloudProvider
+        ? 'iCloud Drive'
+        : 'backup.google_drive'.tr();
+    final backupSubtitle = _useICloudProvider
+        ? AppConstants.selectTriplanFile.tr()
+        : 'backup.google_drive_desc'.tr();
 
     return ListTile(
       leading: Icon(Icons.cloud_upload_outlined, color: Colors.blue),
       title: Text(
-        'backup.google_drive'.tr(),
+        backupTitle,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
@@ -568,7 +582,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
       subtitle: Text(
-        'backup.google_drive_desc'.tr(),
+        backupSubtitle,
         style: TextStyle(
           fontSize: 14,
           color: isDark
@@ -589,6 +603,45 @@ class _ProfilePageState extends State<ProfilePage> {
                   : AppColors.textSecondaryLight,
             ),
       onTap: _isBackingUp ? null : () => _performBackup(context),
+    );
+  }
+
+  Widget _buildICloudProviderTile(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ListTile(
+      leading: const Icon(Icons.apple, color: Colors.black87),
+      title: Text(
+        'iCloud Drive',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: isDark
+              ? AppColors.textPrimaryDark
+              : AppColors.textPrimaryLight,
+        ),
+      ),
+      subtitle: Text(
+        _isAutoBackupPlan
+            ? '${'subscription.auto_backup'.tr()} • ${AppConstants.selectTriplanFile.tr()}'
+            : AppConstants.selectTriplanFile.tr(),
+        style: TextStyle(
+          fontSize: 14,
+          color: isDark
+              ? AppColors.textSecondaryDark
+              : AppColors.textSecondaryLight,
+        ),
+      ),
+      trailing: Icon(
+        Icons.check_circle,
+        color: isDark ? Colors.greenAccent.shade400 : Colors.green,
+      ),
+      onTap: _isBackingUp
+          ? null
+          : () => SnackBarHelper.showInfo(
+              context,
+              AppConstants.selectTriplanFile.tr(),
+            ),
     );
   }
 
@@ -683,6 +736,11 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isBackingUp = true);
 
     try {
+      if (_useICloudProvider) {
+        await _performICloudBackup(context);
+        return;
+      }
+
       if (!_isDriveSignedIn) {
         if (mounted) {
           SnackBarHelper.showWarning(
@@ -729,6 +787,37 @@ class _ProfilePageState extends State<ProfilePage> {
     } finally {
       if (mounted) {
         setState(() => _isBackingUp = false);
+      }
+    }
+  }
+
+  Future<void> _performICloudBackup(BuildContext context) async {
+    try {
+      final exportedFiles = await TripCacheService().exportAllTripsLocally(
+        forceFromApi: true,
+      );
+      if (exportedFiles.isEmpty) {
+        if (mounted) {
+          SnackBarHelper.showWarning(context, 'backup.no_trips'.tr());
+        }
+        return;
+      }
+
+      await Share.shareXFiles(
+        exportedFiles.map((path) => XFile(path)).toList(),
+        subject: 'TriplanAI Backups',
+        text: 'iCloud Drive',
+      );
+
+      if (mounted) {
+        SnackBarHelper.showSuccess(context, 'backup.success'.tr());
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackBarHelper.showError(
+          context,
+          'backup.error'.tr(args: [e.toString()]),
+        );
       }
     }
   }
