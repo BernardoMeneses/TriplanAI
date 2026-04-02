@@ -134,7 +134,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     if (!status.limits.isUnlimitedTrips) {
       try {
         final trips = await TripCacheService().getTrips(forceRefresh: true);
-        usedTrips = trips.where((trip) => !trip.isMember).length;
+        usedTrips = trips
+            .where((trip) => !trip.isMember)
+            .fold(0, (total, trip) => total + 1 + trip.replacementCount);
       } catch (_) {
         usedTrips = 0;
       }

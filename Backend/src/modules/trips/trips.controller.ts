@@ -6,6 +6,9 @@ import { query } from '../../config/database';
 const router = Router();
 const premiumService = new PremiumService();
 
+const normalizeText = (value: unknown): string =>
+  String(value ?? '').trim().toLowerCase();
+
 async function enforceTripCreationLimit(userId: string, res: Response): Promise<boolean> {
   const subscriptionStatus = await premiumService.getSubscriptionStatus(userId);
   const maxTrips = subscriptionStatus.limits.maxTrips;
@@ -219,7 +222,27 @@ router.put('/:id', async (req: Request, res: Response) => {
       });
     }
 
+    const nextCity = normalizeText(req.body?.destination_city ?? trip.destination_city);
+    const nextCountry = normalizeText(req.body?.destination_country ?? trip.destination_country);
+    const currentCity = normalizeText(trip.destination_city);
+    const currentCountry = normalizeText(trip.destination_country);
+    const destinationChanged =
+      nextCity !== currentCity || nextCountry !== currentCountry;
+
+    // Se alterou destino, conta como novo consumo de viagem no plano.
+    if (destinationChanged) {
+      const canConsumeReplacement = await enforceTripCreationLimit(userId, res);
+      if (!canConsumeReplacement) {
+        return;
+      }
+    }
+
     const updatedTrip = await tripsService.updateTrip(req.params.id, req.body);
+
+    if (updatedTrip && destinationChanged) {
+      await tripsService.incrementTripReplacementCount(req.params.id);
+    }
+
     res.json(updatedTrip);
   } catch (error) {
     res.status(400).json({ error: 'Erro ao atualizar viagem' });

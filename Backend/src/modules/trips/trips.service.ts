@@ -22,7 +22,23 @@ export interface Trip {
 export class TripsService {
   async countTripsForUser(userId: string): Promise<number> {
     const result = await query<{ total: number | string }>(
-      `SELECT COUNT(*)::int AS total
+      `SELECT COALESCE(
+          SUM(
+            CASE
+              WHEN t.user_id = $1 THEN
+                1 + COALESCE(
+                  CASE
+                    WHEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count') ~ '^[0-9]+$'
+                      THEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count')::int
+                    ELSE 0
+                  END,
+                  0
+                )
+              ELSE 1
+            END
+          ),
+          0
+        )::int AS total
        FROM trips t
        WHERE t.user_id = $1
           OR EXISTS (
@@ -39,6 +55,27 @@ export class TripsService {
     }
 
     return Number(result.rows[0].total) || 0;
+  }
+
+  async incrementTripReplacementCount(tripId: string): Promise<void> {
+    await query(
+      `UPDATE trips
+       SET preferences = COALESCE(preferences, '{}'::jsonb)
+         || jsonb_build_object(
+              'replacement_count',
+              COALESCE(
+                CASE
+                  WHEN (COALESCE(preferences, '{}'::jsonb)->>'replacement_count') ~ '^[0-9]+$'
+                    THEN (COALESCE(preferences, '{}'::jsonb)->>'replacement_count')::int
+                  ELSE 0
+                END,
+                0
+              ) + 1
+            ),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [tripId]
+    );
   }
 
   async createTrip(userId: string, tripData: Partial<Trip>): Promise<Trip> {
