@@ -11,6 +11,10 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4500';
 const BASE_URL = BACKEND_URL.replace('/api', '');
 const APP_NAME = 'TriplanAI';
 
+function buildTokenPageUrl(pathname: string, token: string): string {
+  return `${BASE_URL}${pathname}#token=${encodeURIComponent(token)}`;
+}
+
 // Create transporter
 const transporter = nodemailer.createTransport({
   host: EMAIL_HOST,
@@ -43,7 +47,7 @@ export class EmailService {
    * Send email verification email
    */
   static async sendVerificationEmail(email: string, token: string, userName: string): Promise<void> {
-    const verificationUrl = `${BASE_URL}/auth/verify-email.html?token=${token}`;
+    const verificationUrl = buildTokenPageUrl('/auth/verify-email.html', token);
 
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,
@@ -122,7 +126,7 @@ export class EmailService {
    * Send password reset email
    */
   static async sendPasswordResetEmail(email: string, token: string, userName: string): Promise<void> {
-    const resetUrl = `${BASE_URL}/auth/reset-password.html?token=${token}`;
+    const resetUrl = buildTokenPageUrl('/auth/reset-password.html', token);
 
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,
@@ -176,9 +180,6 @@ export class EmailService {
             <div class="footer">
               <p style="margin: 0;">&copy; 2026 ${APP_NAME}. All rights reserved.</p>
               <p style="margin: 8px 0 0 0; color: #999;">AI-powered trip planning</p>
-            </div>
-            <div class="footer">
-              <p>&copy; 2026 ${APP_NAME}. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -244,20 +245,20 @@ export class EmailService {
               <p>Your email has been successfully verified. Welcome to the ${APP_NAME} community.</p>
               <p><strong>What you can do next:</strong></p>
               <div class="feature">
-                <strong>✈️ Planeia as Tuas Viagens</strong>
-                <p>Cria itinerários detalhados para as tuas próximas aventuras</p>
+                <strong>✈️ Plan Your Trips</strong>
+                <p>Create detailed itineraries for your next adventures.</p>
               </div>
               <div class="feature">
-                <strong>🗺️ Descobre Lugares</strong>
-                <p>Encontra destinos incríveis, restaurantes e atrações</p>
+                <strong>🗺️ Discover Places</strong>
+                <p>Find amazing destinations, restaurants, and attractions.</p>
               </div>
               <div class="feature">
-                <strong>🤖 Assistência IA</strong>
-                <p>Obtém recomendações personalizadas com inteligência artificial</p>
+                <strong>🤖 AI Assistance</strong>
+                <p>Get personalized recommendations powered by AI.</p>
               </div>
               <div class="feature">
-                <strong>📍 Navegação</strong>
-                <p>Navegação em tempo real e planeamento de rotas</p>
+                <strong>📍 Navigation</strong>
+                <p>Use real-time navigation and smart route planning.</p>
               </div>
               <p style="text-align: center;">
                 <a href="triplanai://app/login" class="button">Open App</a>
@@ -281,7 +282,7 @@ export class EmailService {
    * Send account deletion confirmation email with a link to confirm
    */
   static async sendAccountDeletionEmail(email: string, token: string, userName: string): Promise<void> {
-    const deleteUrl = `${BASE_URL}/delete-account.html?token=${token}`;
+    const deleteUrl = buildTokenPageUrl('/delete-account.html', token);
 
     const mailOptions = {
       from: `"${APP_NAME}" <${EMAIL_FROM}>`,

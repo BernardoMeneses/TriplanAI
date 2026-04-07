@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart'
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../common/app_colors.dart';
+import '../../../common/app_events.dart';
 import '../../../common/constants/app_constants.dart';
 import '../../../shared/widgets/snackbar_helper.dart';
 import '../../../services/trips_service.dart';
@@ -11,6 +12,7 @@ import '../../../services/subscription_service.dart';
 import '../../../services/google_drive_backup_service.dart';
 import '../../../services/trip_cache_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/new_trip_draft_service.dart';
 import '../../../shared/widgets/destination_search_modal.dart';
 import '../../../shared/widgets/feature_locked_dialog.dart';
 import '../../trip_details/my_trip_page.dart';
@@ -186,6 +188,7 @@ class _NewTripPageState extends State<NewTripPage> {
   final GoogleDriveBackupService _googleDriveBackupService =
       GoogleDriveBackupService();
   final TripCacheService _tripCacheService = TripCacheService();
+  final NewTripDraftService _newTripDraftService = NewTripDraftService();
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -197,6 +200,8 @@ class _NewTripPageState extends State<NewTripPage> {
 
   bool _isLoading = false;
   bool _isEditMode = false;
+  bool _isApplyingDraft = false;
+  bool _skipDraftPersistence = false;
 
   /// Quando não tem existingTrip nem initialDestination, está embutido no tab
   /// e não deve mostrar seta de voltar (senão faz pop da raiz → ecrã preto).
@@ -236,6 +241,78 @@ class _NewTripPageState extends State<NewTripPage> {
       );
       _destinationSubtitle = dest.subtitle;
       _destinationImageUrl = dest.imageUrl;
+      unawaited(_saveDraftSnapshot());
+    } else {
+      unawaited(_restoreDraftIfAvailable());
+    }
+
+    _destinationController.addListener(_onDraftInputsChanged);
+  }
+
+  void _onDraftInputsChanged() {
+    if (_isEditMode || _isApplyingDraft || _skipDraftPersistence) return;
+    unawaited(_saveDraftSnapshot());
+  }
+
+  Future<void> _restoreDraftIfAvailable() async {
+    if (_isEditMode || widget.initialDestination != null) return;
+
+    final draft = await _newTripDraftService.getDraft();
+    if (draft == null || !mounted) return;
+
+    final label = draft.destinationLabel.trim().isNotEmpty
+        ? draft.destinationLabel.trim()
+        : (draft.destinationCity?.trim().isNotEmpty ?? false)
+        ? draft.destinationCity!.trim()
+        : (draft.destinationCountry ?? '').trim();
+
+    _isApplyingDraft = true;
+    setState(() {
+      _destinationController.value = TextEditingValue(
+        text: label,
+        selection: TextSelection.collapsed(offset: label.length),
+      );
+      _destinationSubtitle = draft.destinationSubtitle;
+      _destinationImageUrl = draft.destinationImageUrl;
+      _destinationCity = draft.destinationCity;
+      _destinationCountry = draft.destinationCountry;
+      _startDate = draft.startDate;
+      _endDate = draft.endDate;
+    });
+    _isApplyingDraft = false;
+  }
+
+  Future<void> _saveDraftSnapshot() async {
+    if (_isEditMode || _isApplyingDraft || _skipDraftPersistence) return;
+
+    final draft = NewTripDraft(
+      destinationLabel: _destinationController.text.trim(),
+      destinationSubtitle: _destinationSubtitle,
+      destinationImageUrl: _destinationImageUrl,
+      destinationCity: _destinationCity,
+      destinationCountry: _destinationCountry,
+      startDate: _startDate,
+      endDate: _endDate,
+      savedAt: DateTime.now(),
+    );
+
+    if (!draft.hasContent) {
+      final removed = await _newTripDraftService.clearDraft();
+      if (removed) {
+        AppEvents.emitDraftChanged();
+      }
+      return;
+    }
+
+    await _newTripDraftService.saveDraft(draft);
+    AppEvents.emitDraftChanged();
+  }
+
+  Future<void> _clearDraftAfterCreation() async {
+    _skipDraftPersistence = true;
+    final removed = await _newTripDraftService.clearDraft();
+    if (removed) {
+      AppEvents.emitDraftChanged();
     }
   }
 
@@ -278,6 +355,8 @@ class _NewTripPageState extends State<NewTripPage> {
         _startDate = picked.start;
         _endDate = picked.end;
       });
+
+      unawaited(_saveDraftSnapshot());
     }
   }
 
@@ -302,6 +381,10 @@ class _NewTripPageState extends State<NewTripPage> {
 
   @override
   void dispose() {
+    _destinationController.removeListener(_onDraftInputsChanged);
+    if (!_isEditMode && !_skipDraftPersistence) {
+      unawaited(_saveDraftSnapshot());
+    }
     _destinationController.dispose();
     super.dispose();
   }
@@ -414,6 +497,8 @@ class _NewTripPageState extends State<NewTripPage> {
           endDate: _endDate!,
         );
 
+        await _clearDraftAfterCreation();
+
         if (status?.limits.canAutoBackup == true) {
           unawaited(_autoBackupNewTrip(trip.id));
         }
@@ -452,10 +537,7 @@ class _NewTripPageState extends State<NewTripPage> {
             suggestedPlan: SubscriptionPlan.basic,
           );
         } else if (errorText.contains('TRIP_EDIT_LOCKED')) {
-          SnackBarHelper.showWarning(
-            context,
-            'Esta viagem já terminou. Cria uma nova viagem para um novo destino.',
-          );
+          SnackBarHelper.showWarning(context, AppConstants.tripEditLocked.tr());
         } else {
           SnackBarHelper.showError(
             context,

@@ -40,7 +40,8 @@
       "friday": "Viernes",
       "saturday": "Sábado",
       "sunday": "Domingo"
-    }
+    },
+    "view": "Ver"
   },
   "auth": {
     "welcome_back": "¡Bienvenido de nuevo!",
@@ -87,8 +88,12 @@
       "username_required": "El usuario es obligatorio",
       "username_min_3": "El usuario debe tener al menos 3 caracteres",
       "name_required": "El nombre es obligatorio",
-    "apple_register_error": "Error al registrarse con Apple: {0}"
-    }
+      "apple_register_error": "Error al registrarse con Apple: {0}"
+    },
+    "apple_sign_in_unavailable": "Apple Sign In no está disponible en este dispositivo.",
+    "apple_auth_failed": "No se pudo autenticar con Apple. Verifica la configuración de Apple Sign In en tu iPhone e inténtalo de nuevo.",
+    "apple_login_error": "Error al iniciar sesión con Apple: {0}",
+    "google_login_error": "Error al iniciar sesión con Google: {0}"
   },
   "home": {
     "title": "Inicio",
@@ -137,7 +142,9 @@
     "no_past_trips": "Sin viajes pasados",
     "no_past_trips_subtitle": "¡Presiona el botón de abajo para empezar a explorar\ny crear nuevos recuerdos!",
     "only_triplan_supported": "Solo se admiten archivos .triplan",
-    "importing_trip": "Importando viaje..."
+    "importing_trip": "Importando viaje...",
+    "draft": "Borrador",
+    "already_member": "Ya eres miembro de este viaje."
   },
   "new_trip": {
     "plan_your_trip": "Planea tu viaje",
@@ -256,7 +263,13 @@
     "duplicate_favorite_message": "Este lugar ya está en favoritos",
     "place_moved_to_day": "Lugar movido al Día {}",
     "could_not_open_maps": "No se pudo abrir Google Maps",
-    "error_opening_maps": "Error al abrir Google Maps"
+    "error_opening_maps": "Error al abrir Google Maps",
+    "leave_trip_title": "Salir del viaje",
+    "leave_trip_message": "¿Seguro que quieres dejar de seguir este viaje compartido?",
+    "leave_trip_action": "Salir",
+    "leave_trip_subtitle": "Eliminar de tus viajes",
+    "leave_trip_success": "Viaje eliminado de tus viajes",
+    "trip_edit_locked": "Este viaje ya ha terminado. Crea un nuevo viaje para un nuevo destino."
   },
   "favorites": {
     "title": "Favoritos",
@@ -266,7 +279,8 @@
     "remove_favorite": "Eliminar de favoritos",
     "removed_from_favorites": "Eliminado de favoritos",
     "error_removing_favorite": "Error al eliminar favorito",
-    "confirm_remove_favorite": "¿Eliminar \"{}\" de favoritos?"
+    "confirm_remove_favorite": "¿Eliminar \"{}\" de favoritos?",
+    "added_on": "Añadido el {0}"
   },
   "map": {
     "show_route": "Mostrar ruta",
@@ -334,7 +348,9 @@
     "faq_answer_10": "Ve a tu perfil, sección 'Cuenta', y toca 'Eliminar cuenta'. Recibirás instrucciones por email. Esta acción es permanente y eliminará todos tus datos.",
     "notifications_enabled": "Notificaciones activadas",
     "notifications_disabled": "Notificaciones desactivadas",
-    "test_notification_sent": "¡Notificación de prueba enviada!"
+    "test_notification_sent": "¡Notificación de prueba enviada!",
+    "test_notification_title": "Probar notificación",
+    "test_notification_subtitle": "Enviar una notificación de prueba"
   },
   "languages": {
     "portuguese": "Português",
@@ -428,7 +444,10 @@
     "back_to_free_failed": "No se pudo actualizar el plan a Free.",
     "terms_note": "Las suscripciones se renuevan automáticamente. Puedes cancelar en cualquier momento en la configuración de la tienda.",
     "product_not_found": "Producto no encontrado. Inténtalo de nuevo más tarde.",
-    "coming_soon": "¡Integración de pagos próximamente!"
+    "coming_soon": "¡Integración de pagos próximamente!",
+    "free_description": "Funciones básicas y copia de seguridad manual",
+    "basic_description": "Más viajes, exportación PDF y copia de seguridad automática",
+    "premium_description": "Todo ilimitado"
   },
   "limits": {
     "trip_limit_title": "Límite de Viajes Alcanzado",
@@ -442,7 +461,8 @@
     "backup_locked_title": "Backup en la Nube Bloqueado",
     "backup_locked_desc": "El backup en la nube está disponible en los planes Basic y Premium. ¡Mejora para mantener tus viajes seguros!",
     "maybe_later": "Quizás Después",
-    "upgrade_now": "Mejorar Ahora"
+    "upgrade_now": "Mejorar Ahora",
+    "feature_locked_default": "Esta función está bloqueada en tu plan actual. Mejora para acceder."
   },
   "backup": {
     "title": "Copia de Seguridad y Sincronización",
@@ -481,7 +501,8 @@
     "trip_day_title": "¡La aventura empieza HOY!",
     "trip_day_body": "¡Hoy es el gran día! Tu viaje a {destination} empieza ahora. ¡Abre la app y revisa tu itinerario completo!",
     "channel_name": "Recordatorios de Viaje",
-    "channel_description": "Notificaciones para recordar viajes próximos"  },
+    "channel_description": "Notificaciones para recordar viajes próximos"
+  },
   "ai_chat": {
     "day_header": "Día {day}",
     "loading_conversation": "Cargando conversación...",
@@ -495,5 +516,6 @@
     "default_description": "Explora este lugar increíble y crea recuerdos inolvidables.",
     "address_not_available": "Dirección no disponible",
     "hours_not_available": "Horario no disponible",
-    "add_to_plan": "Añadir al plan"  }
+    "add_to_plan": "Añadir al plan"
+  }
 }

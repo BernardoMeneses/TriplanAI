@@ -103,7 +103,7 @@ class _ImportTripPageState extends State<ImportTripPage> {
       // If user is already a member, show a message but still show the preview
       if (data['already_member'] == true) {
         if (mounted)
-          SnackBarHelper.showInfo(context, 'Já és membro desta viagem');
+          SnackBarHelper.showInfo(context, AppConstants.tripAlreadyMember.tr());
       }
 
       // Expect backend to return a map with 'trip' and optionally 'itineraries'

@@ -58,8 +58,7 @@ Future<void> showFeatureLockedDialog(
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  description ??
-                      'Esta funcionalidade está bloqueada no seu plano. Atualize para aceder.',
+                  description ?? AppConstants.featureLockedDefault.tr(),
                   style: TextStyle(
                     fontSize: 14,
                     color: isDark

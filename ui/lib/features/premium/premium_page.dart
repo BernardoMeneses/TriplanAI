@@ -459,9 +459,7 @@ class _PremiumPageState extends State<PremiumPage> {
               children: [
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Produtos não disponíveis. Tente novamente.'),
-                ),
+                Expanded(child: Text('subscription.product_not_found'.tr())),
               ],
             ),
             backgroundColor: AppColors.error,

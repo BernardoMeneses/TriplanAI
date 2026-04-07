@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:convert';
 import 'api_service.dart';
 
@@ -104,7 +105,7 @@ class AuthService {
                   if (kDebugMode) {
                     print('⏱️ AuthService: Timeout ao validar token');
                   }
-                  throw Exception('Timeout validating token');
+                  throw Exception('errors.timeout'.tr());
                 },
               );
           _currentUser = User.fromJson(userData);
@@ -234,12 +235,12 @@ class AuthService {
       );
 
       if (response == null) {
-        throw AuthException('Resposta vazia do servidor');
+        throw AuthException('errors.generic'.tr());
       }
 
       final userData = response['user'];
       if (userData == null) {
-        throw AuthException('Dados do utilizador não retornados');
+        throw AuthException('errors.generic'.tr());
       }
 
       _token = response['token'];
@@ -280,7 +281,7 @@ class AuthService {
       );
 
       if (response == null) {
-        throw AuthException('Resposta vazia do servidor');
+        throw AuthException('errors.generic'.tr());
       }
 
       return response;
@@ -303,9 +304,9 @@ class AuthService {
     required String googleId,
     required String email,
     required String name,
+    required String idToken,
     String? picture,
     String? accessToken,
-    String? refreshToken,
   }) async {
     try {
       final response = await _api.post(
@@ -314,9 +315,9 @@ class AuthService {
           'googleId': googleId,
           'email': email,
           'name': name,
+          'idToken': idToken,
           if (picture != null) 'picture': picture,
           if (accessToken != null) 'accessToken': accessToken,
-          if (refreshToken != null) 'refreshToken': refreshToken,
         },
       );
 

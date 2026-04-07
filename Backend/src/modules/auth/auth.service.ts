@@ -1,11 +1,19 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
+import { createPublicKey } from 'crypto';
 import { query } from '../../config/database';
 import { EmailService } from '../../services/email.service';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'triplanai-secret-key-change-in-production';
+const jwtSecret = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '365d'; // Token válido por 1 ano para testes
 const SALT_ROUNDS = 10;
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET must be configured');
+}
+
+const JWT_SECRET: string = jwtSecret;
 
 export interface User {
   id: string;
@@ -35,6 +43,146 @@ export interface User {
 }
 
 export class AuthService {
+  private getConfiguredClientIds(envKeys: string[]): string[] {
+    for (const key of envKeys) {
+      const raw = process.env[key];
+      if (!raw) continue;
+
+      const ids = raw
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+
+      if (ids.length > 0) {
+        return ids;
+      }
+    }
+
+    return [];
+  }
+
+  private normalizeEmail(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private async verifyGoogleIdentityToken(idToken: string): Promise<{
+    sub: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  }> {
+    const allowedAudiences = this.getConfiguredClientIds([
+      'GOOGLE_OAUTH_CLIENT_IDS',
+      'GOOGLE_CLIENT_ID',
+    ]);
+
+    if (allowedAudiences.length === 0) {
+      throw new Error('Google OAuth client IDs are not configured on the backend.');
+    }
+
+    try {
+      const response = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
+        params: { id_token: idToken },
+        timeout: 7000,
+      });
+
+      const tokenInfo = response.data as Record<string, unknown>;
+      const subject = typeof tokenInfo.sub === 'string' ? tokenInfo.sub : '';
+      const email = typeof tokenInfo.email === 'string' ? tokenInfo.email : '';
+      const audience = typeof tokenInfo.aud === 'string' ? tokenInfo.aud : '';
+      const emailVerified = String(tokenInfo.email_verified || '').toLowerCase() === 'true';
+
+      if (!subject || !email || !audience) {
+        throw new Error('Google token payload inválido.');
+      }
+
+      if (!allowedAudiences.includes(audience)) {
+        throw new Error('Google token audience inválida.');
+      }
+
+      if (!emailVerified) {
+        throw new Error('Google account email is not verified.');
+      }
+
+      return {
+        sub: subject,
+        email,
+        name: typeof tokenInfo.name === 'string' ? tokenInfo.name : undefined,
+        picture: typeof tokenInfo.picture === 'string' ? tokenInfo.picture : undefined,
+      };
+    } catch {
+      throw new Error('Falha na validação do token Google.');
+    }
+  }
+
+  private async verifyAppleIdentityToken(identityToken: string): Promise<{
+    sub: string;
+    email?: string;
+    emailVerified: boolean;
+  }> {
+    const allowedAudiences = this.getConfiguredClientIds([
+      'APPLE_CLIENT_IDS',
+      'APPLE_CLIENT_ID',
+      'APPLE_SERVICE_ID',
+      'APPLE_BUNDLE_ID',
+    ]);
+
+    if (allowedAudiences.length === 0) {
+      throw new Error('Apple client IDs are not configured on the backend.');
+    }
+
+    try {
+      const decoded = jwt.decode(identityToken, { complete: true }) as
+        | { header?: { kid?: string; alg?: string } }
+        | null;
+
+      const keyId = decoded?.header?.kid;
+      if (!keyId) {
+        throw new Error('Apple token sem key id.');
+      }
+
+      const keysResponse = await axios.get('https://appleid.apple.com/auth/keys', {
+        timeout: 7000,
+      });
+
+      const jwk = (keysResponse.data?.keys || []).find(
+        (key: Record<string, unknown>) => key.kid === keyId && key.kty === 'RSA',
+      );
+
+      if (!jwk) {
+        throw new Error('Apple public key não encontrada para o token.');
+      }
+
+      const publicKey = createPublicKey({ key: jwk, format: 'jwk' });
+      const audienceOption =
+        allowedAudiences.length === 1
+          ? allowedAudiences[0]
+          : (allowedAudiences as [string, ...string[]]);
+
+      const verified = jwt.verify(identityToken, publicKey, {
+        algorithms: ['RS256'],
+        issuer: 'https://appleid.apple.com',
+        audience: audienceOption,
+      }) as Record<string, unknown>;
+
+      const subject = typeof verified.sub === 'string' ? verified.sub : '';
+      const email = typeof verified.email === 'string' ? verified.email : undefined;
+      const emailVerified = String(verified.email_verified || '').toLowerCase() === 'true';
+
+      if (!subject) {
+        throw new Error('Apple token payload inválido.');
+      }
+
+      return {
+        sub: subject,
+        email,
+        emailVerified,
+      };
+    } catch {
+      throw new Error('Falha na validação do token Apple.');
+    }
+  }
+
   async register(
     email: string,
     password: string,
@@ -144,16 +292,25 @@ export class AuthService {
 
   async validateToken(token: string): Promise<{ valid: boolean; userId?: string }> {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (!decoded || typeof decoded !== 'object' || !('userId' in decoded)) {
+        return { valid: false };
+      }
+
+      const rawUserId = (decoded as Record<string, unknown>).userId;
+      const userId = typeof rawUserId === 'string' ? rawUserId : '';
+      if (!userId) {
+        return { valid: false };
+      }
       
       // Check if user still exists and is active
-      const result = await query('SELECT id FROM users WHERE id = $1 AND is_active = true', [decoded.userId]);
+      const result = await query('SELECT id FROM users WHERE id = $1 AND is_active = true', [userId]);
       
       if (result.rows.length === 0) {
         return { valid: false };
       }
 
-      return { valid: true, userId: decoded.userId };
+      return { valid: true, userId };
     } catch {
       return { valid: false };
     }
@@ -337,15 +494,30 @@ export class AuthService {
   async googleLogin(googleData: {
     googleId: string;
     email: string;
-    name: string;
+    name?: string;
     picture?: string;
-    accessToken: string;
-    refreshToken?: string;
+    idToken: string;
   }): Promise<{ user: Omit<User, 'password_hash'>; token: string; isNewUser: boolean }> {
+    const verifiedGoogleAccount = await this.verifyGoogleIdentityToken(
+      googleData.idToken,
+    );
+
+    const providedEmail = this.normalizeEmail(googleData.email);
+    const verifiedEmail = this.normalizeEmail(verifiedGoogleAccount.email);
+
+    if (verifiedGoogleAccount.sub !== googleData.googleId || providedEmail !== verifiedEmail) {
+      throw new Error('Credenciais Google inválidas.');
+    }
+
+    const safeName =
+      (googleData.name || verifiedGoogleAccount.name || '').trim() ||
+      verifiedEmail.split('@')[0];
+    const safePicture = googleData.picture || verifiedGoogleAccount.picture || null;
+
     // Check if user exists with this email but different provider
     const emailCheck = await query<User>(
       'SELECT * FROM users WHERE email = $1',
-      [googleData.email]
+      [verifiedEmail]
     );
 
     if (emailCheck.rows.length > 0 && emailCheck.rows[0].auth_provider !== 'google') {
@@ -355,7 +527,7 @@ export class AuthService {
     // Check if user exists with Google ID
     let result = await query<User>(
       'SELECT * FROM users WHERE google_id = $1 OR (email = $2 AND auth_provider = $3)',
-      [googleData.googleId, googleData.email, 'google']
+      [googleData.googleId, verifiedEmail, 'google']
     );
 
     let user: User;
@@ -363,24 +535,23 @@ export class AuthService {
 
     if (result.rows.length === 0) {
       // Create new user with Google auth
-      const username = googleData.email.split('@')[0] + '_' + Math.random().toString(36).substring(7);
+      const username =
+        verifiedEmail.split('@')[0] + '_' + Math.random().toString(36).substring(7);
       
       const insertResult = await query<User>(
         `INSERT INTO users (
           email, username, full_name, profile_picture_url,
-          auth_provider, email_verified, google_id, google_access_token, google_refresh_token
+          auth_provider, email_verified, google_id
         )
-         VALUES ($1, $2, $3, $4, 'google', true, $5, $6, $7)
+         VALUES ($1, $2, $3, $4, 'google', true, $5)
          RETURNING id, email, username, full_name, phone, profile_picture_url, preferences, 
                    auth_provider, email_verified, created_at, updated_at, is_active`,
         [
-          googleData.email,
+          verifiedEmail,
           username,
-          googleData.name,
-          googleData.picture || null,
+          safeName,
+          safePicture,
           googleData.googleId,
-          googleData.accessToken,
-          googleData.refreshToken || null,
         ]
       );
 
@@ -396,15 +567,14 @@ export class AuthService {
     } else {
       user = result.rows[0];
       
-      // Update Google tokens
+      // Update minimal session/profile metadata
       await query(
         `UPDATE users SET 
-          google_access_token = $1, 
-          google_refresh_token = COALESCE($2, google_refresh_token),
           last_login = CURRENT_TIMESTAMP,
-          profile_picture_url = COALESCE($3, profile_picture_url)
-         WHERE id = $4`,
-        [googleData.accessToken, googleData.refreshToken, googleData.picture, user.id]
+          profile_picture_url = COALESCE($1, profile_picture_url),
+          full_name = COALESCE($2, full_name)
+         WHERE id = $3`,
+        [safePicture, safeName, user.id]
       );
     }
 
@@ -423,13 +593,37 @@ export class AuthService {
     name?: string;
     authorizationCode?: string;
   }): Promise<{ user: Omit<User, 'password_hash'>; token: string; isNewUser: boolean }> {
+    const verifiedAppleAccount = await this.verifyAppleIdentityToken(
+      appleData.identityToken,
+    );
+
+    if (verifiedAppleAccount.sub !== appleData.appleId) {
+      throw new Error('Credenciais Apple inválidas.');
+    }
+
+    const verifiedEmail = verifiedAppleAccount.email
+      ? this.normalizeEmail(verifiedAppleAccount.email)
+      : undefined;
+
+    if (
+      appleData.email &&
+      verifiedEmail &&
+      this.normalizeEmail(appleData.email) !== verifiedEmail
+    ) {
+      throw new Error('Credenciais Apple inválidas.');
+    }
+
+    const accountEmail = this.normalizeEmail(appleData.email || verifiedEmail || '');
+
+    if (verifiedEmail && !verifiedAppleAccount.emailVerified) {
+      throw new Error('A conta Apple não possui email verificado.');
+    }
+
     // Keep auth resilient on databases that were not migrated yet.
     await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id VARCHAR(255)');
-    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_identity_token TEXT');
-    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_authorization_code TEXT');
 
-    if (appleData.email) {
-      const emailCheck = await query<User>('SELECT * FROM users WHERE email = $1', [appleData.email]);
+    if (accountEmail) {
+      const emailCheck = await query<User>('SELECT * FROM users WHERE email = $1', [accountEmail]);
 
       if (emailCheck.rows.length > 0 && emailCheck.rows[0].auth_provider !== 'apple') {
         const provider = emailCheck.rows[0].auth_provider;
@@ -442,37 +636,38 @@ export class AuthService {
 
     let result = await query<User>(
       'SELECT * FROM users WHERE apple_id = $1 OR (email = $2 AND auth_provider = $3)',
-      [appleData.appleId, appleData.email || null, 'apple'],
+      [appleData.appleId, accountEmail || null, 'apple'],
     );
 
     let user: User;
     let isNewUser = false;
 
     if (result.rows.length === 0) {
-      if (!appleData.email) {
+      if (!accountEmail) {
         throw new Error('Não foi possível obter o email do Apple ID. Remove a app da secção Apple ID e tenta novamente.');
       }
 
       const username =
-        appleData.email.split('@')[0] + '_' + Math.random().toString(36).substring(7);
+        accountEmail.split('@')[0] + '_' + Math.random().toString(36).substring(7);
+
+      const safeName =
+        (appleData.name && appleData.name.trim().length > 0)
+          ? appleData.name
+          : accountEmail.split('@')[0];
 
       const insertResult = await query<User>(
         `INSERT INTO users (
           email, username, full_name,
-          auth_provider, email_verified, apple_id, apple_identity_token, apple_authorization_code
+          auth_provider, email_verified, apple_id
         )
-         VALUES ($1, $2, $3, 'apple', true, $4, $5, $6)
+         VALUES ($1, $2, $3, 'apple', true, $4)
          RETURNING id, email, username, full_name, phone, profile_picture_url, preferences,
                    auth_provider, email_verified, created_at, updated_at, is_active`,
         [
-          appleData.email,
+          accountEmail,
           username,
-          (appleData.name && appleData.name.trim().length > 0)
-            ? appleData.name
-            : appleData.email.split('@')[0],
+          safeName,
           appleData.appleId,
-          appleData.identityToken,
-          appleData.authorizationCode || null,
         ],
       );
 
@@ -489,12 +684,10 @@ export class AuthService {
 
       await query(
         `UPDATE users SET
-          apple_identity_token = $1,
-          apple_authorization_code = COALESCE($2, apple_authorization_code),
           last_login = CURRENT_TIMESTAMP,
-          full_name = COALESCE($3, full_name)
-         WHERE id = $4`,
-        [appleData.identityToken, appleData.authorizationCode, appleData.name, user.id],
+          full_name = COALESCE($1, full_name)
+         WHERE id = $2`,
+        [appleData.name, user.id],
       );
     }
 

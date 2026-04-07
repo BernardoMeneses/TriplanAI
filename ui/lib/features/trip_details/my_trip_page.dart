@@ -234,10 +234,7 @@ class _MyTripPageState extends State<MyTripPage> {
   Future<void> _editTrip() async {
     if (!_canEditTrip) {
       if (_isTripFinished) {
-        SnackBarHelper.showWarning(
-          context,
-          'Esta viagem já terminou. Cria uma nova viagem para um novo destino.',
-        );
+        SnackBarHelper.showWarning(context, AppConstants.tripEditLocked.tr());
       }
       return;
     }
@@ -382,11 +379,13 @@ class _MyTripPageState extends State<MyTripPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          isMember ? 'Deixar viagem' : AppConstants.deleteTripTitle.tr(),
+          isMember
+              ? AppConstants.leaveTripTitle.tr()
+              : AppConstants.deleteTripTitle.tr(),
         ),
         content: Text(
           isMember
-              ? 'Tens a certeza que pretendes deixar de seguir esta viagem partilhada?'
+              ? AppConstants.leaveTripMessage.tr()
               : AppConstants.deleteTripMessage.tr(),
         ),
         actions: [
@@ -397,7 +396,11 @@ class _MyTripPageState extends State<MyTripPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(isMember ? 'Deixar' : AppConstants.delete.tr()),
+            child: Text(
+              isMember
+                  ? AppConstants.leaveTripAction.tr()
+                  : AppConstants.delete.tr(),
+            ),
           ),
         ],
       ),
@@ -427,7 +430,7 @@ class _MyTripPageState extends State<MyTripPage> {
         SnackBarHelper.showSuccess(
           context,
           isMember
-              ? 'Viagem removida das suas viagens'
+              ? AppConstants.leaveTripSuccess.tr()
               : AppConstants.tripDeletedSuccess.tr(),
         );
         // Emit event to inform other pages
@@ -579,7 +582,7 @@ class _MyTripPageState extends State<MyTripPage> {
                 ),
                 title: Text(
                   _trip.isMember
-                      ? 'Deixar viagem'
+                      ? AppConstants.leaveTripTitle.tr()
                       : AppConstants.deleteTrip.tr(),
                   style: TextStyle(
                     color: _effectiveReadOnly ? Colors.grey : Colors.red,
@@ -587,7 +590,7 @@ class _MyTripPageState extends State<MyTripPage> {
                 ),
                 subtitle: Text(
                   _trip.isMember
-                      ? 'Remover das tuas viagens'
+                      ? AppConstants.leaveTripSubtitle.tr()
                       : AppConstants.deleteTripSubtitle.tr(),
                 ),
                 enabled: !_effectiveReadOnly,

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:uuid/uuid.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../common/app_colors.dart';
+import '../../common/constants/app_constants.dart';
 import '../../services/destinations_service.dart';
 
 class DestinationResult {
@@ -148,7 +150,7 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Where to?',
+                      AppConstants.whereToNext.tr(),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -179,7 +181,7 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
                       : AppColors.textPrimaryLight,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'To country or city',
+                  hintText: AppConstants.toCountryOrCity.tr(),
                   hintStyle: TextStyle(
                     color: isDark
                         ? AppColors.textHintDark
@@ -235,8 +237,8 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
                             const SizedBox(height: 16),
                             Text(
                               _searchController.text.isEmpty
-                                  ? 'Search for a destination'
-                                  : 'No destinations found',
+                                  ? AppConstants.searchDestinations.tr()
+                                  : AppConstants.noResults.tr(),
                               style: TextStyle(
                                 color: isDark
                                     ? AppColors.textSecondaryDark

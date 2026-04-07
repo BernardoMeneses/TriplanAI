@@ -40,7 +40,8 @@
       "friday": "Ven",
       "saturday": "Sab",
       "sunday": "Dom"
-    }
+    },
+    "view": "Visualizza"
   },
   "auth": {
     "welcome_back": "Bentornato!",
@@ -88,7 +89,11 @@
       "username_required": "Nome utente richiesto"
     },
     "email": "Email",
-    "apple_register_error": "Errore nella registrazione con Apple: {0}"
+    "apple_register_error": "Errore nella registrazione con Apple: {0}",
+    "apple_sign_in_unavailable": "Apple Sign In non è disponibile su questo dispositivo.",
+    "apple_auth_failed": "Impossibile autenticarsi con Apple. Verifica le impostazioni Apple Sign In sul tuo iPhone e riprova.",
+    "apple_login_error": "Errore durante l'accesso con Apple: {0}",
+    "google_login_error": "Errore durante l'accesso con Google: {0}"
   },
   "home": {
     "title": "Home",
@@ -137,7 +142,9 @@
     "no_past_trips": "Nessun viaggio passato",
     "no_past_trips_subtitle": "Premi il pulsante più sotto per iniziare a esplorare\ne creare nuovi ricordi!",
     "only_triplan_supported": "Sono supportati solo i file .triplan",
-    "importing_trip": "Importazione viaggio..."
+    "importing_trip": "Importazione viaggio...",
+    "draft": "Bozza",
+    "already_member": "Sei già membro di questo viaggio."
   },
   "new_trip": {
     "plan_your_trip": "Pianifica il tuo viaggio",
@@ -256,7 +263,13 @@
     "duplicate_favorite_message": "Questo luogo è già nei preferiti",
     "place_moved_to_day": "Luogo spostato al Giorno {}",
     "could_not_open_maps": "Impossibile aprire Google Maps",
-    "error_opening_maps": "Errore nell'apertura di Google Maps"
+    "error_opening_maps": "Errore nell'apertura di Google Maps",
+    "leave_trip_title": "Lascia viaggio",
+    "leave_trip_message": "Sei sicuro di voler smettere di seguire questo viaggio condiviso?",
+    "leave_trip_action": "Lascia",
+    "leave_trip_subtitle": "Rimuovi dai tuoi viaggi",
+    "leave_trip_success": "Viaggio rimosso dai tuoi viaggi",
+    "trip_edit_locked": "Questo viaggio è già terminato. Crea un nuovo viaggio per una nuova destinazione."
   },
   "favorites": {
     "title": "Preferiti",
@@ -266,7 +279,8 @@
     "remove_favorite": "Rimuovi dai preferiti",
     "removed_from_favorites": "Rimosso dai preferiti",
     "error_removing_favorite": "Errore nella rimozione dai preferiti",
-    "confirm_remove_favorite": "Rimuovere \"{}\" dai preferiti?"
+    "confirm_remove_favorite": "Rimuovere \"{}\" dai preferiti?",
+    "added_on": "Aggiunto il {0}"
   },
   "map": {
     "show_route": "Mostra percorso",
@@ -334,7 +348,9 @@
     "faq_answer_10": "Vai al tuo profilo, sezione 'Account', e tocca 'Elimina account'. Riceverai istruzioni via email. Questa azione è permanente e cancellerà tutti i tuoi dati.",
     "notifications_enabled": "Notifiche attivate",
     "notifications_disabled": "Notifiche disattivate",
-    "test_notification_sent": "Notifica di prova inviata!"
+    "test_notification_sent": "Notifica di prova inviata!",
+    "test_notification_title": "Test notifica",
+    "test_notification_subtitle": "Invia una notifica di prova"
   },
   "languages": {
     "portuguese": "Português",
@@ -428,7 +444,10 @@
     "back_to_free_failed": "Impossibile aggiornare il piano a Free.",
     "terms_note": "Gli abbonamenti si rinnovano automaticamente. Puoi annullare in qualsiasi momento nelle impostazioni dello store.",
     "product_not_found": "Prodotto non trovato. Riprova più tardi.",
-    "coming_soon": "Integrazione pagamenti in arrivo!"
+    "coming_soon": "Integrazione pagamenti in arrivo!",
+    "free_description": "Funzionalità base e backup manuale",
+    "basic_description": "Più viaggi, esportazione PDF e backup automatico",
+    "premium_description": "Tutto illimitato"
   },
   "limits": {
     "trip_limit_title": "Limite Viaggi Raggiunto",
@@ -442,7 +461,8 @@
     "backup_locked_title": "Backup Cloud Bloccato",
     "backup_locked_desc": "Il backup cloud è disponibile nei piani Basic e Premium. Effettua l'upgrade per mantenere i tuoi viaggi al sicuro!",
     "maybe_later": "Forse Dopo",
-    "upgrade_now": "Aggiorna Ora"
+    "upgrade_now": "Aggiorna Ora",
+    "feature_locked_default": "Questa funzionalità è bloccata nel tuo piano attuale. Esegui l'upgrade per accedere."
   },
   "backup": {
     "title": "Backup & Sincronizzazione",

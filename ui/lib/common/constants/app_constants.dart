@@ -18,6 +18,7 @@ class AppConstants {
   static const String success = 'common.success';
   static const String or = 'common.or';
   static const String close = 'common.close';
+  static const String view = 'common.view';
   static const String home = 'common.home';
   static const String traveling = 'common.traveling';
 
@@ -74,6 +75,10 @@ class AppConstants {
   static const String fillYourData = 'auth.fill_your_data';
   static const String accountCreatedSuccess = 'auth.account_created_success';
   static const String loginSuccess = 'auth.login_success';
+  static const String appleSignInUnavailable = 'auth.apple_sign_in_unavailable';
+  static const String appleAuthFailed = 'auth.apple_auth_failed';
+  static const String appleLoginError = 'auth.apple_login_error';
+  static const String googleLoginError = 'auth.google_login_error';
   static const String accountExists = 'auth.account_exists';
   static const String existingAccount = 'auth.existing_account';
   static const String goToLogin = 'auth.go_to_login';
@@ -145,6 +150,7 @@ class AppConstants {
   static const String dayLabel = 'trips.day_label';
   static const String noPastTrips = 'trips.no_past_trips';
   static const String noPastTripsSubtitle = 'trips.no_past_trips_subtitle';
+  static const String draft = 'trips.draft';
 
   // ===== NOVA VIAGEM =====
   static const String planYourTrip = 'new_trip.plan_your_trip';
@@ -208,6 +214,12 @@ class AppConstants {
   static const String deleteTripSubtitle = 'trip_details.delete_trip_subtitle';
   static const String deleteTripTitle = 'trip_details.delete_trip_title';
   static const String deleteTripMessage = 'trip_details.delete_trip_message';
+  static const String leaveTripTitle = 'trip_details.leave_trip_title';
+  static const String leaveTripMessage = 'trip_details.leave_trip_message';
+  static const String leaveTripAction = 'trip_details.leave_trip_action';
+  static const String leaveTripSubtitle = 'trip_details.leave_trip_subtitle';
+  static const String leaveTripSuccess = 'trip_details.leave_trip_success';
+  static const String tripEditLocked = 'trip_details.trip_edit_locked';
   static const String tripDeletedSuccess = 'trip_details.trip_deleted_success';
   static const String errorDeletingTrip = 'trip_details.error_deleting_trip';
   static const String removePlace = 'trip_details.remove_place';
@@ -272,6 +284,7 @@ class AppConstants {
   static const String removedFromFavorites = 'favorites.removed_from_favorites';
   static const String errorRemovingFavorite =
       'favorites.error_removing_favorite';
+  static const String favoriteAddedOn = 'favorites.added_on';
 
   // ===== MAPA =====
   static const String showRoute = 'map.show_route';
@@ -340,10 +353,14 @@ class AppConstants {
   static const String deleteAccountMessage = 'profile.delete_message';
   static const String notificationsEnabled = 'profile.notifications_enabled';
   static const String notificationsDisabled = 'profile.notifications_disabled';
+  static const String testNotificationTitle = 'profile.test_notification_title';
+  static const String testNotificationSubtitle =
+      'profile.test_notification_subtitle';
   static const String testNotificationSent = 'profile.test_notification_sent';
   static const String appleRegisterError = 'auth.apple_register_error';
   static const String onlyTriplanSupported = 'trips.only_triplan_supported';
   static const String importingTrip = 'trips.importing_trip';
+  static const String tripAlreadyMember = 'trips.already_member';
   static const String confirmRemoveFavorite =
       'favorites.confirm_remove_favorite';
 
@@ -413,6 +430,7 @@ class AppConstants {
   static const String pdfLockedDesc = 'limits.pdf_locked_desc';
   static const String backupLockedTitle = 'limits.backup_locked_title';
   static const String backupLockedDesc = 'limits.backup_locked_desc';
+  static const String featureLockedDefault = 'limits.feature_locked_default';
   static const String maybeLater = 'limits.maybe_later';
   static const String upgradeNow = 'limits.upgrade_now';
 

@@ -336,8 +336,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 _buildListTile(
                   context,
                   icon: Icons.notifications_active,
-                  title: 'Testar Notificação',
-                  subtitle: 'Enviar notificação de teste',
+                  title: AppConstants.testNotificationTitle.tr(),
+                  subtitle: AppConstants.testNotificationSubtitle.tr(),
                   iconColor: Colors.orange,
                   onTap: () async {
                     await NotificationService().showTestNotification();

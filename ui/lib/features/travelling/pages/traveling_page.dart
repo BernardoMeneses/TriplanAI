@@ -10,6 +10,7 @@ import '../../../common/app_events.dart';
 import '../../../services/trips_service.dart';
 import '../../../services/subscription_service.dart';
 import '../../../services/trip_cache_service.dart';
+import '../../../services/new_trip_draft_service.dart';
 import '../../../services/destinations_service.dart';
 import '../../profile/pages/profile_page.dart';
 import '../../trip_details/my_trip_page.dart';
@@ -29,10 +30,12 @@ class _TravelingPageState extends State<TravelingPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TripCacheService _tripCacheService = TripCacheService();
+  final NewTripDraftService _newTripDraftService = NewTripDraftService();
   final DestinationsService _destinationsService = DestinationsService();
 
   List<Trip> _upcomingTrips = [];
   List<Trip> _pastTrips = [];
+  NewTripDraft? _newTripDraft;
   bool _isLoading = true;
   bool _isOfflineMode = false;
   final Map<String, String?> _tripImages = {};
@@ -42,12 +45,16 @@ class _TravelingPageState extends State<TravelingPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadTrips();
+    _loadDraft();
     // Subscribe to global trip changes to refresh lists
     AppEvents.onTripsChanged.listen((_) {
       if (mounted) _loadTrips();
     });
     AppEvents.onTripImported.listen((_) {
       if (mounted) _loadTrips();
+    });
+    AppEvents.onDraftChanged.listen((_) {
+      if (mounted) _loadDraft();
     });
   }
 
@@ -110,6 +117,15 @@ class _TravelingPageState extends State<TravelingPage>
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _loadDraft() async {
+    final draft = await _newTripDraftService.getDraft();
+    if (!mounted) return;
+
+    setState(() {
+      _newTripDraft = draft;
+    });
   }
 
   Future<void> _loadTripImage(Trip trip) async {
@@ -190,8 +206,19 @@ class _TravelingPageState extends State<TravelingPage>
     });
   }
 
+  void _openDraft() {
+    Navigator.pushNamed(context, '/new-trip').then((_) {
+      if (mounted) {
+        _loadDraft();
+        _loadTrips();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasDraft = _newTripDraft != null;
+
     return Scaffold(
       appBar: CustomAppBar(
         title: AppConstants.myTrips.tr(),
@@ -237,15 +264,29 @@ class _TravelingPageState extends State<TravelingPage>
                     controller: _tabController,
                     children: [
                       // Upcoming trips
-                      _upcomingTrips.isEmpty
+                      _upcomingTrips.isEmpty && !hasDraft
                           ? const EmptyTripsState()
                           : RefreshIndicator(
                               onRefresh: _loadTrips,
                               child: ListView.builder(
                                 padding: const EdgeInsets.all(24),
-                                itemCount: _upcomingTrips.length,
+                                itemCount:
+                                    _upcomingTrips.length + (hasDraft ? 1 : 0),
                                 itemBuilder: (context, index) {
-                                  final trip = _upcomingTrips[index];
+                                  if (hasDraft && index == 0) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 16,
+                                      ),
+                                      child: _DraftTripCard(
+                                        draft: _newTripDraft!,
+                                        onTap: _openDraft,
+                                      ),
+                                    );
+                                  }
+
+                                  final tripIndex = index - (hasDraft ? 1 : 0);
+                                  final trip = _upcomingTrips[tripIndex];
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 16),
                                     child: _TripCard(
@@ -430,6 +471,176 @@ class _TripCard extends StatelessWidget {
               ),
 
               // Botão de navegação
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.arrow_forward, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DraftTripCard extends StatelessWidget {
+  final NewTripDraft draft;
+  final VoidCallback onTap;
+
+  static const List<double> _grayscaleMatrix = [
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ];
+
+  const _DraftTripCard({required this.draft, required this.onTap});
+
+  String _title() {
+    if ((draft.destinationCity ?? '').trim().isNotEmpty) {
+      return draft.destinationCity!.trim();
+    }
+    if (draft.destinationLabel.trim().isNotEmpty) {
+      return draft.destinationLabel.trim();
+    }
+    if ((draft.destinationCountry ?? '').trim().isNotEmpty) {
+      return draft.destinationCountry!.trim();
+    }
+    return AppConstants.newTrip.tr();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final imageUrl = draft.destinationImageUrl;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.grey800 : AppColors.grey200,
+          ),
+          child: Stack(
+            children: [
+              if (imageUrl != null && imageUrl.isNotEmpty)
+                ColorFiltered(
+                  colorFilter: const ColorFilter.matrix(_grayscaleMatrix),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: isDark ? AppColors.grey800 : AppColors.grey200,
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: isDark ? AppColors.grey800 : AppColors.grey200,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.grey.shade700, Colors.grey.shade500],
+                    ),
+                  ),
+                ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 60,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _title(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if ((draft.destinationSubtitle ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        draft.destinationSubtitle!,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          color: Color(0xFFFF5A5F),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          AppConstants.draft.tr(),
+                          style: const TextStyle(
+                            color: Color(0xFFFF5A5F),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
               Positioned(
                 bottom: 16,
                 right: 16,

@@ -51,9 +51,9 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
         googleId: account.id,
         email: account.email,
         name: account.displayName ?? '',
+        idToken: auth.idToken ?? '',
         picture: account.photoUrl,
         accessToken: auth.accessToken,
-        refreshToken: auth.idToken,
       );
 
       if (mounted) {
@@ -140,7 +140,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
     try {
       final isAvailable = await SignInWithApple.isAvailable();
       if (!isAvailable) {
-        throw Exception('Apple Sign In não está disponível neste dispositivo.');
+        throw Exception(AppConstants.appleSignInUnavailable.tr());
       }
 
       final credential = await SignInWithApple.getAppleIDCredential(
@@ -186,10 +186,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
       if (e.code.toString().contains('canceled')) {
         return;
       }
-      SnackBarHelper.showError(
-        context,
-        'Não foi possível autenticar com Apple. Verifica a configuração do Apple Sign In no iPhone e tenta novamente.',
-      );
+      SnackBarHelper.showError(context, AppConstants.appleAuthFailed.tr());
     } catch (e) {
       if (mounted) {
         SnackBarHelper.showError(

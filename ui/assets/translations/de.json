@@ -40,7 +40,8 @@
       "friday": "Fre",
       "saturday": "Sam",
       "sunday": "Son"
-    }
+    },
+    "view": "Anzeigen"
   },
   "auth": {
     "welcome_back": "Willkommen zurück!",
@@ -89,7 +90,11 @@
       "username_required": "Benutzername ist erforderlich"
     },
     "email": "E-Mail",
-    "apple_register_error": "Fehler bei der Registrierung mit Apple: {0}"
+    "apple_register_error": "Fehler bei der Registrierung mit Apple: {0}",
+    "apple_sign_in_unavailable": "Apple Sign In ist auf diesem Gerät nicht verfügbar.",
+    "apple_auth_failed": "Authentifizierung mit Apple fehlgeschlagen. Bitte überprüfe die Apple Sign In-Einstellungen auf deinem iPhone und versuche es erneut.",
+    "apple_login_error": "Fehler bei der Anmeldung mit Apple: {0}",
+    "google_login_error": "Fehler bei der Anmeldung mit Google: {0}"
   },
   "home": {
     "title": "Startseite",
@@ -138,7 +143,9 @@
     "no_past_trips": "Keine vergangenen Reisen",
     "no_past_trips_subtitle": "Drücken Sie die Plus-Taste unten, um zu erkunden\nund neue Erinnerungen zu schaffen!",
     "only_triplan_supported": "Nur .triplan-Dateien werden unterstützt",
-    "importing_trip": "Reise wird importiert..."
+    "importing_trip": "Reise wird importiert...",
+    "draft": "Entwurf",
+    "already_member": "Du bist bereits Mitglied dieser Reise."
   },
   "new_trip": {
     "plan_your_trip": "Planen Sie Ihre Reise",
@@ -257,7 +264,13 @@
     "duplicate_favorite_message": "Dieser Ort befindet sich bereits in Favoriten",
     "place_moved_to_day": "Ort zu Tag {} verschoben",
     "could_not_open_maps": "Google Maps konnte nicht geöffnet werden",
-    "error_opening_maps": "Fehler beim Öffnen von Google Maps"
+    "error_opening_maps": "Fehler beim Öffnen von Google Maps",
+    "leave_trip_title": "Reise verlassen",
+    "leave_trip_message": "Möchtest du dieser geteilten Reise wirklich nicht mehr folgen?",
+    "leave_trip_action": "Verlassen",
+    "leave_trip_subtitle": "Aus deinen Reisen entfernen",
+    "leave_trip_success": "Reise aus deinen Reisen entfernt",
+    "trip_edit_locked": "Diese Reise ist bereits beendet. Erstelle eine neue Reise für ein neues Ziel."
   },
   "favorites": {
     "title": "Favoriten",
@@ -267,7 +280,8 @@
     "remove_favorite": "Aus Favoriten entfernen",
     "removed_from_favorites": "Aus Favoriten entfernt",
     "error_removing_favorite": "Fehler beim Entfernen aus Favoriten",
-    "confirm_remove_favorite": "\"{}\" aus Favoriten entfernen?"
+    "confirm_remove_favorite": "\"{}\" aus Favoriten entfernen?",
+    "added_on": "Hinzugefügt am {0}"
   },
   "map": {
     "show_route": "Route anzeigen",
@@ -335,7 +349,9 @@
     "faq_answer_10": "Gehen Sie zu Ihrem Profil, Bereich 'Konto', und tippen Sie auf 'Konto löschen'. Sie erhalten Anweisungen per E-Mail. Diese Aktion ist dauerhaft und löscht alle Ihre Daten.",
     "notifications_enabled": "Benachrichtigungen aktiviert",
     "notifications_disabled": "Benachrichtigungen deaktiviert",
-    "test_notification_sent": "Testbenachrichtigung gesendet!"
+    "test_notification_sent": "Testbenachrichtigung gesendet!",
+    "test_notification_title": "Testbenachrichtigung",
+    "test_notification_subtitle": "Eine Testbenachrichtigung senden"
   },
   "languages": {
     "portuguese": "Português",
@@ -426,7 +442,10 @@
     "back_to_free_failed": "Plan konnte nicht auf Free aktualisiert werden.",
     "terms_note": "Abonnements verlängern sich automatisch. Sie können jederzeit in den Store-Einstellungen kündigen.",
     "product_not_found": "Produkt nicht gefunden. Bitte versuchen Sie es später erneut.",
-    "coming_soon": "Zahlungsintegration kommt bald!"
+    "coming_soon": "Zahlungsintegration kommt bald!",
+    "free_description": "Grundfunktionen und manuelles Backup",
+    "basic_description": "Mehr Reisen, PDF-Export und automatisches Backup",
+    "premium_description": "Alles unbegrenzt"
   },
   "limits": {
     "trip_limit_title": "Reiselimit Erreicht",
@@ -440,7 +459,8 @@
     "backup_locked_title": "Cloud-Backup Gesperrt",
     "backup_locked_desc": "Cloud-Backup ist in den Basic- und Premium-Plänen verfügbar. Upgraden Sie, um Ihre Reisen sicher aufzubewahren!",
     "maybe_later": "Vielleicht Später",
-    "upgrade_now": "Jetzt Upgraden"
+    "upgrade_now": "Jetzt Upgraden",
+    "feature_locked_default": "Diese Funktion ist in deinem aktuellen Tarif gesperrt. Upgrade, um darauf zuzugreifen."
   },
   "backup": {
     "title": "Backup & Sync",
@@ -479,7 +499,8 @@
     "trip_day_title": "Das Abenteuer beginnt HEUTE!",
     "trip_day_body": "Heute ist der große Tag! Deine Reise nach {destination} beginnt jetzt. Öffne die App und schau dir deine Route an!",
     "channel_name": "Reise-Erinnerungen",
-    "channel_description": "Benachrichtigungen für bevorstehende Reisen"  },
+    "channel_description": "Benachrichtigungen für bevorstehende Reisen"
+  },
   "ai_chat": {
     "day_header": "Tag {day}",
     "loading_conversation": "Gespräch wird geladen...",
@@ -493,5 +514,6 @@
     "default_description": "Entdecke diesen fantastischen Ort und schaffe unvergessliche Erinnerungen.",
     "address_not_available": "Adresse nicht verfügbar",
     "hours_not_available": "Öffnungszeiten nicht verfügbar",
-    "add_to_plan": "Zum Plan hinzufügen"  }
+    "add_to_plan": "Zum Plan hinzufügen"
+  }
 }

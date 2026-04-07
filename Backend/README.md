@@ -130,6 +130,15 @@ src/
 | `FIREBASE_CLIENT_EMAIL` | Email do cliente Firebase |
 | `OPENAI_API_KEY` | Chave API OpenAI |
 | `GOOGLE_MAPS_API_KEY` | Chave API Google Maps |
+| `CORS_ALLOWED_ORIGINS` | Lista de origens permitidas no CORS (separadas por vírgula) |
+| `ALLOWED_ORIGINS` | Alias legado para lista de origens permitidas no CORS |
+| `FRONTEND_URL` | Origem única do frontend (fallback para CORS) |
+| `ADAPTY_WEBHOOK_AUTHORIZATION` | Valor exato esperado no header Authorization do webhook Adapty |
+| `ADAPTY_WEBHOOK_AUTHORIZATION_PRODUCTION` | Header Authorization esperado para eventos Adapty de produção |
+| `ADAPTY_WEBHOOK_AUTHORIZATION_SANDBOX` | Header Authorization esperado para eventos Adapty de sandbox |
+| `ADAPTY_WEBHOOK_AUTH_TOKENS` | Múltiplos tokens Adapty (separados por vírgula) |
+
+Observação: em produção, o backend falha ao iniciar se não houver allowlist de CORS configurada. O webhook do Adapty também exige Authorization configurado para aceitar eventos.
 
 ## 📄 Licença
 

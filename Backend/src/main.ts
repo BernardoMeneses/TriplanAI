@@ -1,5 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import path from 'path';
@@ -33,11 +33,86 @@ import { notesController } from './modules/notes';
 const app: Express = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+function normalizeOrigin(origin: string): string {
+  const trimmed = origin.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/, '');
+  }
+}
+
+function parseAllowedCorsOrigins(): string[] {
+  const keys = ['CORS_ALLOWED_ORIGINS', 'ALLOWED_ORIGINS', 'FRONTEND_URL'];
+  const origins = new Set<string>();
+
+  for (const key of keys) {
+    const rawValue = process.env[key];
+    if (!rawValue) continue;
+
+    const parsedOrigins = rawValue
+      .split(',')
+      .map((origin) => normalizeOrigin(origin))
+      .filter((origin) => origin.length > 0);
+
+    for (const origin of parsedOrigins) {
+      origins.add(origin);
+    }
+  }
+
+  return [...origins];
+}
+
+const configuredCorsOrigins = parseAllowedCorsOrigins();
+const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+const defaultDevelopmentOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
+];
+
+if (isProduction && configuredCorsOrigins.length === 0) {
+  throw new Error(
+    'CORS allowlist is required in production. Configure CORS_ALLOWED_ORIGINS, ALLOWED_ORIGINS, or FRONTEND_URL.',
+  );
+}
+
+const allowedCorsOrigins =
+  configuredCorsOrigins.length > 0
+    ? configuredCorsOrigins
+    : defaultDevelopmentOrigins;
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (allowedCorsOrigins.includes(normalizeOrigin(origin))) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
+  optionsSuccessStatus: 204,
+};
+
 // Trust proxy (CapRover / nginx) para obter IP real do cliente
 app.set('trust proxy', 1);
 
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -120,6 +195,9 @@ app.use((_req, res) => {
 // Error Handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 

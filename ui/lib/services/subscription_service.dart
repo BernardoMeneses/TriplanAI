@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'api_service.dart';
 import '../common/app_events.dart';
 
@@ -218,11 +219,11 @@ class SubscriptionService {
   static String getPlanDisplayName(SubscriptionPlan plan) {
     switch (plan) {
       case SubscriptionPlan.free:
-        return 'Free';
+        return 'subscription.free'.tr();
       case SubscriptionPlan.basic:
-        return 'Basic';
+        return 'subscription.basic'.tr();
       case SubscriptionPlan.premium:
-        return 'Premium';
+        return 'subscription.premium'.tr();
     }
   }
 
@@ -230,11 +231,11 @@ class SubscriptionService {
   static String getPlanDescription(SubscriptionPlan plan) {
     switch (plan) {
       case SubscriptionPlan.free:
-        return 'Funcionalidades básicas, backup manual';
+        return 'subscription.free_description'.tr();
       case SubscriptionPlan.basic:
-        return 'Mais viagens, PDF e backup automático';
+        return 'subscription.basic_description'.tr();
       case SubscriptionPlan.premium:
-        return 'Tudo ilimitado';
+        return 'subscription.premium_description'.tr();
     }
   }
 }

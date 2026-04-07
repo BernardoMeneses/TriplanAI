@@ -1,8 +1,64 @@
 import { Router, Request, Response } from 'express';
+import { timingSafeEqual } from 'crypto';
 import { PremiumService } from './premium.service';
 
 const router = Router();
 const premiumService = new PremiumService();
+
+function getConfiguredWebhookAuthTokens(envKeys: string[]): string[] {
+  const tokens = new Set<string>();
+
+  for (const key of envKeys) {
+    const rawValue = process.env[key];
+    if (!rawValue) continue;
+
+    const values = rawValue
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    for (const value of values) {
+      tokens.add(value);
+    }
+  }
+
+  return [...tokens];
+}
+
+const adaptyWebhookAuthTokens = getConfiguredWebhookAuthTokens([
+  'ADAPTY_WEBHOOK_AUTHORIZATION',
+  'ADAPTY_WEBHOOK_AUTHORIZATION_PRODUCTION',
+  'ADAPTY_WEBHOOK_AUTHORIZATION_SANDBOX',
+  'ADAPTY_WEBHOOK_AUTH_TOKENS',
+]);
+
+if (adaptyWebhookAuthTokens.length === 0) {
+  throw new Error(
+    'Adapty webhook authorization must be configured via ADAPTY_WEBHOOK_AUTHORIZATION (or related env keys).',
+  );
+}
+
+function timingSafeStringEquals(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function isAuthorizedAdaptyWebhookRequest(headerValue?: string): boolean {
+  if (!headerValue) {
+    return false;
+  }
+
+  const normalizedHeader = headerValue.trim();
+  return adaptyWebhookAuthTokens.some((token) =>
+    timingSafeStringEquals(normalizedHeader, token),
+  );
+}
 
 /**
  * @swagger
@@ -59,12 +115,34 @@ router.get('/status', async (req: Request, res: Response) => {
  */
 router.post('/adapty-webhook', async (req: Request, res: Response) => {
   try {
-    const event = req.body;
+    const authorizationHeader = req.get('authorization');
+    if (!isAuthorizedAdaptyWebhookRequest(authorizationHeader)) {
+      return res.status(401).json({ error: 'Unauthorized webhook request' });
+    }
+
+    const event = req.body as Record<string, unknown> | null;
+    if (!event || typeof event !== 'object' || Array.isArray(event)) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+
+    // Adapty sends an empty JSON object as verification payload when enabling integration.
+    if (Object.keys(event).length === 0) {
+      return res.status(200).json({ success: true, verification: true });
+    }
+
+    const eventType =
+      typeof event.event_type === 'string' ? event.event_type : undefined;
+    const profileEmail =
+      typeof event.profile_email === 'string'
+        ? event.profile_email
+        : typeof event.email === 'string'
+          ? event.email
+          : undefined;
     
     // Log do evento
     console.log('📥 Adapty webhook received:', {
-      event_type: event.event_type,
-      profile_email: event.profile_email,
+      event_type: eventType,
+      profile_email: profileEmail,
       timestamp: new Date().toISOString(),
     });
 
