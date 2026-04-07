@@ -59,6 +59,8 @@ export interface PlaceDetails {
 }
 
 export class MapsService {
+  private countryCodeCache = new Map<string, string | null>();
+
   private normalizeLanguageCode(language?: string): string {
     const value = (language || '').trim();
     if (!value) return Language.pt_PT;
@@ -208,16 +210,22 @@ export class MapsService {
   async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number, sessionToken?: string, country?: string, language?: string): Promise<PlaceDetails[]> {
     try {
       const languageCode = this.normalizeLanguageCode(language);
-      console.log(`[MapsService] searchPlaces input="${query}"`);
+      const trimmedQuery = query.trim();
+      if (!trimmedQuery) return [];
+
+      const effectiveRadius = radius && radius > 0 ? radius : 15000;
+      const countryCode = await this.resolveCountryCode(country);
+      const countryLabel = (country || '').trim();
+
+      console.log(`[MapsService] searchPlaces input="${trimmedQuery}"`);
       // First try Place Autocomplete for better fuzzy/partial matching
       try {
         const autoParams: any = {
-          input: query,
+          input: trimmedQuery,
           key: GOOGLE_MAPS_API_KEY,
           language: languageCode,
         };
-        // If caller provided a country (name or ISO code), try to normalize it to a 2-letter ISO
-        const countryCode = this.normalizeCountryCode(country);
+
         if (countryCode) {
           autoParams.components = `country:${countryCode}`;
           // strictbounds helps keep results within the country when combined with components
@@ -226,7 +234,7 @@ export class MapsService {
         }
         if (location) {
           autoParams.location = location;
-          autoParams.radius = radius || 5000;
+          autoParams.radius = effectiveRadius;
         }
         if (sessionToken) {
           autoParams.sessiontoken = sessionToken;
@@ -235,7 +243,7 @@ export class MapsService {
 
         const autoResponse = await mapsClient.placeAutocomplete({ params: autoParams });
         const predictions = autoResponse.data.predictions || [];
-        console.log(`[MapsService] autocomplete returned ${predictions.length} predictions for "${query}"`);
+        console.log(`[MapsService] autocomplete returned ${predictions.length} predictions for "${trimmedQuery}"`);
 
         if (predictions.length > 0) {
           const detailedPlaces = await Promise.all(predictions.slice(0, 20).map(async (prediction) => {
@@ -258,7 +266,7 @@ export class MapsService {
             } as PlaceDetails;
           }));
 
-          return detailedPlaces;
+          return this.applyLocalityFilter(detailedPlaces, location, effectiveRadius);
         }
       } catch (autocompleteError) {
         // If autocomplete fails, fall back to textSearch below
@@ -267,32 +275,31 @@ export class MapsService {
 
       // Fallback: use Text Search for broader queries
       const params: any = {
-        query,
+        query: trimmedQuery,
         key: GOOGLE_MAPS_API_KEY,
         language: languageCode,
       };
 
-      // Try to bias textSearch to country if provided (region accepts a ccTLD country code)
-      const countryCodeForText = this.normalizeCountryCode(country);
-      if (countryCodeForText) {
-        params.region = countryCodeForText.toLowerCase();
-        console.log(`[MapsService] using region bias for textSearch: ${countryCodeForText}`);
-        // Append an English country name to the query to bias textSearch results
-        const countryNameEn = this.countryCodeToEnglishName(countryCodeForText);
-        if (countryNameEn) {
-          params.query = `${query}, ${countryNameEn}`;
-          console.log(`[MapsService] appending country to textSearch query to bias results: ${params.query}`);
-        }
+      // Bias textSearch to the resolved country when available.
+      if (countryCode) {
+        params.region = countryCode.toLowerCase();
+        console.log(`[MapsService] using region bias for textSearch: ${countryCode}`);
+      }
+
+      // Also append the original country label (in any language/script) to strengthen locality intent.
+      if (countryLabel && !this.includesNormalized(trimmedQuery, countryLabel)) {
+        params.query = `${trimmedQuery}, ${countryLabel}`;
+        console.log(`[MapsService] appending country label to textSearch query: ${params.query}`);
       }
 
       if (location) {
         params.location = location;
-        params.radius = radius || 5000; // Default 5km
+        params.radius = effectiveRadius;
       }
 
       const response = await mapsClient.textSearch({ params });
       const places = response.data.results.slice(0, 20);
-      console.log(`[MapsService] textSearch returned ${places.length} results for "${query}"`);
+      console.log(`[MapsService] textSearch returned ${places.length} results for "${trimmedQuery}"`);
 
       // Buscar detalhes completos para cada resultado
       const detailedPlaces = await Promise.all(places.map(async (place) => {
@@ -320,7 +327,8 @@ export class MapsService {
           website: undefined,
         } as PlaceDetails;
       }));
-      return detailedPlaces;
+
+      return this.applyLocalityFilter(detailedPlaces, location, effectiveRadius);
     } catch (error) {
       console.error('Erro ao pesquisar lugares:', error);
       return [];
@@ -575,39 +583,117 @@ export class MapsService {
     return deg * (Math.PI / 180);
   }
 
-  private countryCodeToEnglishName(code?: string): string | undefined {
-    if (!code) return undefined;
-    const iso = code.trim().toUpperCase();
-    const map: Record<string, string> = {
-      'IT': 'Italy',
-      'PT': 'Portugal',
-      'ES': 'Spain',
-      'FR': 'France',
-      'DE': 'Germany',
-      'BR': 'Brazil',
-      'US': 'United States',
-      'GB': 'United Kingdom'
-    };
-    return map[iso];
+  private normalizeLookupValue(value: string): string {
+    return value
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
   }
 
-  private normalizeCountryCode(country?: string): string | undefined {
+  private includesNormalized(text: string, term: string): boolean {
+    return this.normalizeLookupValue(text).includes(this.normalizeLookupValue(term));
+  }
+
+  private applyLocalityFilter(
+    places: PlaceDetails[],
+    location?: { lat: number; lng: number },
+    radiusMeters: number = 5000,
+  ): PlaceDetails[] {
+    if (!location || places.length === 0) {
+      return places;
+    }
+
+    const minRadiusMeters = Math.max(radiusMeters, 1000);
+    const maxRadiusMeters = Math.max(minRadiusMeters, 120000);
+    const targetLocalResults = 8;
+
+    const rankedByDistance = places
+      .filter((place) => {
+        const lat = place.location?.lat;
+        const lng = place.location?.lng;
+        return typeof lat === 'number' && typeof lng === 'number' && !(lat === 0 && lng === 0);
+      })
+      .map((place) => ({
+        place,
+        distanceKm: this.calculateDistance(location, place.location),
+      }))
+      .filter((item) => Number.isFinite(item.distanceKm))
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    if (rankedByDistance.length === 0) {
+      return [];
+    }
+
+    const radiusSteps = [1, 1.5, 2, 3, 4, 6, 8]
+      .map((factor) => Math.min(Math.round(minRadiusMeters * factor), maxRadiusMeters))
+      .filter((value, index, arr) => arr.indexOf(value) === index);
+
+    if (!radiusSteps.includes(maxRadiusMeters)) {
+      radiusSteps.push(maxRadiusMeters);
+    }
+
+    let bestInRange: Array<{ place: PlaceDetails; distanceKm: number }> = [];
+
+    for (const currentRadius of radiusSteps) {
+      const currentRadiusKm = currentRadius / 1000;
+      const inRange = rankedByDistance.filter((item) => item.distanceKm <= currentRadiusKm);
+
+      if (inRange.length > 0) {
+        bestInRange = inRange;
+      }
+
+      if (inRange.length >= targetLocalResults) {
+        return inRange.map((item) => item.place);
+      }
+    }
+
+    return bestInRange.map((item) => item.place);
+  }
+
+  private async resolveCountryCode(country?: string): Promise<string | undefined> {
     if (!country) return undefined;
+
     const trimmed = country.trim();
-    if (trimmed.length === 2) return trimmed.toUpperCase();
-    // remove diacritics and normalize
-    const key = trimmed.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-    const map: Record<string, string> = {
-      'ITALY': 'IT', 'ITALIA': 'IT', 'ITALIE': 'IT', 'ITALIEN': 'IT', 'ITÁLIA': 'IT',
-      'PORTUGAL': 'PT',
-      'SPAIN': 'ES', 'ESPANA': 'ES', 'ESPAÑA': 'ES', 'ESPANHA': 'ES',
-      'FRANCE': 'FR', 'FRANCA': 'FR', 'FRANÇA': 'FR',
-      'GERMANY': 'DE', 'DEUTSCHLAND': 'DE',
-      'BRAZIL': 'BR', 'BRASIL': 'BR',
-      'UNITED STATES': 'US', 'UNITED STATES OF AMERICA': 'US', 'USA': 'US',
-      'UNITED KINGDOM': 'GB', 'UK': 'GB', 'REINO UNIDO': 'GB'
-    };
-    return map[key] || undefined;
+    if (!trimmed) return undefined;
+
+    if (/^[a-z]{2}$/i.test(trimmed)) {
+      return trimmed.toUpperCase();
+    }
+
+    const cacheKey = this.normalizeLookupValue(trimmed);
+    if (this.countryCodeCache.has(cacheKey)) {
+      const cached = this.countryCodeCache.get(cacheKey);
+      return cached || undefined;
+    }
+
+    try {
+      const response = await mapsClient.geocode({
+        params: {
+          address: trimmed,
+          key: GOOGLE_MAPS_API_KEY,
+          language: 'en' as any,
+        },
+      });
+
+      for (const result of response.data.results) {
+        for (const component of result.address_components) {
+          const types = component.types as string[];
+          if (!types.includes('country')) continue;
+
+          const shortName = (component.short_name || '').trim().toUpperCase();
+          if (/^[A-Z]{2}$/.test(shortName)) {
+            this.countryCodeCache.set(cacheKey, shortName);
+            return shortName;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`[MapsService] could not resolve country code for "${trimmed}"`, error);
+    }
+
+    this.countryCodeCache.set(cacheKey, null);
+    return undefined;
   }
 
   // Obter direções entre dois pontos com modo de transporte (usando nova Google Routes API)

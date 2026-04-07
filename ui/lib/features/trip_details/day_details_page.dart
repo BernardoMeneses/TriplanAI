@@ -331,7 +331,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
       backgroundColor: Colors.transparent,
       builder: (_) => LocationFilteredSearchModal(
         cityFilter: widget.tripCity,
-        countryFilter: widget.tripCountry ?? _destinationCountry,
+        countryFilter: _destinationCountry ?? widget.tripCountry,
         dayNumber: widget.dayNumber,
         centerLat: _destinationLat,
         centerLng: _destinationLng,
@@ -1516,7 +1516,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
                   backgroundColor: Colors.transparent,
                   builder: (_) => AIChatModal(
                     cityFilter: widget.tripCity,
-                    countryFilter: widget.tripCountry,
+                    countryFilter: _destinationCountry ?? widget.tripCountry,
                     dayNumber: _currentDayNumber,
                     itineraryId: _itineraryId,
                     tripId: widget.tripId,

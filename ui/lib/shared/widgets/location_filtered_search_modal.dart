@@ -87,8 +87,6 @@ class _LocationFilteredSearchModalState
       setState(() => _isLoading = true);
 
       try {
-        String searchQuery = q;
-
         // If we don't have coords yet but have a city/country filter, try geocoding once
         if ((_effectiveLat == null || _effectiveLng == null) &&
             !_geocodeAttempted) {
@@ -112,16 +110,9 @@ class _LocationFilteredSearchModalState
             }
           }
         }
-        // Sempre priorizar cidade sobre país para pesquisa mais específica
-        if (widget.cityFilter != null && widget.cityFilter!.trim().isNotEmpty) {
-          searchQuery = '$q, ${widget.cityFilter}';
-        } else if (widget.countryFilter != null &&
-            widget.countryFilter!.trim().isNotEmpty) {
-          searchQuery = '$q, ${widget.countryFilter}';
-        }
 
         final results = await _destinationsService.searchDestinations(
-          searchQuery,
+          q,
           sessionToken: _sessionToken,
           lat: _effectiveLat ?? widget.centerLat,
           lng: _effectiveLng ?? widget.centerLng,
