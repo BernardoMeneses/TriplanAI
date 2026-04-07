@@ -129,6 +129,12 @@ src/
 | `FIREBASE_PRIVATE_KEY` | Chave privada Firebase |
 | `FIREBASE_CLIENT_EMAIL` | Email do cliente Firebase |
 | `OPENAI_API_KEY` | Chave API OpenAI |
+| `GOOGLE_OAUTH_CLIENT_IDS` | IDs OAuth Google permitidos (separados por vírgula/; ou nova linha) |
+| `GOOGLE_CLIENT_IDS` | Alias para lista de IDs OAuth Google permitidos |
+| `GOOGLE_CLIENT_ID` | ID OAuth Google único (compatibilidade) |
+| `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID` | IDs por plataforma para validação de audience |
+| `APPLE_CLIENT_IDS` | IDs Apple permitidos (Service ID/Bundle IDs, separados por vírgula/; ou nova linha) |
+| `APPLE_CLIENT_ID`, `APPLE_SERVICE_ID`, `APPLE_BUNDLE_ID` | IDs Apple de compatibilidade |
 | `GOOGLE_MAPS_API_KEY` | Chave API Google Maps |
 | `CORS_ALLOWED_ORIGINS` | Lista de origens permitidas no CORS (separadas por vírgula) |
 | `ALLOWED_ORIGINS` | Alias legado para lista de origens permitidas no CORS |
@@ -138,7 +144,7 @@ src/
 | `ADAPTY_WEBHOOK_AUTHORIZATION_SANDBOX` | Header Authorization esperado para eventos Adapty de sandbox |
 | `ADAPTY_WEBHOOK_AUTH_TOKENS` | Múltiplos tokens Adapty (separados por vírgula) |
 
-Observação: em produção, o backend falha ao iniciar se não houver allowlist de CORS configurada. O webhook do Adapty também exige Authorization configurado para aceitar eventos.
+Observação: em produção, o backend falha ao iniciar se não houver allowlist de CORS configurada. O webhook do Adapty também exige Authorization configurado para aceitar eventos. O login Google/Apple em produção exige client IDs configurados no backend para validação de audience.
 
 ## 📄 Licença
 

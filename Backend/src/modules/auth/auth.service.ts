@@ -43,22 +43,51 @@ export interface User {
 }
 
 export class AuthService {
+  private audienceWarningIssued = new Set<string>();
+
   private getConfiguredClientIds(envKeys: string[]): string[] {
+    const values = new Set<string>();
+
     for (const key of envKeys) {
       const raw = process.env[key];
       if (!raw) continue;
 
       const ids = raw
-        .split(',')
+        .split(/[;,\n]/)
         .map((value) => value.trim())
         .filter((value) => value.length > 0);
 
-      if (ids.length > 0) {
-        return ids;
+      for (const id of ids) {
+        values.add(id);
       }
     }
 
-    return [];
+    return Array.from(values);
+  }
+
+  private isProductionEnvironment(): boolean {
+    return (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+  }
+
+  private ensureAudienceConfig(
+    provider: 'Google' | 'Apple',
+    envKeys: string[],
+    allowedAudiences: string[],
+  ): void {
+    if (allowedAudiences.length > 0) return;
+
+    if (this.isProductionEnvironment()) {
+      throw new Error(
+        `${provider} OAuth client IDs are not configured on the backend. Configure one of: ${envKeys.join(', ')}`,
+      );
+    }
+
+    if (!this.audienceWarningIssued.has(provider)) {
+      this.audienceWarningIssued.add(provider);
+      console.warn(
+        `[AuthService] ${provider} OAuth audience validation is disabled because no client IDs are configured. Set one of ${envKeys.join(', ')} to enable strict validation.`,
+      );
+    }
   }
 
   private normalizeEmail(value: string): string {
@@ -71,14 +100,17 @@ export class AuthService {
     name?: string;
     picture?: string;
   }> {
-    const allowedAudiences = this.getConfiguredClientIds([
+    const googleEnvKeys = [
       'GOOGLE_OAUTH_CLIENT_IDS',
+      'GOOGLE_CLIENT_IDS',
       'GOOGLE_CLIENT_ID',
-    ]);
-
-    if (allowedAudiences.length === 0) {
-      throw new Error('Google OAuth client IDs are not configured on the backend.');
-    }
+      'GOOGLE_WEB_CLIENT_ID',
+      'GOOGLE_IOS_CLIENT_ID',
+      'GOOGLE_ANDROID_CLIENT_ID',
+      'GOOGLE_SERVER_CLIENT_ID',
+    ];
+    const allowedAudiences = this.getConfiguredClientIds(googleEnvKeys);
+    this.ensureAudienceConfig('Google', googleEnvKeys, allowedAudiences);
 
     try {
       const response = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
@@ -96,7 +128,7 @@ export class AuthService {
         throw new Error('Google token payload inválido.');
       }
 
-      if (!allowedAudiences.includes(audience)) {
+      if (allowedAudiences.length > 0 && !allowedAudiences.includes(audience)) {
         throw new Error('Google token audience inválida.');
       }
 
@@ -120,16 +152,17 @@ export class AuthService {
     email?: string;
     emailVerified: boolean;
   }> {
-    const allowedAudiences = this.getConfiguredClientIds([
+    const appleEnvKeys = [
       'APPLE_CLIENT_IDS',
       'APPLE_CLIENT_ID',
       'APPLE_SERVICE_ID',
       'APPLE_BUNDLE_ID',
-    ]);
-
-    if (allowedAudiences.length === 0) {
-      throw new Error('Apple client IDs are not configured on the backend.');
-    }
+      'APPLE_IOS_BUNDLE_ID',
+      'APPLE_APP_ID',
+      'APPLE_IDENTIFIER',
+    ];
+    const allowedAudiences = this.getConfiguredClientIds(appleEnvKeys);
+    this.ensureAudienceConfig('Apple', appleEnvKeys, allowedAudiences);
 
     try {
       const decoded = jwt.decode(identityToken, { complete: true }) as
@@ -154,16 +187,18 @@ export class AuthService {
       }
 
       const publicKey = createPublicKey({ key: jwk, format: 'jwk' });
-      const audienceOption =
-        allowedAudiences.length === 1
-          ? allowedAudiences[0]
-          : (allowedAudiences as [string, ...string[]]);
-
-      const verified = jwt.verify(identityToken, publicKey, {
+      const verifyOptions: jwt.VerifyOptions = {
         algorithms: ['RS256'],
         issuer: 'https://appleid.apple.com',
-        audience: audienceOption,
-      }) as Record<string, unknown>;
+      };
+
+      if (allowedAudiences.length === 1) {
+        verifyOptions.audience = allowedAudiences[0];
+      } else if (allowedAudiences.length > 1) {
+        verifyOptions.audience = allowedAudiences as [string, ...string[]];
+      }
+
+      const verified = jwt.verify(identityToken, publicKey, verifyOptions) as Record<string, unknown>;
 
       const subject = typeof verified.sub === 'string' ? verified.sub : '';
       const email = typeof verified.email === 'string' ? verified.email : undefined;
