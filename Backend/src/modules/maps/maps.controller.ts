@@ -90,7 +90,7 @@ router.get('/nearby', async (req: Request, res: Response) => {
 // GET /api/maps/destinations/search - Pesquisar destinos (cidades/países)
 router.get('/destinations/search', async (req: Request, res: Response) => {
   try {
-    const { query, sessionToken, lat, lng, radius, country } = req.query;
+    const { query, sessionToken, lat, lng, radius, country, language } = req.query;
     if (!query || typeof query !== 'string') {
       return res.status(400).json({ error: 'Query é obrigatória' });
     }
@@ -100,6 +100,7 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
     const radiusNum = radius ? Number(radius) : (location ? 50000 : undefined);
 
     const countryParam = typeof country === 'string' ? country : undefined;
+    const languageParam = typeof language === 'string' ? language : undefined;
 
     const places = await mapsService.searchPlaces(
       query,
@@ -107,6 +108,7 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
       radiusNum,
       typeof sessionToken === 'string' ? sessionToken : undefined,
       countryParam,
+      languageParam,
     );
 
     // Para o primeiro resultado, buscar detalhes completos
@@ -130,7 +132,7 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
       // Buscar detalhes completos apenas para os primeiros 3 resultados
       let fullDetails = null;
       if ((!place.photos || place.photos.length === 0) && place.placeId && index < 8) {
-        fullDetails = await mapsService.getPlaceDetails(place.placeId);
+        fullDetails = await mapsService.getPlaceDetails(place.placeId, undefined, languageParam);
       }
       
       return {
@@ -162,7 +164,8 @@ router.get('/destinations/search', async (req: Request, res: Response) => {
 router.get('/destinations/:placeId', async (req: Request, res: Response) => {
   try {
     const { placeId } = req.params;
-    const place = await mapsService.getPlaceDetails(placeId);
+    const languageParam = typeof req.query.language === 'string' ? req.query.language : undefined;
+    const place = await mapsService.getPlaceDetails(placeId, undefined, languageParam);
     if (!place) {
       return res.status(404).json({ error: 'Destino não encontrado' });
     }

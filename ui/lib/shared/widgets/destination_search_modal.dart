@@ -53,6 +53,22 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
     super.dispose();
   }
 
+  String _searchLanguageCode() {
+    final locale = context.locale;
+    final languageCode = locale.languageCode.trim();
+    final countryCode = locale.countryCode?.trim();
+
+    if (languageCode.isEmpty) {
+      return 'en';
+    }
+
+    if (countryCode != null && countryCode.isNotEmpty) {
+      return '$languageCode-$countryCode';
+    }
+
+    return languageCode;
+  }
+
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
@@ -78,6 +94,7 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
       final results = await _destinationsService.searchDestinations(
         currentQuery,
         sessionToken: _sessionToken,
+        language: _searchLanguageCode(),
       );
       if (!mounted) return;
 
@@ -103,6 +120,7 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
 
     final details = await _destinationsService.getDestinationDetails(
       destination.placeId,
+      language: _searchLanguageCode(),
     );
 
     if (mounted) {

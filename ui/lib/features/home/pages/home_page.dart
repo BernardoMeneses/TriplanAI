@@ -413,8 +413,21 @@ class _TripCard extends StatelessWidget {
         '${e.day} ${months[e.month - 1]} ${s.year}';
   }
 
+  String _locationSubtitle() {
+    final city = trip.destinationCity.trim();
+    final country = trip.destinationCountry.trim();
+
+    if (city.isNotEmpty && country.isNotEmpty) {
+      return '$city, $country';
+    }
+
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final subtitle = _locationSubtitle();
+
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
@@ -492,6 +505,18 @@ class _TripCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       '${_formatDateRange()} • ${trip.durationInDays} ${AppConstants.days.tr()}',

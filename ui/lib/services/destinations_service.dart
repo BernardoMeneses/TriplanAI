@@ -78,6 +78,7 @@ class DestinationsService {
     double? lat,
     double? lng,
     String? country,
+    String? language,
   }) async {
     if (query.trim().isEmpty) return [];
 
@@ -90,6 +91,9 @@ class DestinationsService {
       }
       if (country != null && country.trim().isNotEmpty)
         params['country'] = country;
+      if (language != null && language.trim().isNotEmpty) {
+        params['language'] = language;
+      }
 
       final response = await _api.get(
         '/maps/destinations/search',
@@ -107,9 +111,17 @@ class DestinationsService {
   }
 
   /// Obtém detalhes de um destino incluindo foto
-  Future<DestinationDetails?> getDestinationDetails(String placeId) async {
+  Future<DestinationDetails?> getDestinationDetails(
+    String placeId, {
+    String? language,
+  }) async {
     try {
-      final response = await _api.get('/maps/destinations/$placeId');
+      final response = await _api.get(
+        '/maps/destinations/$placeId',
+        queryParams: language != null && language.trim().isNotEmpty
+            ? {'language': language}
+            : null,
+      );
 
       if (response != null) {
         return DestinationDetails.fromJson(response);

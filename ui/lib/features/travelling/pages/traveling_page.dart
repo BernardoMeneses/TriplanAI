@@ -378,9 +378,21 @@ class _TripCard extends StatelessWidget {
     }
   }
 
+  String _locationSubtitle() {
+    final city = trip.destinationCity.trim();
+    final country = trip.destinationCountry.trim();
+
+    if (city.isNotEmpty && country.isNotEmpty) {
+      return '$city, $country';
+    }
+
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtitle = _locationSubtitle();
 
     return GestureDetector(
       onTap: onTap,
@@ -455,6 +467,18 @@ class _TripCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Row(
                       children: [

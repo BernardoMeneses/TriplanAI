@@ -316,10 +316,66 @@ class _NewTripPageState extends State<NewTripPage> {
     }
   }
 
+  Future<void> _removeDraft() async {
+    if (_isEditMode || _isLoading) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${AppConstants.remove.tr()} ${AppConstants.draft.tr()}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppConstants.cancel.tr()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(AppConstants.remove.tr()),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    _skipDraftPersistence = true;
+    _destinationController.clear();
+    setState(() {
+      _destinationSubtitle = null;
+      _destinationImageUrl = null;
+      _destinationCity = null;
+      _destinationCountry = null;
+      _startDate = null;
+      _endDate = null;
+    });
+    _skipDraftPersistence = false;
+
+    await _newTripDraftService.clearDraft();
+    AppEvents.emitDraftChanged();
+
+    if (!mounted) return;
+    SnackBarHelper.showInfo(
+      context,
+      '${AppConstants.remove.tr()} ${AppConstants.draft.tr()}',
+    );
+  }
+
   bool get _isFormValid =>
       _destinationController.text.trim().isNotEmpty &&
       _startDate != null &&
       _endDate != null;
+
+  bool get _canRemoveDraft {
+    if (_isEditMode || _isLoading) return false;
+
+    return _destinationController.text.trim().isNotEmpty ||
+        (_destinationSubtitle?.trim().isNotEmpty ?? false) ||
+        (_destinationImageUrl?.trim().isNotEmpty ?? false) ||
+        (_destinationCity?.trim().isNotEmpty ?? false) ||
+        (_destinationCountry?.trim().isNotEmpty ?? false) ||
+        _startDate != null ||
+        _endDate != null;
+  }
 
   String _getDateRangeText() {
     if (_startDate == null && _endDate == null) {
@@ -749,6 +805,24 @@ class _NewTripPageState extends State<NewTripPage> {
                       ),
               ),
             ),
+
+            if (_canRemoveDraft) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: _removeDraft,
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text(
+                    '${AppConstants.remove.tr()} ${AppConstants.draft.tr()}',
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 24),
           ],

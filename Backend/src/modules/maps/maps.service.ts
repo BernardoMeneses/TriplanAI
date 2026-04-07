@@ -59,6 +59,12 @@ export interface PlaceDetails {
 }
 
 export class MapsService {
+  private normalizeLanguageCode(language?: string): string {
+    const value = (language || '').trim();
+    if (!value) return Language.pt_PT;
+    return value;
+  }
+
   async geocode(address: string): Promise<GeocodingResult | null> {
     try {
       const response = await mapsClient.geocode({
@@ -131,13 +137,14 @@ export class MapsService {
     }
   }
 
-  async getPlaceDetails(placeId: string, sessionToken?: string): Promise<PlaceDetails | null> {
+  async getPlaceDetails(placeId: string, sessionToken?: string, language?: string): Promise<PlaceDetails | null> {
     try {
+      const languageCode = this.normalizeLanguageCode(language);
       const response = await mapsClient.placeDetails({
         params: {
           place_id: placeId,
           key: GOOGLE_MAPS_API_KEY,
-          language: Language.pt_PT,
+          language: languageCode as any,
           ...(sessionToken && { sessiontoken: sessionToken }),
           fields: [
             'place_id',
@@ -198,15 +205,16 @@ export class MapsService {
     }
   }
 
-  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number, sessionToken?: string, country?: string): Promise<PlaceDetails[]> {
+  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number, sessionToken?: string, country?: string, language?: string): Promise<PlaceDetails[]> {
     try {
+      const languageCode = this.normalizeLanguageCode(language);
       console.log(`[MapsService] searchPlaces input="${query}"`);
       // First try Place Autocomplete for better fuzzy/partial matching
       try {
         const autoParams: any = {
           input: query,
           key: GOOGLE_MAPS_API_KEY,
-          language: Language.pt_PT,
+          language: languageCode,
         };
         // If caller provided a country (name or ISO code), try to normalize it to a 2-letter ISO
         const countryCode = this.normalizeCountryCode(country);
@@ -231,7 +239,7 @@ export class MapsService {
 
         if (predictions.length > 0) {
           const detailedPlaces = await Promise.all(predictions.slice(0, 20).map(async (prediction) => {
-            const details = await this.getPlaceDetails(prediction.place_id, sessionToken);
+            const details = await this.getPlaceDetails(prediction.place_id, sessionToken, languageCode);
             if (details) return details;
 
             return {
@@ -261,7 +269,7 @@ export class MapsService {
       const params: any = {
         query,
         key: GOOGLE_MAPS_API_KEY,
-        language: Language.pt_PT,
+        language: languageCode,
       };
 
       // Try to bias textSearch to country if provided (region accepts a ccTLD country code)
@@ -288,7 +296,7 @@ export class MapsService {
 
       // Buscar detalhes completos para cada resultado
       const detailedPlaces = await Promise.all(places.map(async (place) => {
-        let details = await this.getPlaceDetails(place.place_id || '', sessionToken);
+        let details = await this.getPlaceDetails(place.place_id || '', sessionToken, languageCode);
         // Copiar diretamente o campo photoUrl e photos do details
         return details || {
           placeId: place.place_id || '',

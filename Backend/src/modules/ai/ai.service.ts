@@ -58,15 +58,37 @@ const LANGUAGE_NAMES: Record<string, string> = {
 };
 
 export class AIService {
+  private getLanguageName(language: string = 'en'): string {
+    const normalized = language.toLowerCase();
+    const base = normalized.split('-')[0];
+    return LANGUAGE_NAMES[normalized] || LANGUAGE_NAMES[base] || 'English';
+  }
+
   // Gerar system prompt dinâmico baseado na língua
   private getSystemPrompt(language: string = 'en'): string {
-    const langName = LANGUAGE_NAMES[language] || 'English';
+    const langName = this.getLanguageName(language);
     
     return `You are a specialized travel assistant called TriplanAI.
-You help users plan trips, suggest destinations, create itineraries, and provide travel tips.
-IMPORTANT: Always respond in ${langName}. The user's language is ${language}.
-Be friendly, informative, and practical in your responses.
-When suggesting places, include useful information such as opening hours, estimated prices, and practical tips.`;
+You help users plan trips, suggest destinations, create itineraries, and provide practical travel advice.
+
+IMPORTANT LANGUAGE RULE:
+- Always respond in ${langName}. The user's language is ${language}.
+
+VOICE & TONE:
+- Sound human, warm, and professional.
+- Avoid robotic phrasing and generic list-only answers.
+- Explain recommendations as if you are a trusted travel advisor.
+
+REASONING & QUALITY:
+- Justify suggestions with clear criteria: logistics, variety, time fit, budget fit, and user intent.
+- Be critical and honest: point out trade-offs, weak options, and better alternatives when relevant.
+- If the user asks "why these places", answer directly with concrete reasoning.
+- Prefer realistic plans over overpacked itineraries.
+
+PRACTICALITY:
+- Include actionable details (best timing, expected pace, rough costs, local tips, reservation advice).
+- Never invent certainty for unknown data; when unsure, state assumptions briefly.
+- Keep answers concise but complete, with a clear recommendation and next best step.`;
   }
 
   async generatePlaceSuggestions(params: {
@@ -76,23 +98,31 @@ When suggesting places, include useful information such as opening hours, estima
     language?: string;
   }): Promise<{ response: string; places: any[] }> {
     const systemPrompt = this.getSystemPrompt(params.language);
+    const responseLanguage = this.getLanguageName(params.language || 'en');
     const prompt = `The user is planning day ${params.dayNumber} in ${params.location}.
 Question: "${params.query}"
 
-Respond with a friendly message and suggest 4-5 relevant places.
+Provide a complete and human recommendation, not just a plain list.
+
+Quality requirements:
+- Suggest 4-5 relevant places with good diversity (culture, food, views, local life, etc. when possible).
+- Build a coherent day flow (avoid unrealistic jumps across the city).
+- Be critical: mention one key trade-off or caveat (crowds, timing, budget, distance, reservation risk).
+- The response text must explain why these places are good for this user question.
+- Each place description should include both "why it fits" and one practical tip.
 
 Respond in JSON format with this schema:
 {
-  "response": "friendly message responding to the user in ${LANGUAGE_NAMES[params.language || 'en'] || 'English'}",
+  "response": "natural, advisor-style response in ${responseLanguage}, including reasoning and one critical caveat",
   "places": [{
     "name": "place name",
     "category": "category (e.g.: Accommodation, Restaurant, Museum, Park, Shopping, Activities & Experiences, Nature & Outdoor)",
     "placeId": "leave empty for now, will be filled later",
-    "description": "brief description of the place"
+    "description": "brief but useful description including why it fits and one practical tip"
   }]
 }
 
-IMPORTANT: The "response" field MUST be in ${LANGUAGE_NAMES[params.language || 'en'] || 'English'}.
+IMPORTANT: The "response" field MUST be in ${responseLanguage}.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -173,12 +203,17 @@ Respond ONLY with the JSON, no additional text.`;
   ): Promise<TripSuggestion[]> {
     const lang = preferences.language || 'en';
     const systemPrompt = this.getSystemPrompt(lang);
+    const responseLanguage = this.getLanguageName(lang);
     
     const prompt = `Suggest 5 travel destinations based on these preferences:
 - Interests: ${preferences.interests.join(', ')}
 - Budget: ${preferences.budget || 'medium'}
 - Duration: ${preferences.duration || 7} days
 - Travel style: ${preferences.travelStyle || 'flexible'}
+
+Be opinionated and practical: prioritize fit over generic popularity.
+For each destination, focus on what makes it genuinely suitable for this profile.
+Avoid repetitive suggestions and include variety.
 
 Respond in JSON format with this schema:
 [{
@@ -193,7 +228,7 @@ Respond in JSON format with this schema:
   }
 }]
 
-IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+IMPORTANT: All text content MUST be in ${responseLanguage}.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -230,6 +265,7 @@ Respond ONLY with the JSON, no additional text.`;
   ): Promise<ItinerarySuggestion[]> {
     const lang = tripDetails.language || 'en';
     const systemPrompt = this.getSystemPrompt(lang);
+    const responseLanguage = this.getLanguageName(lang);
     const startDate = new Date(tripDetails.startDate);
     const endDate = new Date(tripDetails.endDate);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -247,6 +283,10 @@ Details:
 - End date: ${tripDetails.endDate}
 - Interests: ${tripDetails.interests.join(', ')}
 - Pace: ${paceDescriptions[tripDetails.pace || 'moderate']}
+
+Build a realistic itinerary with strong sequencing and practical timing.
+If a plan would be inefficient, adjust it and reflect the rationale in tips.
+Be selective and quality-focused rather than overpacking the day.
 
 Respond in JSON format with this schema:
 {
@@ -266,7 +306,7 @@ Respond in JSON format with this schema:
   ]
 }
 
-IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+IMPORTANT: All text content MUST be in ${responseLanguage}.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -336,8 +376,13 @@ Respond ONLY with the JSON, no additional text.`;
   ): Promise<PlaceRecommendation[]> {
     const lang = language || 'en';
     const systemPrompt = this.getSystemPrompt(lang);
+    const responseLanguage = this.getLanguageName(lang);
     
     const prompt = `Recommend 10 places to visit in ${destination} based on these interests: ${interests.join(', ')}.
+
+Do not give a bland list.
+Choose places with strong fit and include practical/advisor-style reasoning.
+If some options are popular but weakly aligned, deprioritize them.
 
 Respond in JSON format with this schema:
 {
@@ -352,7 +397,7 @@ Respond in JSON format with this schema:
   ]
 }
 
-IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+IMPORTANT: All text content MUST be in ${responseLanguage}.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -481,7 +526,9 @@ Responde em formato JSON com este schema:
   ]
 }
 
-Foca em lugares variados (cultura, gastronomia, natureza, etc) e populares.
+Foca em lugares variados (cultura, gastronomia, natureza, etc) e populares,
+mas com pensamento crítico: evita escolhas redundantes e equilibra logística.
+Em cada descrição, inclui "porque vale a pena" e uma dica prática.
 Responde APENAS com o JSON, sem texto adicional.`;
 
     try {
