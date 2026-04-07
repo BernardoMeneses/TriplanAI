@@ -18,8 +18,9 @@ import '../../../services/subscription_service.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback? onLogout;
+  final VoidCallback? onOpenNewTripTab;
 
-  const HomePage({super.key, this.onLogout});
+  const HomePage({super.key, this.onLogout, this.onOpenNewTripTab});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -193,6 +194,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openDraft() {
+    final openNewTripTab = widget.onOpenNewTripTab;
+    if (openNewTripTab != null) {
+      openNewTripTab();
+      return;
+    }
+
     Navigator.pushNamed(context, '/new-trip').then((_) {
       if (mounted) {
         _loadDraft();

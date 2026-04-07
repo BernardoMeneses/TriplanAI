@@ -101,10 +101,16 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
   final DeepLinkService _deepLinkService = DeepLinkService();
   final ConnectivityService _connectivityService = ConnectivityService();
 
+  void _openNewTripTab() {
+    setState(() {
+      _currentIndex = 1;
+    });
+  }
+
   List<Widget> get _pages => [
-    HomePage(onLogout: _onLogout),
+    HomePage(onLogout: _onLogout, onOpenNewTripTab: _openNewTripTab),
     const NewTripPage(),
-    TravelingPage(onLogout: _onLogout),
+    TravelingPage(onLogout: _onLogout, onOpenNewTripTab: _openNewTripTab),
   ];
 
   @override

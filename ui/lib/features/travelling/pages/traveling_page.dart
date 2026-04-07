@@ -19,8 +19,9 @@ import '../../../shared/widgets/feature_locked_dialog.dart';
 
 class TravelingPage extends StatefulWidget {
   final VoidCallback? onLogout;
+  final VoidCallback? onOpenNewTripTab;
 
-  const TravelingPage({super.key, this.onLogout});
+  const TravelingPage({super.key, this.onLogout, this.onOpenNewTripTab});
 
   @override
   State<TravelingPage> createState() => _TravelingPageState();
@@ -207,6 +208,12 @@ class _TravelingPageState extends State<TravelingPage>
   }
 
   void _openDraft() {
+    final openNewTripTab = widget.onOpenNewTripTab;
+    if (openNewTripTab != null) {
+      openNewTripTab();
+      return;
+    }
+
     Navigator.pushNamed(context, '/new-trip').then((_) {
       if (mounted) {
         _loadDraft();
