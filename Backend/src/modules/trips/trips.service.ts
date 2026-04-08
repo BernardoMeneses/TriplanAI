@@ -1,4 +1,4 @@
-import { query } from '../../config/database';
+import { query, transaction } from '../../config/database';
 
 export interface Trip {
   id: string;
@@ -20,6 +20,35 @@ export interface Trip {
 }
 
 export class TripsService {
+  private async getExpiredOwnedTripIdsForUser(
+    userId: string,
+    plan: string,
+  ): Promise<string[]> {
+    if (plan === 'premium') {
+      return [];
+    }
+
+    if (plan === 'basic') {
+      const result = await query<{ id: string }>(
+        `SELECT id
+         FROM trips
+         WHERE user_id = $1
+           AND end_date < (CURRENT_DATE - INTERVAL '3 months')`,
+        [userId],
+      );
+      return result.rows.map((row) => row.id);
+    }
+
+    const result = await query<{ id: string }>(
+      `SELECT id
+       FROM trips
+       WHERE user_id = $1
+         AND end_date < CURRENT_DATE`,
+      [userId],
+    );
+    return result.rows.map((row) => row.id);
+  }
+
   async cleanupExpiredPastTripsForUser(userId: string): Promise<number> {
     const planResult = await query<{ subscription_plan: string | null }>(
       `SELECT COALESCE(subscription_plan::text, 'free') AS subscription_plan
@@ -34,27 +63,27 @@ export class TripsService {
 
     const plan = (planResult.rows[0].subscription_plan || 'free').toLowerCase();
 
-    if (plan === 'premium') {
+    const targetTripIds = await this.getExpiredOwnedTripIdsForUser(userId, plan);
+    if (targetTripIds.length === 0) {
       return 0;
     }
 
-    if (plan === 'basic') {
-      const deleteResult = await query(
+    return transaction(async (client) => {
+      await client.query(
+        `DELETE FROM ai_conversations
+         WHERE trip_id = ANY($1::uuid[])`,
+        [targetTripIds],
+      );
+
+      const deleteTripsResult = await client.query(
         `DELETE FROM trips
          WHERE user_id = $1
-           AND end_date < (CURRENT_DATE - INTERVAL '3 months')`,
-        [userId],
+           AND id = ANY($2::uuid[])`,
+        [userId, targetTripIds],
       );
-      return deleteResult.rowCount ?? 0;
-    }
 
-    const deleteResult = await query(
-      `DELETE FROM trips
-       WHERE user_id = $1
-         AND end_date < CURRENT_DATE`,
-      [userId],
-    );
-    return deleteResult.rowCount ?? 0;
+      return deleteTripsResult.rowCount ?? 0;
+    });
   }
 
   async cleanupExpiredPastTripsForAllUsers(): Promise<{
@@ -62,39 +91,50 @@ export class TripsService {
     deletedFreeTrips: number;
     deletedBasicTrips: number;
   }> {
-    const result = await query<{ plan: string; total: number }>(
-      `WITH targets AS (
-         SELECT
-           t.id,
-           COALESCE(u.subscription_plan::text, 'free') AS plan
-         FROM trips t
-         INNER JOIN users u ON u.id = t.user_id
-         WHERE t.end_date < CURRENT_DATE
-           AND (
-             COALESCE(u.subscription_plan::text, 'free') = 'free'
-             OR (
-               COALESCE(u.subscription_plan::text, 'free') = 'basic'
-               AND t.end_date < (CURRENT_DATE - INTERVAL '3 months')
-             )
+    const targetsResult = await query<{ id: string; plan: string }>(
+      `SELECT
+         t.id,
+         COALESCE(u.subscription_plan::text, 'free') AS plan
+       FROM trips t
+       INNER JOIN users u ON u.id = t.user_id
+       WHERE t.end_date < CURRENT_DATE
+         AND (
+           COALESCE(u.subscription_plan::text, 'free') = 'free'
+           OR (
+             COALESCE(u.subscription_plan::text, 'free') = 'basic'
+             AND t.end_date < (CURRENT_DATE - INTERVAL '3 months')
            )
-       ),
-       deleted AS (
-         DELETE FROM trips t
-         USING targets x
-         WHERE t.id = x.id
-         RETURNING x.plan
-       )
-       SELECT plan, COUNT(*)::int AS total
-       FROM deleted
-       GROUP BY plan`,
+         )`,
     );
 
-    const totals = result.rows.reduce(
+    const targetTripIds = targetsResult.rows.map((row) => row.id);
+    if (targetTripIds.length === 0) {
+      return {
+        deletedTrips: 0,
+        deletedFreeTrips: 0,
+        deletedBasicTrips: 0,
+      };
+    }
+
+    await transaction(async (client) => {
+      await client.query(
+        `DELETE FROM ai_conversations
+         WHERE trip_id = ANY($1::uuid[])`,
+        [targetTripIds],
+      );
+
+      await client.query(
+        `DELETE FROM trips
+         WHERE id = ANY($1::uuid[])`,
+        [targetTripIds],
+      );
+    });
+
+    const totals = targetsResult.rows.reduce(
       (acc, row) => {
-        const value = Number(row.total) || 0;
-        if (row.plan === 'free') acc.deletedFreeTrips += value;
-        if (row.plan === 'basic') acc.deletedBasicTrips += value;
-        acc.deletedTrips += value;
+        if (row.plan === 'free') acc.deletedFreeTrips += 1;
+        if (row.plan === 'basic') acc.deletedBasicTrips += 1;
+        acc.deletedTrips += 1;
         return acc;
       },
       {
@@ -280,8 +320,21 @@ export class TripsService {
         return (leaveResult.rowCount ?? 0) > 0;
       }
     }
-    const result = await query('DELETE FROM trips WHERE id = $1', [tripId]);
-    return (result.rowCount ?? 0) > 0;
+
+    return transaction(async (client) => {
+      await client.query(
+        `DELETE FROM ai_conversations
+         WHERE trip_id = $1`,
+        [tripId],
+      );
+
+      const result = await client.query(
+        'DELETE FROM trips WHERE id = $1',
+        [tripId],
+      );
+
+      return (result.rowCount ?? 0) > 0;
+    });
   }
 
   // Join a shared trip via its code (adds user as member, no copy created)
