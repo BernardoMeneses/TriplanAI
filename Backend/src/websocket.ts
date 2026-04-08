@@ -9,6 +9,7 @@ if (!jwtSecret) {
 }
 
 const JWT_SECRET: string = jwtSecret;
+const WS_DEBUG = (process.env.WS_DEBUG || '').toLowerCase() === 'true';
 
 type AuthenticatedSocket = WebSocket & {
   userId?: string;
@@ -120,6 +121,12 @@ export function setupWebSocket(server: any) {
     ws.subscriptions = new Set<string>();
     ws.connectionToken = getConnectionToken(req.url, req.headers.host);
 
+    if (WS_DEBUG) {
+      console.log(
+        `[WS] connection opened path=${req.url || ''} token=${ws.connectionToken ? 'yes' : 'no'}`,
+      );
+    }
+
     ws.on('message', async (message) => {
       try {
         const rawMessage = Buffer.isBuffer(message)
@@ -130,8 +137,15 @@ export function setupWebSocket(server: any) {
         if (data.type === 'auth' && typeof data.token === 'string') {
           const userId = await ensureAuthenticatedSocket(ws, data.token);
           if (!userId) {
+            if (WS_DEBUG) {
+              console.log('[WS] auth failed');
+            }
             ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED' }));
             return;
+          }
+
+          if (WS_DEBUG) {
+            console.log(`[WS] auth ok userId=${userId}`);
           }
 
           ws.send(JSON.stringify({ type: 'auth_ok' }));
@@ -149,6 +163,9 @@ export function setupWebSocket(server: any) {
           );
 
           if (!userId) {
+            if (WS_DEBUG) {
+              console.log('[WS] subscribe denied: unauthenticated');
+            }
             ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED' }));
             return;
           }
@@ -157,12 +174,20 @@ export function setupWebSocket(server: any) {
           const dayNumber = Number(data.dayNumber);
 
           if (dayNumber < 1) {
+            if (WS_DEBUG) {
+              console.log(`[WS] subscribe denied: invalid day ${dayNumber}`);
+            }
             ws.send(JSON.stringify({ type: 'error', code: 'INVALID_DAY' }));
             return;
           }
 
           const authorized = await canAccessItinerary(userId, itineraryId);
           if (!authorized) {
+            if (WS_DEBUG) {
+              console.log(
+                `[WS] subscribe denied: forbidden userId=${userId} itineraryId=${itineraryId}`,
+              );
+            }
             ws.send(JSON.stringify({ type: 'error', code: 'FORBIDDEN' }));
             return;
           }
@@ -175,6 +200,12 @@ export function setupWebSocket(server: any) {
           clientsByItinerary[key].add(ws);
           ws.subscriptions?.add(key);
 
+          if (WS_DEBUG) {
+            console.log(
+              `[WS] subscribed userId=${userId} key=${key} clients=${clientsByItinerary[key].size}`,
+            );
+          }
+
           ws.send(JSON.stringify({ type: 'subscribed', itineraryId, dayNumber }));
         }
       } catch {
@@ -183,6 +214,9 @@ export function setupWebSocket(server: any) {
     });
 
     ws.on('close', () => {
+      if (WS_DEBUG) {
+        console.log(`[WS] connection closed subscriptions=${ws.subscriptions?.size || 0}`);
+      }
       unsubscribeSocket(ws);
     });
   });
@@ -191,6 +225,10 @@ export function setupWebSocket(server: any) {
 export function emitItineraryUpdate(itineraryId: string, dayNumber: number) {
   const key = `${itineraryId}:${dayNumber}`;
   const clients = clientsByItinerary[key];
+
+  if (WS_DEBUG) {
+    console.log(`[WS] emit itinerary_update key=${key} clients=${clients?.size || 0}`);
+  }
 
   if (!clients) {
     return;

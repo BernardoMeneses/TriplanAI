@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'api_service.dart';
 import 'auth_service.dart';
@@ -15,12 +16,16 @@ class RealTimeService {
   Uri _buildWebSocketUri(String? token) {
     final apiUri = Uri.parse(ApiService.baseUrl);
     final scheme = apiUri.scheme == 'https' ? 'wss' : 'ws';
+    final basePath = apiUri.path.endsWith('/')
+        ? apiUri.path.substring(0, apiUri.path.length - 1)
+        : apiUri.path;
+    final wsPath = '${basePath.isEmpty ? '' : basePath}/ws';
 
     return Uri(
       scheme: scheme,
       host: apiUri.host,
       port: apiUri.hasPort ? apiUri.port : null,
-      path: '/ws',
+      path: wsPath,
       queryParameters: (token != null && token.isNotEmpty)
           ? {'token': token}
           : null,
@@ -38,22 +43,45 @@ class RealTimeService {
     final token = AuthService().token;
     final wsUri = _buildWebSocketUri(token);
 
-    _channel = WebSocketChannel.connect(wsUri);
-    _subscription = _channel!.stream.listen((event) {
-      try {
-        final payload = jsonDecode(event as String);
-        if (payload is! Map<String, dynamic>) return;
+    if (kDebugMode) {
+      print('🔌 WS connect: $wsUri');
+    }
 
-        final type = payload['type'];
-        if (type == 'itinerary_update' &&
-            payload['itineraryId'] == itineraryId &&
-            payload['dayNumber'] == dayNumber) {
-          onUpdate();
+    _channel = WebSocketChannel.connect(wsUri);
+    _subscription = _channel!.stream.listen(
+      (event) {
+        try {
+          final payload = jsonDecode(event.toString());
+          if (payload is! Map<String, dynamic>) return;
+
+          final type = payload['type'];
+          if (kDebugMode) {
+            print('📨 WS event: $type payload=$payload');
+          }
+
+          if (type == 'itinerary_update' &&
+              payload['itineraryId'] == itineraryId &&
+              payload['dayNumber'] == dayNumber) {
+            if (kDebugMode) {
+              print('🔄 WS update accepted for $itineraryId day $dayNumber');
+            }
+            onUpdate();
+          }
+        } catch (_) {
+          // Ignore malformed frames.
         }
-      } catch (_) {
-        // Ignore malformed frames.
-      }
-    });
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          print('❌ WS error: $error');
+        }
+      },
+      onDone: () {
+        if (kDebugMode) {
+          print('🔌 WS closed');
+        }
+      },
+    );
 
     if (token != null && token.isNotEmpty) {
       _channel!.sink.add(jsonEncode({'type': 'auth', 'token': token}));
