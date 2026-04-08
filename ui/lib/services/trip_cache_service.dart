@@ -334,6 +334,18 @@ class TripCacheService {
     }
   }
 
+  /// Remove a imagem de destino em cache para uma viagem específica.
+  Future<void> removeTripImageFromCache(String tripId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('$_tripImagePrefix$tripId');
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ TripCacheService: Erro ao remover imagem do cache: $e');
+      }
+    }
+  }
+
   /// Limpa cache visual e de planeamento quando o destino da viagem muda.
   Future<void> clearTripDataAfterDestinationChange(String tripId) async {
     try {

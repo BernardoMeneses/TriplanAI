@@ -35,6 +35,7 @@ class MyTripPage extends StatefulWidget {
 
 class _MyTripPageState extends State<MyTripPage> {
   late Trip _trip;
+  bool _isSharedMemberTrip = false;
   bool _isLoading = false;
   String? _destinationImageUrl;
   final DestinationsService _destinationsService = DestinationsService();
@@ -45,6 +46,8 @@ class _MyTripPageState extends State<MyTripPage> {
   // Connectivity state
   bool _isOnline = true;
   StreamSubscription<bool>? _connectivitySubscription;
+  Timer? _tripRealtimeTimer;
+  bool _isTripSyncInProgress = false;
   // Map dayNumber -> items count
   Map<int, int> _dayItemCounts = {};
 
@@ -65,12 +68,13 @@ class _MyTripPageState extends State<MyTripPage> {
   bool get _canEditTrip => !widget.isReadOnly && _isOnline && !_isTripFinished;
 
   /// Mostra aviso visual de bloqueio quando a viagem foi partilhada/importada.
-  bool get _showSharedTripReadOnlyNotice => _trip.isMember;
+  bool get _showSharedTripReadOnlyNotice => _isSharedMemberTrip;
 
   @override
   void initState() {
     super.initState();
     _trip = widget.trip;
+    _isSharedMemberTrip = widget.trip.isMember;
     _loadDestinationImage();
 
     // Iniciar verificação de conectividade
@@ -85,24 +89,109 @@ class _MyTripPageState extends State<MyTripPage> {
       }
     });
 
-    // Sincronizar todos os dias em background (não bloqueia UI)
-    if (!widget.isReadOnly) {
-      _syncAllDays();
-      // carregar contadores de items por dia (cache primeiro)
-      _loadDayCounts();
-    }
+    // Carregar contadores de items por dia (cache primeiro), incluindo modo read-only.
+    _loadDayCounts();
+    // Sincronizar em background para refletir alterações remotas.
+    unawaited(_refreshDayCountsRealtime());
+
+    _startTripRealtimeSync();
   }
 
   @override
   void dispose() {
+    _tripRealtimeTimer?.cancel();
     _connectivitySubscription?.cancel();
     super.dispose();
   }
 
+  void _startTripRealtimeSync() {
+    _tripRealtimeTimer?.cancel();
+    _tripRealtimeTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _syncTripSilentlyIfChanged();
+    });
+  }
+
+  String _tripRealtimeSignature(Trip trip) {
+    return '${trip.id}:${trip.updatedAt.millisecondsSinceEpoch}:${trip.title}:${trip.destinationCity}:${trip.destinationCountry}:${trip.startDate.millisecondsSinceEpoch}:${trip.endDate.millisecondsSinceEpoch}:${trip.status}:${trip.isMember}';
+  }
+
+  Future<void> _syncTripSilentlyIfChanged() async {
+    if (!mounted || !_isOnline || _isTripSyncInProgress || _isLoading) return;
+
+    _isTripSyncInProgress = true;
+    try {
+      final latestTrip = await _tripsService.getTripById(_trip.id);
+      if (!mounted) return;
+
+      final previousTrip = _trip;
+      final tripChanged =
+          _tripRealtimeSignature(previousTrip) !=
+          _tripRealtimeSignature(latestTrip);
+
+      var destinationChanged = false;
+      if (tripChanged) {
+        destinationChanged =
+            previousTrip.destinationCity.trim().toLowerCase() !=
+                latestTrip.destinationCity.trim().toLowerCase() ||
+            previousTrip.destinationCountry.trim().toLowerCase() !=
+                latestTrip.destinationCountry.trim().toLowerCase();
+
+        if (destinationChanged) {
+          await _cacheService.removeTripImageFromCache(_trip.id);
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _trip = latestTrip;
+          _isSharedMemberTrip = _isSharedMemberTrip || latestTrip.isMember;
+          if (destinationChanged) {
+            _destinationImageUrl = null;
+            _dayItemCounts = {};
+          }
+        });
+
+        if (destinationChanged) {
+          unawaited(_loadDestinationImage());
+        }
+
+        widget.onTripUpdated?.call();
+        try {
+          AppEvents.emitTripsChanged();
+        } catch (_) {}
+      }
+
+      await _refreshDayCountsRealtime();
+    } catch (e) {
+      final errorText = e.toString().toLowerCase();
+      final tripMissing =
+          errorText.contains('404') ||
+          errorText.contains('viagem não encontrada') ||
+          errorText.contains('not found');
+
+      if (tripMissing && mounted) {
+        try {
+          await _cacheService.removeTripFromCache(_trip.id);
+        } catch (_) {}
+
+        try {
+          AppEvents.emitTripsChanged();
+        } catch (_) {}
+
+        _goToHome();
+      }
+    } finally {
+      _isTripSyncInProgress = false;
+    }
+  }
+
+  Future<void> _refreshDayCountsRealtime() async {
+    await _syncAllDays();
+    await _loadDayCounts();
+  }
+
   /// Sincroniza todos os itinerários da viagem em background (fire and forget)
-  void _syncAllDays() {
-    // Não usar await - corre em background sem bloquear
-    _cacheService.syncTripItineraries(_trip.id, _trip.durationInDays);
+  Future<void> _syncAllDays() async {
+    await _cacheService.syncTripItineraries(_trip.id, _trip.durationInDays);
   }
 
   @override
@@ -113,6 +202,7 @@ class _MyTripPageState extends State<MyTripPage> {
         oldWidget.trip.destinationCity != widget.trip.destinationCity ||
         oldWidget.trip.destinationCountry != widget.trip.destinationCountry) {
       _trip = widget.trip;
+      _isSharedMemberTrip = _isSharedMemberTrip || widget.trip.isMember;
       _loadDestinationImage();
       // recarregar contadores quando a viagem muda
       _loadDayCounts();
@@ -140,6 +230,11 @@ class _MyTripPageState extends State<MyTripPage> {
       }
     }
     if (!mounted) return;
+
+    if (mapEquals(_dayItemCounts, counts)) {
+      return;
+    }
+
     setState(() {
       _dayItemCounts = counts;
     });
@@ -269,8 +364,7 @@ class _MyTripPageState extends State<MyTripPage> {
       });
 
       if (destinationChanged) {
-        _syncAllDays();
-        _loadDayCounts();
+        unawaited(_refreshDayCountsRealtime());
       }
 
       widget.onTripUpdated?.call();
@@ -373,7 +467,7 @@ class _MyTripPageState extends State<MyTripPage> {
   }
 
   Future<void> _deleteTrip() async {
-    final isMember = _trip.isMember;
+    final isMember = _isSharedMemberTrip;
     // Mostrar diálogo de confirmação
     final confirmed = await showDialog<bool>(
       context: context,
@@ -577,11 +671,13 @@ class _MyTripPageState extends State<MyTripPage> {
               ),
               ListTile(
                 leading: Icon(
-                  _trip.isMember ? Icons.exit_to_app : Icons.delete_outline,
+                  _isSharedMemberTrip
+                      ? Icons.exit_to_app
+                      : Icons.delete_outline,
                   color: _effectiveReadOnly ? Colors.grey : Colors.red,
                 ),
                 title: Text(
-                  _trip.isMember
+                  _isSharedMemberTrip
                       ? AppConstants.leaveTripTitle.tr()
                       : AppConstants.deleteTrip.tr(),
                   style: TextStyle(
@@ -589,7 +685,7 @@ class _MyTripPageState extends State<MyTripPage> {
                   ),
                 ),
                 subtitle: Text(
-                  _trip.isMember
+                  _isSharedMemberTrip
                       ? AppConstants.leaveTripSubtitle.tr()
                       : AppConstants.deleteTripSubtitle.tr(),
                 ),

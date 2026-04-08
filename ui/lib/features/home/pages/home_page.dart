@@ -121,6 +121,10 @@ class _HomePageState extends State<HomePage> {
         ..._upcomingTrips.map((t) => t.id),
         ..._pastTrips.map((t) => t.id),
       };
+      final previousById = {
+        ...{for (final t in _upcomingTrips) t.id: t},
+        ...{for (final t in _pastTrips) t.id: t},
+      };
       final latestIds = {
         ...latestUpcoming.map((t) => t.id),
         ...latestPast.map((t) => t.id),
@@ -137,6 +141,21 @@ class _HomePageState extends State<HomePage> {
       }
 
       for (final trip in [...latestUpcoming, ...latestPast]) {
+        final previousTrip = previousById[trip.id];
+        final destinationChanged =
+            previousTrip != null &&
+            (previousTrip.destinationCity.trim().toLowerCase() !=
+                    trip.destinationCity.trim().toLowerCase() ||
+                previousTrip.destinationCountry.trim().toLowerCase() !=
+                    trip.destinationCountry.trim().toLowerCase());
+
+        if (destinationChanged) {
+          _tripImages.remove(trip.id);
+          await _tripCacheService.removeTripImageFromCache(trip.id);
+          _loadTripImage(trip);
+          continue;
+        }
+
         if (!previousIds.contains(trip.id)) {
           _loadTripImage(trip);
         }
