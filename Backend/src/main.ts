@@ -20,6 +20,7 @@ import { globalRateLimit, authRateLimit, aiRateLimit } from './middlewares';
 // Controllers
 import { authController } from './modules/auth';
 import { tripsController } from './modules/trips';
+import { tripsService } from './modules/trips';
 import { itinerariesController} from './modules/iteneraries';
 import { placesController } from './modules/places';
 import { routesController } from './modules/routes';
@@ -32,6 +33,41 @@ import { notesController } from './modules/notes';
 
 const app: Express = express();
 const PORT = Number(process.env.PORT) || 3000;
+const TRIP_RETENTION_CLEANUP_ENABLED =
+  (process.env.TRIP_RETENTION_CLEANUP_ENABLED || 'true').toLowerCase() !== 'false';
+const TRIP_RETENTION_CLEANUP_INTERVAL_MS = Number(
+  process.env.TRIP_RETENTION_CLEANUP_INTERVAL_MS || 6 * 60 * 60 * 1000,
+);
+
+function startTripRetentionCleanupJob(): void {
+  if (!TRIP_RETENTION_CLEANUP_ENABLED) {
+    console.log('ℹ️ Trip retention cleanup job disabled by env');
+    return;
+  }
+
+  const runCleanup = async () => {
+    try {
+      const result = await tripsService.cleanupExpiredPastTripsForAllUsers();
+      if (result.deletedTrips > 0) {
+        console.log(
+          `🧹 Trip retention cleanup: deleted=${result.deletedTrips} (free=${result.deletedFreeTrips}, basic=${result.deletedBasicTrips})`,
+        );
+      }
+    } catch (error) {
+      console.error('❌ Trip retention cleanup job failed:', error);
+    }
+  };
+
+  // Run once at startup and then periodically.
+  void runCleanup();
+  const cleanupInterval = setInterval(() => {
+    void runCleanup();
+  }, TRIP_RETENTION_CLEANUP_INTERVAL_MS);
+
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref();
+  }
+}
 
 function normalizeOrigin(origin: string): string {
   const trimmed = origin.trim();
@@ -212,6 +248,8 @@ server.listen(PORT, '0.0.0.0', () => {
 ║ Swagger: /api-docs                                       ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+
+  startTripRetentionCleanupJob();
 });
 
 // 🔌 Database connection in background (NON-BLOCKING)

@@ -117,6 +117,15 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
+
+    // Enforce retention policy on each fetch:
+    // free => no past trips, basic => keep last 3 months, premium => unlimited.
+    try {
+      await tripsService.cleanupExpiredPastTripsForUser(userId);
+    } catch (cleanupError) {
+      console.error('[Trips] cleanupExpiredPastTripsForUser failed:', cleanupError);
+    }
+
     const trips = await tripsService.getTripsByUser(userId);
     res.json(trips);
   } catch (error) {

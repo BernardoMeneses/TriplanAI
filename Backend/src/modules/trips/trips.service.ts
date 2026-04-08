@@ -20,6 +20,93 @@ export interface Trip {
 }
 
 export class TripsService {
+  async cleanupExpiredPastTripsForUser(userId: string): Promise<number> {
+    const planResult = await query<{ subscription_plan: string | null }>(
+      `SELECT COALESCE(subscription_plan::text, 'free') AS subscription_plan
+       FROM users
+       WHERE id = $1`,
+      [userId],
+    );
+
+    if (planResult.rows.length === 0) {
+      return 0;
+    }
+
+    const plan = (planResult.rows[0].subscription_plan || 'free').toLowerCase();
+
+    if (plan === 'premium') {
+      return 0;
+    }
+
+    if (plan === 'basic') {
+      const deleteResult = await query(
+        `DELETE FROM trips
+         WHERE user_id = $1
+           AND end_date < (CURRENT_DATE - INTERVAL '3 months')`,
+        [userId],
+      );
+      return deleteResult.rowCount ?? 0;
+    }
+
+    const deleteResult = await query(
+      `DELETE FROM trips
+       WHERE user_id = $1
+         AND end_date < CURRENT_DATE`,
+      [userId],
+    );
+    return deleteResult.rowCount ?? 0;
+  }
+
+  async cleanupExpiredPastTripsForAllUsers(): Promise<{
+    deletedTrips: number;
+    deletedFreeTrips: number;
+    deletedBasicTrips: number;
+  }> {
+    const result = await query<{ plan: string; total: number }>(
+      `WITH targets AS (
+         SELECT
+           t.id,
+           COALESCE(u.subscription_plan::text, 'free') AS plan
+         FROM trips t
+         INNER JOIN users u ON u.id = t.user_id
+         WHERE t.end_date < CURRENT_DATE
+           AND (
+             COALESCE(u.subscription_plan::text, 'free') = 'free'
+             OR (
+               COALESCE(u.subscription_plan::text, 'free') = 'basic'
+               AND t.end_date < (CURRENT_DATE - INTERVAL '3 months')
+             )
+           )
+       ),
+       deleted AS (
+         DELETE FROM trips t
+         USING targets x
+         WHERE t.id = x.id
+         RETURNING x.plan
+       )
+       SELECT plan, COUNT(*)::int AS total
+       FROM deleted
+       GROUP BY plan`,
+    );
+
+    const totals = result.rows.reduce(
+      (acc, row) => {
+        const value = Number(row.total) || 0;
+        if (row.plan === 'free') acc.deletedFreeTrips += value;
+        if (row.plan === 'basic') acc.deletedBasicTrips += value;
+        acc.deletedTrips += value;
+        return acc;
+      },
+      {
+        deletedTrips: 0,
+        deletedFreeTrips: 0,
+        deletedBasicTrips: 0,
+      },
+    );
+
+    return totals;
+  }
+
   async countTripsForUser(userId: string): Promise<number> {
     const result = await query<{ total: number | string }>(
       `SELECT COALESCE(
