@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -219,10 +220,35 @@ class _AIChatModalState extends State<AIChatModal> {
     });
   }
 
+  Future<Map<String, dynamic>?> _loadFullPlaceDetails(
+    String placeId, {
+    Map<String, dynamic>? fallback,
+  }) async {
+    try {
+      final language = context.locale.languageCode;
+      final response = await _apiService.get(
+        '/maps/destinations/$placeId?language=$language',
+      );
+
+      if (response is Map<String, dynamic>) {
+        return response;
+      }
+
+      if (response is Map) {
+        return Map<String, dynamic>.from(response);
+      }
+    } catch (e) {
+      print('Error loading full place details for $placeId: $e');
+    }
+
+    return fallback;
+  }
+
   Future<void> _confirmAddPlace(PlaceSuggestion place) async {
     // Buscar placeId real do Google Places se não tiver
     String? finalPlaceId = place.placeId;
     Map<String, dynamic>? placeDetails;
+    Map<String, dynamic>? searchFallbackDetails;
 
     if (finalPlaceId == null ||
         finalPlaceId.isEmpty ||
@@ -240,22 +266,15 @@ class _AIChatModalState extends State<AIChatModal> {
         if (searchResponse != null &&
             searchResponse is List &&
             searchResponse.isNotEmpty) {
-          finalPlaceId = searchResponse[0]['placeId'];
-          placeDetails = searchResponse[0];
-          print('Search response for ${place.name}: $placeDetails');
+          final firstResult = searchResponse[0];
+          if (firstResult is Map) {
+            searchFallbackDetails = Map<String, dynamic>.from(firstResult);
+            finalPlaceId = searchFallbackDetails['placeId']?.toString();
+            placeDetails = searchFallbackDetails;
+          }
         }
       } catch (e) {
         print('Error searching for place: $e');
-      }
-    } else {
-      // Get place details if we have the placeId
-      try {
-        placeDetails = await _apiService.get(
-          '/maps/destinations/$finalPlaceId',
-        );
-        print('Place details for $finalPlaceId: $placeDetails');
-      } catch (e) {
-        print('Error getting place details: $e');
       }
     }
 
@@ -268,6 +287,13 @@ class _AIChatModalState extends State<AIChatModal> {
       }
       return;
     }
+
+    // Always load full place details by ID so opening hours are consistent
+    // with the place data shown later in itinerary cards.
+    placeDetails = await _loadFullPlaceDetails(
+      finalPlaceId,
+      fallback: searchFallbackDetails,
+    );
 
     // Show confirmation modal with place details
     final confirmed = await showModalBottomSheet<bool>(
@@ -758,50 +784,51 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
 
   String _getOpeningHours() {
     if (placeDetails == null) {
-      print('No placeDetails for opening hours');
       return '';
     }
 
-    print('Getting opening hours from placeDetails');
-    print('PlaceDetails full: $placeDetails');
-
     try {
-      // Try opening_hours field (from our backend)
       var openingHours = placeDetails!['opening_hours'];
       if (openingHours == null) {
         openingHours = placeDetails!['openingHours'];
       }
 
-      print('Opening hours raw: $openingHours');
+      if (openingHours is String && openingHours.trim().isNotEmpty) {
+        try {
+          openingHours = jsonDecode(openingHours);
+        } catch (_) {
+          return openingHours;
+        }
+      }
 
       if (openingHours != null) {
+        List<dynamic>? weekdayText;
+        bool? isOpenNow;
+
         if (openingHours is Map) {
-          print('Opening hours is a Map');
-          // Try weekdayText first
-          final weekdayText =
+          weekdayText =
               openingHours['weekdayText'] ?? openingHours['weekday_text'];
-          print('WeekdayText: $weekdayText');
-          if (weekdayText != null &&
-              weekdayText is List &&
-              weekdayText.isNotEmpty) {
-            final now = DateTime.now();
-            final dayIndex = now.weekday - 1; // 0 = Monday, 6 = Sunday
-            print('Current day index: $dayIndex');
-            if (dayIndex < weekdayText.length) {
-              final todayText = weekdayText[dayIndex];
-              print('Today text: $todayText');
-              // Remove day name prefix (e.g., "Monday: 9:00 AM – 6:00 PM" -> "9:00 AM – 6:00 PM")
+          isOpenNow = openingHours['isOpenNow'] ?? openingHours['open_now'];
+        } else if (openingHours is List) {
+          weekdayText = openingHours;
+        }
+
+        if (weekdayText != null && weekdayText.isNotEmpty) {
+          final now = DateTime.now();
+          final dayIndex = now.weekday - 1; // 0 = Monday, 6 = Sunday
+          if (dayIndex < weekdayText.length) {
+            final todayText = weekdayText[dayIndex]?.toString() ?? '';
+            if (todayText.isNotEmpty) {
               final colonIndex = todayText.indexOf(':');
-              if (colonIndex != -1) {
-                final result = todayText.substring(colonIndex + 1).trim();
-                print('Returning hours: $result');
-                return result;
+              if (colonIndex != -1 && colonIndex < todayText.length - 1) {
+                return todayText.substring(colonIndex + 1).trim();
               }
               return todayText;
             }
           }
+        }
 
-          // Try periods format
+        if (openingHours is Map) {
           final periods = openingHours['periods'];
           if (periods != null && periods is List && periods.isNotEmpty) {
             final today = periods[0];
@@ -809,20 +836,16 @@ class _AddPlaceConfirmationModal extends StatelessWidget {
               return 'Open ${today['open']['time']} - ${today['close']['time']}';
             }
           }
+        }
 
-          // Check if open now
-          final isOpenNow =
-              openingHours['isOpenNow'] ?? openingHours['open_now'];
-          if (isOpenNow != null) {
-            return isOpenNow ? 'Open now' : 'Closed now';
-          }
+        if (isOpenNow != null) {
+          return isOpenNow ? 'Open now' : 'Closed now';
         }
       }
     } catch (e) {
       print('Error parsing opening hours: $e');
     }
 
-    print('No opening hours found, returning empty');
     return '';
   }
 

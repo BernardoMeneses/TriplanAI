@@ -83,7 +83,20 @@ export class TripsService {
     await query('DELETE FROM trip_routes WHERE trip_id = $1', [tripId]);
     await query('DELETE FROM trip_notes WHERE trip_id = $1', [tripId]);
     await query('DELETE FROM itineraries WHERE trip_id = $1', [tripId]);
-    await query('DELETE FROM places WHERE trip_id = $1', [tripId]);
+
+    const hasPlacesTripIdResult = await query<{ has_trip_id: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'places'
+           AND column_name = 'trip_id'
+       ) AS has_trip_id`,
+    );
+
+    if (hasPlacesTripIdResult.rows[0]?.has_trip_id) {
+      await query('DELETE FROM places WHERE trip_id = $1', [tripId]);
+    }
   }
 
   async createTrip(userId: string, tripData: Partial<Trip>): Promise<Trip> {

@@ -2,18 +2,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
-
 class ApiService {
   // TODO: Configurar URL base da API
 
-  static const String baseUrl = 'https://triplanai-backend.triplanai.eupasoft.com/api'; // Para iOS simulator/web
+  static const String baseUrl =
+      'https://triplanai-backend.triplanai.eupasoft.com/api'; // Para iOS simulator/web
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
 
   String? _authToken;
-  
+
   // Timeout configurável
   static const Duration timeoutDuration = Duration(seconds: 30);
 
@@ -38,14 +38,23 @@ class ApiService {
   }
 
   // GET request genérico
-  Future<dynamic> get(String endpoint, {Map<String, String>? queryParams}) async {
+  Future<dynamic> get(
+    String endpoint, {
+    Map<String, String>? queryParams,
+  }) async {
     try {
-      final uri = Uri.parse('$baseUrl$endpoint').replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '$baseUrl$endpoint',
+      ).replace(queryParameters: queryParams);
       if (kDebugMode) {
         print('📡 GET: $uri');
       }
-      final response = await http.get(uri, headers: _headers).timeout(timeoutDuration);
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(timeoutDuration);
       return _handleResponse(response);
+    } on ApiException {
+      rethrow;
     } catch (e) {
       if (kDebugMode) {
         print('❌ GET Error: $e');
@@ -61,12 +70,16 @@ class ApiService {
       if (kDebugMode) {
         print('📡 POST: $uri');
       }
-      final response = await http.post(
-        uri,
-        headers: _headers,
-        body: body != null ? jsonEncode(body) : null,
-      ).timeout(timeoutDuration);
+      final response = await http
+          .post(
+            uri,
+            headers: _headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(timeoutDuration);
       return _handleResponse(response);
+    } on ApiException {
+      rethrow;
     } catch (e) {
       if (kDebugMode) {
         print('❌ POST Error: $e');
@@ -79,12 +92,16 @@ class ApiService {
   Future<dynamic> put(String endpoint, {dynamic body}) async {
     try {
       final uri = Uri.parse('$baseUrl$endpoint');
-      final response = await http.put(
-        uri,
-        headers: _headers,
-        body: body != null ? jsonEncode(body) : null,
-      );
+      final response = await http
+          .put(
+            uri,
+            headers: _headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(timeoutDuration);
       return _handleResponse(response);
+    } on ApiException {
+      rethrow;
     } catch (e) {
       throw ApiException('Erro de conexão: $e');
     }
@@ -94,8 +111,12 @@ class ApiService {
   Future<dynamic> delete(String endpoint) async {
     try {
       final uri = Uri.parse('$baseUrl$endpoint');
-      final response = await http.delete(uri, headers: _headers);
+      final response = await http
+          .delete(uri, headers: _headers)
+          .timeout(timeoutDuration);
       return _handleResponse(response);
+    } on ApiException {
+      rethrow;
     } catch (e) {
       throw ApiException('Erro de conexão: $e');
     }

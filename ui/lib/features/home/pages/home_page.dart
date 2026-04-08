@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:triplan_ai_front/services/auth_service.dart';
@@ -37,6 +38,7 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
   bool _isOfflineMode = false;
   SubscriptionStatus? _subscriptionStatus;
+  Timer? _tripsRealtimeTimer;
 
   final Map<String, String?> _tripImages = {};
 
@@ -59,6 +61,89 @@ class _HomePageState extends State<HomePage> {
     AppEvents.onDraftChanged.listen((_) {
       if (mounted) _loadDraft();
     });
+
+    _startTripsRealtimeSync();
+  }
+
+  @override
+  void dispose() {
+    _tripsRealtimeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTripsRealtimeSync() {
+    _tripsRealtimeTimer?.cancel();
+    _tripsRealtimeTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _syncTripsSilentlyIfChanged();
+    });
+  }
+
+  String _tripSignature(Trip trip) {
+    return '${trip.id}:${trip.updatedAt.millisecondsSinceEpoch}:${trip.title}:${trip.destinationCity}:${trip.destinationCountry}:${trip.startDate.millisecondsSinceEpoch}:${trip.endDate.millisecondsSinceEpoch}:${trip.status}:${trip.isMember}';
+  }
+
+  String _tripsListSignature(List<Trip> trips) {
+    final sorted = [...trips]..sort((a, b) => a.id.compareTo(b.id));
+    return sorted.map(_tripSignature).join('|');
+  }
+
+  Future<void> _syncTripsSilentlyIfChanged() async {
+    if (!mounted) return;
+
+    try {
+      final latestTrips = await _tripCacheService.getTrips(forceRefresh: true);
+      if (!mounted) return;
+
+      final now = DateTime.now();
+      final latestUpcoming =
+          latestTrips.where((t) => t.endDate.isAfter(now)).toList()
+            ..sort((a, b) => a.startDate.compareTo(b.startDate));
+      final latestPast =
+          latestTrips
+              .where(
+                (t) =>
+                    t.endDate.isBefore(now) || t.endDate.isAtSameMomentAs(now),
+              )
+              .toList()
+            ..sort((a, b) => b.endDate.compareTo(a.endDate));
+
+      final currentSignature =
+          '${_tripsListSignature(_upcomingTrips)}::${_tripsListSignature(_pastTrips)}';
+      final latestSignature =
+          '${_tripsListSignature(latestUpcoming)}::${_tripsListSignature(latestPast)}';
+
+      if (currentSignature == latestSignature &&
+          _isOfflineMode == _tripCacheService.isOfflineMode) {
+        return;
+      }
+
+      final previousIds = {
+        ..._upcomingTrips.map((t) => t.id),
+        ..._pastTrips.map((t) => t.id),
+      };
+      final latestIds = {
+        ...latestUpcoming.map((t) => t.id),
+        ...latestPast.map((t) => t.id),
+      };
+
+      setState(() {
+        _isOfflineMode = _tripCacheService.isOfflineMode;
+        _upcomingTrips = latestUpcoming;
+        _pastTrips = latestPast;
+      });
+
+      for (final removedId in previousIds.difference(latestIds)) {
+        _tripImages.remove(removedId);
+      }
+
+      for (final trip in [...latestUpcoming, ...latestPast]) {
+        if (!previousIds.contains(trip.id)) {
+          _loadTripImage(trip);
+        }
+      }
+    } catch (_) {
+      // Silent sync should never disrupt the UI.
+    }
   }
 
   Future<void> _checkPremiumStatus() async {

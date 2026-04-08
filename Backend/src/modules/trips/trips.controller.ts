@@ -244,8 +244,17 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     if (destinationChanged) {
-      await tripsService.resetTripDataAfterDestinationChange(req.params.id);
-      await tripsService.incrementTripReplacementCount(req.params.id);
+      try {
+        await tripsService.resetTripDataAfterDestinationChange(req.params.id);
+      } catch (cleanupError) {
+        console.error('[Trips] resetTripDataAfterDestinationChange failed:', cleanupError);
+      }
+
+      try {
+        await tripsService.incrementTripReplacementCount(req.params.id);
+      } catch (replacementError) {
+        console.error('[Trips] incrementTripReplacementCount failed:', replacementError);
+      }
 
       const refreshedTrip = await tripsService.getTripById(req.params.id);
       return res.json(refreshedTrip ?? updatedTrip);

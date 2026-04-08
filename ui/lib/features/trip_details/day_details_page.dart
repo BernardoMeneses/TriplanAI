@@ -79,6 +79,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
   // Assinatura para atualizações em tempo real
   StreamSubscription<dynamic>? _realtimeSubscription;
   String? _realtimeSubscriptionKey;
+  Timer? _realtimeFallbackTimer;
 
   /// ReadOnly efetivo - true se offline OU se widget.isReadOnly
   bool get _effectiveReadOnly => widget.isReadOnly || !_isOnline;
@@ -103,6 +104,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
           _realtimeSubscription?.cancel();
           _realtimeSubscription = null;
           _realtimeSubscriptionKey = null;
+          _stopRealtimeFallbackPolling();
         }
       }
     });
@@ -110,8 +112,57 @@ class _DayDetailsPageState extends State<DayDetailsPage>
     _geocodeDestination();
   }
 
+  void _startRealtimeFallbackPolling() {
+    _realtimeFallbackTimer?.cancel();
+    _realtimeFallbackTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || !_isOnline || _itineraryId == null) return;
+      if (RealTimeService().isSubscribed) return;
+
+      _pollItemsSilentlyIfChanged();
+    });
+  }
+
+  void _stopRealtimeFallbackPolling() {
+    _realtimeFallbackTimer?.cancel();
+    _realtimeFallbackTimer = null;
+  }
+
+  String _itemsSignature(List<ItineraryItem> items) {
+    return items
+        .map(
+          (item) =>
+              '${item.id}:${item.updatedAt.millisecondsSinceEpoch}:${item.orderIndex}:${item.status}:${item.startTime}:${item.durationMinutes}',
+        )
+        .join('|');
+  }
+
+  Future<void> _pollItemsSilentlyIfChanged() async {
+    final itineraryId = _itineraryId;
+    if (itineraryId == null) return;
+
+    try {
+      final latestItems = await _cacheService.getItemsByItinerary(
+        itineraryId,
+        forceRefresh: true,
+      );
+      if (!mounted) return;
+
+      final currentSignature = _itemsSignature(_items);
+      final latestSignature = _itemsSignature(latestItems);
+      if (currentSignature == latestSignature) {
+        return;
+      }
+
+      setState(() {
+        _items = latestItems;
+      });
+    } catch (e) {
+      print('Silent realtime fallback poll error: $e');
+    }
+  }
+
   void _subscribeRealtimeIfNeeded() {
-    if (!widget.isReadOnly || !_isOnline) return;
+    if (!_isOnline) return;
     if (_itineraryId == null) return;
 
     final key = '$_itineraryId:$_currentDayNumber';
@@ -130,6 +181,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
       },
     );
     _realtimeSubscriptionKey = key;
+    _startRealtimeFallbackPolling();
   }
 
   Future<void> _geocodeDestination() async {
@@ -513,6 +565,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
 
   @override
   void dispose() {
+    _stopRealtimeFallbackPolling();
     _connectivitySubscription?.cancel();
     _realtimeSubscription?.cancel();
     RealTimeService().dispose();
