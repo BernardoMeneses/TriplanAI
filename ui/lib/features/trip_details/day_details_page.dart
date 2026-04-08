@@ -78,6 +78,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
   StreamSubscription<bool>? _connectivitySubscription;
   // Assinatura para atualizações em tempo real
   StreamSubscription<dynamic>? _realtimeSubscription;
+  String? _realtimeSubscriptionKey;
 
   /// ReadOnly efetivo - true se offline OU se widget.isReadOnly
   bool get _effectiveReadOnly => widget.isReadOnly || !_isOnline;
@@ -95,20 +96,40 @@ class _DayDetailsPageState extends State<DayDetailsPage>
         setState(() {
           _isOnline = isOnline;
         });
+
+        if (_isOnline) {
+          _subscribeRealtimeIfNeeded();
+        } else {
+          _realtimeSubscription?.cancel();
+          _realtimeSubscription = null;
+          _realtimeSubscriptionKey = null;
+        }
       }
     });
     _loadTripData();
     _geocodeDestination();
-    // Atualização em tempo real para não-owners usando WebSocket
-    if (widget.isReadOnly) {
-      _realtimeSubscription = RealTimeService().subscribeToItinerary(
-        widget.tripId,
-        _currentDayNumber,
-        () {
-          if (mounted) _loadItems(forceRefresh: true);
-        },
-      );
+  }
+
+  void _subscribeRealtimeIfNeeded() {
+    if (!widget.isReadOnly || !_isOnline) return;
+    if (_itineraryId == null) return;
+
+    final key = '$_itineraryId:$_currentDayNumber';
+    if (_realtimeSubscriptionKey == key && _realtimeSubscription != null) {
+      return;
     }
+
+    _realtimeSubscription?.cancel();
+    _realtimeSubscription = RealTimeService().subscribeToItinerary(
+      _itineraryId!,
+      _currentDayNumber,
+      () {
+        if (mounted) {
+          _loadItems(forceRefresh: true);
+        }
+      },
+    );
+    _realtimeSubscriptionKey = key;
   }
 
   Future<void> _geocodeDestination() async {
@@ -229,6 +250,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
       }
 
       _itineraryId = itinerary.id;
+      _subscribeRealtimeIfNeeded();
 
       final items = await _cacheService.getItemsByItinerary(
         _itineraryId!,

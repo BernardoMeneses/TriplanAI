@@ -1,9 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { ItineraryItemsService } from './itinerary_items.service';
 import { emitItineraryUpdate } from '../../websocket';
+import { itinerariesService } from './itineraries.service';
+import { tripsService } from '../trips/trips.service';
 
 const router = Router();
 const itineraryItemsService = new ItineraryItemsService();
+
+async function resolveItineraryDayNumber(itineraryId: string): Promise<number> {
+  const itinerary = await itinerariesService.getItineraryById(itineraryId);
+  const dayNumber = itinerary?.day_number;
+  return typeof dayNumber === 'number' && dayNumber > 0 ? dayNumber : 1;
+}
 
 /**
  * @swagger
@@ -53,8 +61,8 @@ const itineraryItemsService = new ItineraryItemsService();
 router.post('/', async (req: Request, res: Response) => {
   try {
     const item = await itineraryItemsService.createItineraryItem(req.body);
-    // Emitir evento de atualização em tempo real
-    emitItineraryUpdate(item.itinerary_id, req.body.dayNumber || 1);
+    const dayNumber = await resolveItineraryDayNumber(item.itinerary_id);
+    emitItineraryUpdate(item.itinerary_id, dayNumber);
     res.status(201).json(item);
   } catch (error) {
     console.error('Erro ao criar item do itinerario:', error);
@@ -153,15 +161,11 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (!item) {
       return res.status(404).json({ error: 'Item nao encontrado' });
     }
-    // Buscar o itinerário para obter o trip_id
-    const itinerariesService = require('./itineraries.service');
-    const itinerary = await itinerariesService.itinerariesService.getItineraryById(item.itinerary_id);
+    const itinerary = await itinerariesService.getItineraryById(item.itinerary_id);
     if (!itinerary) {
       return res.status(404).json({ error: 'Itinerário não encontrado' });
     }
-    // Buscar a viagem para verificar owner
-    const tripsService = require('../trips/trips.service');
-    const trip = await tripsService.tripsService.getTripById(itinerary.trip_id);
+    const trip = await tripsService.getTripById(itinerary.trip_id);
     if (!trip) {
       return res.status(404).json({ error: 'Viagem não encontrada' });
     }
@@ -169,8 +173,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Apenas o owner pode editar itens do itinerário.' });
     }
     const updatedItem = await itineraryItemsService.updateItineraryItem(req.params.id, req.body);
-    // Emitir evento de atualização em tempo real
-    emitItineraryUpdate(item.itinerary_id, req.body.dayNumber || 1);
+    const dayNumber = await resolveItineraryDayNumber(item.itinerary_id);
+    emitItineraryUpdate(item.itinerary_id, dayNumber);
     res.json(updatedItem);
   } catch (error) {
     console.error('Erro ao atualizar item:', error);
@@ -206,15 +210,11 @@ router.delete('/:id', async (req: Request, res: Response) => {
     if (!item) {
       return res.status(404).json({ error: 'Item nao encontrado' });
     }
-    // Buscar o itinerário para obter o trip_id
-    const itinerariesService = require('./itineraries.service');
-    const itinerary = await itinerariesService.itinerariesService.getItineraryById(item.itinerary_id);
+    const itinerary = await itinerariesService.getItineraryById(item.itinerary_id);
     if (!itinerary) {
       return res.status(404).json({ error: 'Itinerário não encontrado' });
     }
-    // Buscar a viagem para verificar owner
-    const tripsService = require('../trips/trips.service');
-    const trip = await tripsService.tripsService.getTripById(itinerary.trip_id);
+    const trip = await tripsService.getTripById(itinerary.trip_id);
     if (!trip) {
       return res.status(404).json({ error: 'Viagem não encontrada' });
     }
@@ -222,8 +222,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Apenas o owner pode eliminar itens do itinerário.' });
     }
     await itineraryItemsService.deleteItineraryItem(req.params.id);
-    // Emitir evento de atualização em tempo real
-    emitItineraryUpdate(item.itinerary_id, 1); // dayNumber pode ser ajustado conforme necessário
+    const dayNumber = await resolveItineraryDayNumber(item.itinerary_id);
+    emitItineraryUpdate(item.itinerary_id, dayNumber);
     res.json({ message: 'Item eliminado com sucesso' });
   } catch (error) {
     console.error('Erro ao eliminar item:', error);
@@ -264,6 +264,8 @@ router.put('/reorder/:itineraryId', async (req: Request, res: Response) => {
   try {
     const { itemIds } = req.body;
     await itineraryItemsService.reorderItems(req.params.itineraryId, itemIds);
+    const dayNumber = await resolveItineraryDayNumber(req.params.itineraryId);
+    emitItineraryUpdate(req.params.itineraryId, dayNumber);
     res.json({ message: 'Items reordenados com sucesso' });
   } catch (error) {
     console.error('Erro ao reordenar items:', error);
