@@ -64,6 +64,18 @@ export class AIService {
     return LANGUAGE_NAMES[normalized] || LANGUAGE_NAMES[base] || 'English';
   }
 
+  private isExplanationOnlyQuery(query: string): boolean {
+    const normalized = (query || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const asksWhy = /\b(why|por que|porque|porque e que|pq|motivo|razao|reason)\b/.test(normalized);
+    const asksForMoreOptions = /\b(list|lista|suggest|suggestions|recommendations|recomendacoes|options|alternatives|outras|outros|mais lugares|mais opcoes)\b/.test(normalized);
+
+    return asksWhy && !asksForMoreOptions;
+  }
+
   // Gerar system prompt dinâmico baseado na língua
   private getSystemPrompt(language: string = 'en'): string {
     const langName = this.getLanguageName(language);
@@ -83,6 +95,7 @@ REASONING & QUALITY:
 - Justify suggestions with clear criteria: logistics, variety, time fit, budget fit, and user intent.
 - Be critical and honest: point out trade-offs, weak options, and better alternatives when relevant.
 - If the user asks "why these places", answer directly with concrete reasoning.
+- If the user asks why a specific place is recommended, focus on that place only and do not add extra place lists unless explicitly asked.
 - Prefer realistic plans over overpacked itineraries.
 
 PRACTICALITY:
@@ -99,17 +112,25 @@ PRACTICALITY:
   }): Promise<{ response: string; places: any[] }> {
     const systemPrompt = this.getSystemPrompt(params.language);
     const responseLanguage = this.getLanguageName(params.language || 'en');
+    const explanationOnly = this.isExplanationOnlyQuery(params.query);
     const prompt = `The user is planning day ${params.dayNumber} in ${params.location}.
 Question: "${params.query}"
 
-Provide a complete and human recommendation, not just a plain list.
+Choose response format based on intent:
+- EXPLANATION mode: if the user is asking "why" (or equivalent) about a specific recommendation/place, answer that question directly and do NOT add extra place suggestions.
+- SUGGESTION mode: if the user asks for ideas/options, provide place suggestions.
 
 Quality requirements:
-- Suggest 4-5 relevant places with good diversity (culture, food, views, local life, etc. when possible).
-- Build a coherent day flow (avoid unrealistic jumps across the city).
-- Be critical: mention one key trade-off or caveat (crowds, timing, budget, distance, reservation risk).
-- The response text must explain why these places are good for this user question.
-- Each place description should include both "why it fits" and one practical tip.
+- In EXPLANATION mode:
+  - Keep the response focused on the asked place/recommendation.
+  - Use 1-2 short paragraphs with concrete reasons and one practical tip.
+  - Return "places": []
+- In SUGGESTION mode:
+  - Suggest 4-5 relevant places with good diversity (culture, food, views, local life, etc. when possible).
+  - Build a coherent day flow (avoid unrealistic jumps across the city).
+  - Be critical: mention one key trade-off or caveat (crowds, timing, budget, distance, reservation risk).
+  - The response text must explain why these places are good for this user question.
+  - Each place description should include both "why it fits" and one practical tip.
 
 Respond in JSON format with this schema:
 {
@@ -122,7 +143,9 @@ Respond in JSON format with this schema:
   }]
 }
 
-IMPORTANT: The "response" field MUST be in ${responseLanguage}.
+IMPORTANT:
+- The "response" field MUST be in ${responseLanguage}.
+- If this is EXPLANATION mode, the "places" array must be empty.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -145,10 +168,16 @@ Respond ONLY with the JSON, no additional text.`;
       }
 
       const parsed = JSON.parse(content);
+      let places = parsed.places || [];
+
+      // Enforce direct-answer behavior for "why recommend X" queries.
+      if (explanationOnly) {
+        places = [];
+      }
       
       // Processar lugares para buscar placeId real se possível
-      if (parsed.places && Array.isArray(parsed.places)) {
-        for (const place of parsed.places) {
+      if (Array.isArray(places)) {
+        for (const place of places) {
           // Aqui poderíamos buscar o placeId real do Google Places
           // Por agora, vamos deixar vazio e o frontend vai buscar quando adicionar
           place.placeId = `temp_${Date.now()}_${Math.random()}`;
@@ -157,7 +186,7 @@ Respond ONLY with the JSON, no additional text.`;
       
       return {
         response: parsed.response || this.getDefaultSuggestionsMessage(params.language),
-        places: parsed.places || []
+        places: Array.isArray(places) ? places : []
       };
     } catch (error) {
       console.error('Error generating place suggestions:', error);
