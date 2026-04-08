@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:app_links/app_links.dart';
 import 'package:triplan_ai_front/services/trip_share_service.dart';
 import 'package:triplan_ai_front/services/trips_service.dart';
+import 'package:triplan_ai_front/common/constants/app_constants.dart';
 
 /// Serviço para gerenciar deep linking e abertura de arquivos compartilhados
 class DeepLinkService {
@@ -20,36 +22,30 @@ class DeepLinkService {
   /// Inicializa listeners para arquivos compartilhados (.triplan)
   ///
   /// ⚠️ Deve ser chamado após o primeiro frame (ex: addPostFrameCallback)
-    void initialize(
-      BuildContext context,
-      void Function(Trip trip) onTripImported,
-      {void Function(Uri uri)? onAppLink,
-      }) {
+  void initialize(
+    BuildContext context,
+    void Function(Trip trip) onTripImported, {
+    void Function(Uri uri)? onAppLink,
+  }) {
     // Arquivos compartilhados quando a app estava FECHADA
     ReceiveSharingIntent.instance
         .getInitialMedia()
         .then((List<SharedMediaFile> files) {
-      if (files.isNotEmpty) {
-        _handleSharedFile(
-          context,
-          files.first.path,
-          onTripImported,
-        );
-      }
-    }).catchError((e) {
-      debugPrint('Erro getInitialMedia: $e');
-    });
+          if (files.isNotEmpty) {
+            _handleSharedFile(context, files.first.path, onTripImported);
+          }
+        })
+        .catchError((e) {
+          debugPrint('Erro getInitialMedia: $e');
+        });
 
     // Arquivos compartilhados enquanto a app está ABERTA
-    _intentDataStreamSubscription =
-        ReceiveSharingIntent.instance.getMediaStream().listen(
-              (List<SharedMediaFile> files) {
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance
+        .getMediaStream()
+        .listen(
+          (List<SharedMediaFile> files) {
             if (files.isNotEmpty) {
-              _handleSharedFile(
-                context,
-                files.first.path,
-                onTripImported,
-              );
+              _handleSharedFile(context, files.first.path, onTripImported);
             }
           },
           onError: (err) {
@@ -60,17 +56,18 @@ class DeepLinkService {
     // --- App links (custom URI scheme) ---
     try {
       // Enquanto app aberta - escutar stream
-      _appLinkStreamSubscription = _appLinks.uriLinkStream.listen((uri) {
-        if (uri != null) {
+      _appLinkStreamSubscription = _appLinks.uriLinkStream.listen(
+        (uri) {
           try {
             onAppLink?.call(uri);
           } catch (e) {
             debugPrint('Erro ao tratar app link stream: $e');
           }
-        }
-      }, onError: (err) {
-        debugPrint('Erro app link stream: $err');
-      });
+        },
+        onError: (err) {
+          debugPrint('Erro app link stream: $err');
+        },
+      );
     } catch (e) {
       debugPrint('AppLinks não suportado ou erro: $e');
     }
@@ -78,15 +75,15 @@ class DeepLinkService {
 
   /// Processa o arquivo compartilhado
   Future<void> _handleSharedFile(
-      BuildContext context,
-      String filePath,
-      void Function(Trip trip) onTripImported,
-      ) async {
+    BuildContext context,
+    String filePath,
+    void Function(Trip trip) onTripImported,
+  ) async {
     // Validar extensão
     if (!filePath.toLowerCase().endsWith('.triplan')) {
       _showSnackBar(
         context,
-        'Apenas arquivos .triplan são suportados',
+        AppConstants.onlyTriplanSupported.tr(),
         Colors.orange,
       );
       return;
@@ -97,8 +94,7 @@ class DeepLinkService {
 
     try {
       // Importar viagem
-      final Trip trip =
-      await _tripShareService.importTripFromFile(filePath);
+      final Trip trip = await _tripShareService.importTripFromFile(filePath);
 
       // Fechar loading
       _closeLoading(context);
@@ -106,10 +102,10 @@ class DeepLinkService {
       // Sucesso
       _showSnackBar(
         context,
-        'Viagem "${trip.title}" importada com sucesso!',
+        '${AppConstants.tripImportedSuccess.tr()} (${trip.title})',
         Colors.green,
         action: SnackBarAction(
-          label: 'Ver',
+          label: AppConstants.view.tr(),
           textColor: Colors.white,
           onPressed: () => onTripImported(trip),
         ),
@@ -123,7 +119,7 @@ class DeepLinkService {
 
       _showSnackBar(
         context,
-        'Erro ao importar viagem: $e',
+        '${AppConstants.errorImportingTrip.tr()}: $e',
         Colors.red,
       );
     }
@@ -136,16 +132,16 @@ class DeepLinkService {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
+      builder: (_) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Importando viagem...'),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(AppConstants.importingTrip.tr()),
               ],
             ),
           ),
@@ -166,11 +162,11 @@ class DeepLinkService {
 
   /// Helper para SnackBars
   void _showSnackBar(
-      BuildContext context,
-      String message,
-      Color color, {
-        SnackBarAction? action,
-      }) {
+    BuildContext context,
+    String message,
+    Color color, {
+    SnackBarAction? action,
+  }) {
     if (!context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -178,8 +174,10 @@ class DeepLinkService {
         content: Row(
           children: [
             Icon(
-              color == Colors.green ? Icons.check_circle
-                  : color == Colors.orange ? Icons.warning_amber_rounded
+              color == Colors.green
+                  ? Icons.check_circle
+                  : color == Colors.orange
+                  ? Icons.warning_amber_rounded
                   : Icons.error_outline,
               color: Colors.white,
             ),

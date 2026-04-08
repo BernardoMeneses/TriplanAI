@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
@@ -15,6 +14,8 @@ import '../../common/constants/app_constants.dart';
 import '../../shared/widgets/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
+import '../../services/subscription_service.dart';
+import '../../shared/widgets/feature_locked_dialog.dart';
 
 class NavigationPage extends StatefulWidget {
   final String destinationName;
@@ -121,7 +122,8 @@ class _NavigationPageState extends State<NavigationPage> {
 
         if (_currentPosition == null) {
           setState(() {
-            _error = 'Could not get your location. Please enable location services.';
+            _error =
+                'Could not get your location. Please enable location services.';
             _isLoading = false;
           });
           return;
@@ -235,7 +237,6 @@ class _NavigationPageState extends State<NavigationPage> {
       // Calcular rota até ao aeroporto de partida
       _travelMode = 'driving';
       await _calculateRouteToAirport();
-
     } catch (e) {
       print('Error initializing flight mode: $e');
       // Fallback para modo terrestre
@@ -268,8 +269,13 @@ class _NavigationPageState extends State<NavigationPage> {
       markers.add(
         Marker(
           markerId: const MarkerId('current'),
-          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          position: LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
           infoWindow: InfoWindow(title: AppConstants.yourLocation.tr()),
         ),
       );
@@ -280,8 +286,13 @@ class _NavigationPageState extends State<NavigationPage> {
       markers.add(
         Marker(
           markerId: const MarkerId('departure_airport'),
-          position: LatLng(_departureAirport!.latitude, _departureAirport!.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          position: LatLng(
+            _departureAirport!.latitude,
+            _departureAirport!.longitude,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
           infoWindow: InfoWindow(
             title: _departureAirport!.code,
             snippet: _departureAirport!.name,
@@ -295,8 +306,13 @@ class _NavigationPageState extends State<NavigationPage> {
       markers.add(
         Marker(
           markerId: const MarkerId('arrival_airport'),
-          position: LatLng(_arrivalAirport!.latitude, _arrivalAirport!.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+          position: LatLng(
+            _arrivalAirport!.latitude,
+            _arrivalAirport!.longitude,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueViolet,
+          ),
           infoWindow: InfoWindow(
             title: _arrivalAirport!.code,
             snippet: _arrivalAirport!.name,
@@ -323,18 +339,21 @@ class _NavigationPageState extends State<NavigationPage> {
 
     try {
       final language = context.locale.languageCode;
-      final response = await _apiService.post('/routes/calculate', body: {
-        'origin': {
-          'latitude': _currentPosition!.latitude,
-          'longitude': _currentPosition!.longitude,
+      final response = await _apiService.post(
+        '/routes/calculate',
+        body: {
+          'origin': {
+            'latitude': _currentPosition!.latitude,
+            'longitude': _currentPosition!.longitude,
+          },
+          'destination': {
+            'latitude': _departureAirport!.latitude,
+            'longitude': _departureAirport!.longitude,
+          },
+          'travelMode': _travelMode,
+          'language': language,
         },
-        'destination': {
-          'latitude': _departureAirport!.latitude,
-          'longitude': _departureAirport!.longitude,
-        },
-        'travelMode': _travelMode,
-        'language': language,
-      });
+      );
 
       if (response != null) {
         final durationSeconds = response['duration'] ?? 0;
@@ -372,7 +391,10 @@ class _NavigationPageState extends State<NavigationPage> {
               Polyline(
                 polylineId: const PolylineId('flight_path'),
                 points: [
-                  LatLng(_departureAirport!.latitude, _departureAirport!.longitude),
+                  LatLng(
+                    _departureAirport!.latitude,
+                    _departureAirport!.longitude,
+                  ),
                   LatLng(_arrivalAirport!.latitude, _arrivalAirport!.longitude),
                 ],
                 color: Colors.orange,
@@ -401,7 +423,9 @@ class _NavigationPageState extends State<NavigationPage> {
     ];
 
     if (_departureAirport != null) {
-      points.add(LatLng(_departureAirport!.latitude, _departureAirport!.longitude));
+      points.add(
+        LatLng(_departureAirport!.latitude, _departureAirport!.longitude),
+      );
     }
     if (_arrivalAirport != null) {
       points.add(LatLng(_arrivalAirport!.latitude, _arrivalAirport!.longitude));
@@ -413,10 +437,12 @@ class _NavigationPageState extends State<NavigationPage> {
 
   Future<void> _createMarkers() async {
     final markers = <Marker>{};
-    
+
     // Preservar o marcador de transporte se existir
-    final transportMarker = _markers.where((m) => m.markerId.value == 'transport').firstOrNull;
-    
+    final transportMarker = _markers
+        .where((m) => m.markerId.value == 'transport')
+        .firstOrNull;
+
     // Criar ícones customizados com números
     final originIcon = await _createNumberMarkerIcon(1);
     final destinationIcon = await _createNumberMarkerIcon(2);
@@ -426,7 +452,10 @@ class _NavigationPageState extends State<NavigationPage> {
       markers.add(
         Marker(
           markerId: const MarkerId('current'),
-          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          position: LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
           icon: originIcon,
           anchor: const Offset(0.5, 0.5),
           infoWindow: InfoWindow(
@@ -460,7 +489,7 @@ class _NavigationPageState extends State<NavigationPage> {
         ),
       ),
     );
-    
+
     // Adicionar de volta o marcador de transporte se existia
     if (transportMarker != null) {
       markers.add(transportMarker);
@@ -476,11 +505,7 @@ class _NavigationPageState extends State<NavigationPage> {
 
     // Desenhar círculo
     const size = 80.0;
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      size / 2,
-      paint,
-    );
+    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2, paint);
 
     // Desenhar borda
     final borderPaint = Paint()
@@ -506,10 +531,7 @@ class _NavigationPageState extends State<NavigationPage> {
     textPainter.layout();
     textPainter.paint(
       canvas,
-      Offset(
-        (size - textPainter.width) / 2,
-        (size - textPainter.height) / 2,
-      ),
+      Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
     );
 
     final picture = pictureRecorder.endRecording();
@@ -523,7 +545,7 @@ class _NavigationPageState extends State<NavigationPage> {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
     final transportColor = _getTransportColor(mode);
-    
+
     // Fundo branco circular
     const size = 60.0;
     final backgroundPaint = Paint()..color = Colors.white;
@@ -559,10 +581,7 @@ class _NavigationPageState extends State<NavigationPage> {
     textPainter.layout();
     textPainter.paint(
       canvas,
-      Offset(
-        (size - textPainter.width) / 2,
-        (size - textPainter.height) / 2,
-      ),
+      Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
     );
 
     final picture = pictureRecorder.endRecording();
@@ -577,23 +596,45 @@ class _NavigationPageState extends State<NavigationPage> {
 
     try {
       final language = context.locale.languageCode;
-      final response = await _apiService.post('/routes/calculate', body: {
-        'origin': {
-          'latitude': _currentPosition!.latitude,
-          'longitude': _currentPosition!.longitude,
+      final response = await _apiService.post(
+        '/routes/calculate',
+        body: {
+          'origin': {
+            'latitude': _currentPosition!.latitude,
+            'longitude': _currentPosition!.longitude,
+          },
+          'destination': {
+            'latitude': widget.destinationLat,
+            'longitude': widget.destinationLng,
+          },
+          'travelMode': _travelMode,
+          'language': language,
         },
-        'destination': {
-          'latitude': widget.destinationLat,
-          'longitude': widget.destinationLng,
-        },
-        'travelMode': _travelMode,
-        'language': language,
-      });
+      );
+
+      if (response != null && response['error'] != null) {
+        // Exibir mensagem amigável ao usuário
+        if (mounted) {
+          SnackBarHelper.showWarning(context, response['error']);
+        }
+        setState(() {
+          _durationMinutes = null;
+          _durationText = null;
+          _distanceText = null;
+          _steps = [];
+          _polylines = {};
+        });
+        return;
+      }
 
       if (response != null) {
         final durationSeconds = response['duration'] ?? 0;
-        _durationMinutes = (durationSeconds / 60).round();
-        _durationText = response['durationText'] ?? '$_durationMinutes min';
+        _durationMinutes = response['duration'] != null
+            ? (durationSeconds / 60).round()
+            : null;
+        _durationText =
+            response['durationText'] ??
+            (_durationMinutes != null ? '$_durationMinutes min' : null);
         _distanceText = response['distanceText'] ?? '';
 
         // Parse steps
@@ -624,10 +665,12 @@ class _NavigationPageState extends State<NavigationPage> {
           if (decodedPoints.length > 1) {
             final midPoint = decodedPoints[decodedPoints.length ~/ 2];
             final transportIcon = await _createTransportMarkerIcon(_travelMode);
-            
+
             setState(() {
               // Remover marcador de transporte antigo e adicionar o novo
-              final updatedMarkers = _markers.where((m) => m.markerId.value != 'transport').toSet();
+              final updatedMarkers = _markers
+                  .where((m) => m.markerId.value != 'transport')
+                  .toSet();
               updatedMarkers.add(
                 Marker(
                   markerId: const MarkerId('transport'),
@@ -709,8 +752,24 @@ class _NavigationPageState extends State<NavigationPage> {
 
   // Gerar e compartilhar rota em PDF
   Future<void> _downloadRoute() async {
+    // Check PDF export permission
+    final subStatus = await SubscriptionService().getStatus();
+    if (!subStatus.limits.canExportPdf) {
+      if (mounted) {
+        await showFeatureLockedDialog(
+          context,
+          title: AppConstants.pdfLockedTitle.tr(),
+          description: AppConstants.pdfLockedDesc.tr(),
+          suggestedPlan: SubscriptionPlan.basic,
+        );
+      }
+      return;
+    }
     if (_steps.isEmpty && !_isFlightMode) {
-      SnackBarHelper.showWarning(context, 'trip_details.pdf.no_route_available'.tr());
+      SnackBarHelper.showWarning(
+        context,
+        'trip_details.pdf.no_route_available'.tr(),
+      );
       return;
     }
 
@@ -732,14 +791,18 @@ class _NavigationPageState extends State<NavigationPage> {
         double maxLat = -double.infinity;
         double minLng = double.infinity;
         double maxLng = -double.infinity;
-        
+
         for (final marker in _markers) {
-          if (marker.position.latitude < minLat) minLat = marker.position.latitude;
-          if (marker.position.latitude > maxLat) maxLat = marker.position.latitude;
-          if (marker.position.longitude < minLng) minLng = marker.position.longitude;
-          if (marker.position.longitude > maxLng) maxLng = marker.position.longitude;
+          if (marker.position.latitude < minLat)
+            minLat = marker.position.latitude;
+          if (marker.position.latitude > maxLat)
+            maxLat = marker.position.latitude;
+          if (marker.position.longitude < minLng)
+            minLng = marker.position.longitude;
+          if (marker.position.longitude > maxLng)
+            maxLng = marker.position.longitude;
         }
-        
+
         // Também incluir pontos da polyline
         for (final polyline in _polylines) {
           for (final point in polyline.points) {
@@ -749,25 +812,25 @@ class _NavigationPageState extends State<NavigationPage> {
             if (point.longitude > maxLng) maxLng = point.longitude;
           }
         }
-        
+
         final bounds = LatLngBounds(
           southwest: LatLng(minLat, minLng),
           northeast: LatLng(maxLat, maxLng),
         );
-        
+
         // Ajustar câmara para mostrar todos os pontos
         await _mapController!.animateCamera(
           CameraUpdate.newLatLngBounds(bounds, 60),
         );
-        
+
         // Aguardar a animação terminar
         await Future.delayed(const Duration(milliseconds: 800));
-        
+
         mapSnapshot = await _mapController!.takeSnapshot();
       }
 
       final pdf = pw.Document();
-      
+
       // Página do mapa (se disponível)
       if (mapSnapshot != null) {
         final mapImage = pw.MemoryImage(mapSnapshot);
@@ -785,7 +848,9 @@ class _NavigationPageState extends State<NavigationPage> {
                     margin: const pw.EdgeInsets.only(bottom: 24),
                     decoration: pw.BoxDecoration(
                       color: PdfColor.fromHex('#7ED9C8'),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(12),
+                      ),
                     ),
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -801,13 +866,19 @@ class _NavigationPageState extends State<NavigationPage> {
                         pw.SizedBox(height: 4),
                         pw.Text(
                           widget.destinationName,
-                          style: pw.TextStyle(fontSize: 16, color: PdfColors.white),
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            color: PdfColors.white,
+                          ),
                         ),
                         if (_distanceText != null && _durationText != null) ...[
                           pw.SizedBox(height: 4),
                           pw.Text(
                             '$_distanceText • $_durationText',
-                            style: pw.TextStyle(fontSize: 12, color: PdfColors.white),
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              color: PdfColors.white,
+                            ),
                           ),
                         ],
                       ],
@@ -817,8 +888,13 @@ class _NavigationPageState extends State<NavigationPage> {
                   pw.Expanded(
                     child: pw.Container(
                       decoration: pw.BoxDecoration(
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-                        border: pw.Border.all(color: PdfColor.fromHex('#E0E0E0'), width: 2),
+                        borderRadius: const pw.BorderRadius.all(
+                          pw.Radius.circular(12),
+                        ),
+                        border: pw.Border.all(
+                          color: PdfColor.fromHex('#E0E0E0'),
+                          width: 2,
+                        ),
                       ),
                       child: pw.ClipRRect(
                         horizontalRadius: 12,
@@ -841,11 +917,17 @@ class _NavigationPageState extends State<NavigationPage> {
                       children: [
                         pw.Text(
                           'trip_details.pdf.generated_by'.tr(),
-                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+                          style: const pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
                         ),
                         pw.Text(
                           DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
-                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+                          style: const pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
                         ),
                       ],
                     ),
@@ -856,7 +938,7 @@ class _NavigationPageState extends State<NavigationPage> {
           ),
         );
       }
-      
+
       // Páginas das direções
       pdf.addPage(
         pw.MultiPage(
@@ -884,19 +966,13 @@ class _NavigationPageState extends State<NavigationPage> {
                   pw.SizedBox(height: 8),
                   pw.Text(
                     widget.destinationName,
-                    style: pw.TextStyle(
-                      fontSize: 18,
-                      color: PdfColors.white,
-                    ),
+                    style: pw.TextStyle(fontSize: 18, color: PdfColors.white),
                   ),
                   if (_distanceText != null && _durationText != null) ...[
                     pw.SizedBox(height: 4),
                     pw.Text(
                       '$_distanceText • $_durationText',
-                      style: pw.TextStyle(
-                        fontSize: 14,
-                        color: PdfColors.white,
-                      ),
+                      style: pw.TextStyle(fontSize: 14, color: PdfColors.white),
                     ),
                   ],
                   pw.SizedBox(height: 4),
@@ -953,13 +1029,18 @@ class _NavigationPageState extends State<NavigationPage> {
             return _steps.asMap().entries.map((entry) {
               final index = entry.key;
               final step = entry.value;
-              
+
               return pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 16),
                 padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColor.fromHex('#E0E0E0'), width: 1),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(
+                    color: PdfColor.fromHex('#E0E0E0'),
+                    width: 1,
+                  ),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(8),
+                  ),
                 ),
                 child: pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1021,28 +1102,33 @@ class _NavigationPageState extends State<NavigationPage> {
       // Compartilhar PDF
       await Printing.sharePdf(
         bytes: await pdf.save(),
-        filename: '${'trip_details.pdf.filename_directions'.tr()}_${widget.destinationName.replaceAll(' ', '_')}.pdf',
+        filename:
+            '${'trip_details.pdf.filename_directions'.tr()}_${widget.destinationName.replaceAll(' ', '_')}.pdf',
       );
     } catch (e) {
       // Fechar loading
       if (mounted) Navigator.pop(context);
-      
+
       if (mounted) {
-        SnackBarHelper.showError(context, '${'trip_details.pdf.error_generating_pdf'.tr()}: $e');
+        SnackBarHelper.showError(
+          context,
+          '${'trip_details.pdf.error_generating_pdf'.tr()}: $e',
+        );
       }
     }
   }
 
   void _startPositionTracking() {
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen((Position position) async {
-      _currentPosition = position;
-      await _createMarkers();
-    });
+    _positionSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position position) async {
+          _currentPosition = position;
+          await _createMarkers();
+        });
   }
 
   List<LatLng> _decodePolyline(String encoded) {
@@ -1096,7 +1182,10 @@ class _NavigationPageState extends State<NavigationPage> {
 
         // Show success feedback
         if (mounted) {
-          SnackBarHelper.showSuccess(context, AppConstants.transportModeUpdated.tr());
+          SnackBarHelper.showSuccess(
+            context,
+            AppConstants.transportModeUpdated.tr(),
+          );
         }
       } catch (e) {
         print('Error saving transport mode: $e');
@@ -1159,10 +1248,39 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   // Abrir Google Maps ao clicar num marker
-  Future<void> _openInGoogleMaps(double lat, double lng, String label) async {
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-    
+  Future<void> _openInGoogleMaps(
+    double lat,
+    double lng,
+    String label, {
+    String? placeId,
+  }) async {
+    Uri url;
+
+    // Prefer showing a human readable label/address in the search bar while
+    // keeping the deterministic place_id when available.
+    if (placeId != null && placeId.trim().isNotEmpty) {
+      final encodedPlaceId = Uri.encodeComponent(placeId);
+      if (label.trim().isNotEmpty) {
+        final encodedLabel = Uri.encodeComponent(label);
+        url = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query=$encodedLabel&query_place_id=$encodedPlaceId',
+        );
+      } else {
+        url = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query_place_id=$encodedPlaceId',
+        );
+      }
+    } else {
+      final query = (label.trim().isNotEmpty)
+          ? Uri.encodeComponent(label)
+          : '$lat,$lng';
+      url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    }
+
     try {
+      // ignore: avoid_print
+      print('Opening Google Maps URL: $url');
+
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
@@ -1171,9 +1289,13 @@ class _NavigationPageState extends State<NavigationPage> {
         }
       }
     } catch (e) {
+      // ignore: avoid_print
       print('Error opening Google Maps: $e');
       if (mounted) {
-        SnackBarHelper.showError(context, '${AppConstants.errorOpeningMaps.tr()}: $e');
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorOpeningMaps.tr()}: $e',
+        );
       }
     }
   }
@@ -1193,494 +1315,651 @@ class _NavigationPageState extends State<NavigationPage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+            icon: Icon(
+              Icons.arrow_back,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
             onPressed: _closeNavigation,
           ),
           title: Text(
             AppConstants.directions.tr(),
             style: TextStyle(
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
           actions: [
             IconButton(
-              icon: Icon(Icons.download, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+              icon: Icon(
+                Icons.download,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
               onPressed: _downloadRoute,
             ),
           ],
         ),
         body: _error != null
             ? Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.location_off,
-                  size: 64,
-                  color: isDark ? AppColors.grey800 : Colors.grey[300],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _initializeNavigation,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(AppConstants.retry.tr()),
-                ),
-              ],
-            ),
-          ),
-        )
-            : Stack(
-          children: [
-            // Mapa
-            GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(widget.destinationLat, widget.destinationLng),
-                zoom: 14,
-              ),
-              onMapCreated: (controller) {
-                _mapController = controller;
-                if (_currentPosition != null) {
-                  _fitMapToRoute([
-                    LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                    LatLng(widget.destinationLat, widget.destinationLng),
-                  ]);
-                }
-              },
-              markers: _markers,
-              polylines: _polylines,
-              myLocationEnabled: false, // Don't show user's current location
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
-            ),
-
-            // Loading overlay
-            if (_isLoading)
-              Container(
-                color: Colors.black.withOpacity(0.3),
-                child: const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-              ),
-
-            // Painel inferior com informações (Draggable)
-            DraggableScrollableSheet(
-              initialChildSize: 0.35,
-              minChildSize: 0.15,
-              maxChildSize: 0.75,
-              builder: (context, scrollController) {
-                return Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, -4),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.location_off,
+                        size: 64,
+                        color: isDark ? AppColors.grey800 : Colors.grey[300],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _initializeNavigation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text(AppConstants.retry.tr()),
                       ),
                     ],
                   ),
-                  child: ListView(
-                    controller: scrollController,
-                    padding: EdgeInsets.zero,
-                    children: [
-                      // Handle
-                      Center(
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 12, bottom: 8),
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.grey800 : AppColors.grey200,
-                            borderRadius: BorderRadius.circular(2),
+                ),
+              )
+            : Stack(
+                children: [
+                  // Mapa
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(
+                        widget.destinationLat,
+                        widget.destinationLng,
+                      ),
+                      zoom: 14,
+                    ),
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      if (_currentPosition != null) {
+                        _fitMapToRoute([
+                          LatLng(
+                            _currentPosition!.latitude,
+                            _currentPosition!.longitude,
                           ),
+                          LatLng(widget.destinationLat, widget.destinationLng),
+                        ]);
+                      }
+                    },
+                    markers: _markers,
+                    polylines: _polylines,
+                    myLocationEnabled:
+                        false, // Don't show user's current location
+                    myLocationButtonEnabled: false,
+                    zoomControlsEnabled: false,
+                    mapToolbarEnabled: false,
+                  ),
+
+                  // Loading overlay
+                  if (_isLoading)
+                    Container(
+                      color: Colors.black.withOpacity(0.3),
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
                         ),
                       ),
+                    ),
 
-                    // Seletores de modo de transporte
-                    if (!_isFlightMode)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildModeButton('walking', Icons.directions_walk, isDark),
-                            _buildModeButton('driving', Icons.directions_car, isDark),
-                            _buildModeButton('transit', Icons.directions_transit, isDark),
-                            _buildModeButton('bicycling', Icons.directions_bike, isDark),
+                  // Painel inferior com informações (Draggable)
+                  DraggableScrollableSheet(
+                    initialChildSize: 0.35,
+                    minChildSize: 0.15,
+                    maxChildSize: 0.75,
+                    builder: (context, scrollController) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : Colors.white,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, -4),
+                            ),
                           ],
                         ),
-                      ),
+                        child: ListView(
+                          controller: scrollController,
+                          padding: EdgeInsets.zero,
+                          children: [
+                            // Handle
+                            Center(
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                  top: 12,
+                                  bottom: 8,
+                                ),
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppColors.grey800
+                                      : AppColors.grey200,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
 
-                    // Informação de voo
-                    if (_isFlightMode && _departureAirport != null && _arrivalAirport != null) ...[
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                          ),
-                          child: Column(
-                            children: [
-                              // Rota do voo
-                              Row(
-                                children: [
-                                  // Aeroporto de partida
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.withOpacity(0.2),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.flight_takeoff, color: Colors.orange, size: 24),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          _departureAirport!.code,
-                                          style: TextStyle(
-                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          _departureAirport!.name,
-                                          style: TextStyle(
-                                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                            fontSize: 11,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                            // Seletores de modo de transporte
+                            if (!_isFlightMode)
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildModeButton(
+                                      'walking',
+                                      Icons.directions_walk,
+                                      isDark,
+                                    ),
+                                    _buildModeButton(
+                                      'driving',
+                                      Icons.directions_car,
+                                      isDark,
+                                    ),
+                                    _buildModeButton(
+                                      'transit',
+                                      Icons.directions_transit,
+                                      isDark,
+                                    ),
+                                    _buildModeButton(
+                                      'bicycling',
+                                      Icons.directions_bike,
+                                      isDark,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                            // Informação de voo
+                            if (_isFlightMode &&
+                                _departureAirport != null &&
+                                _arrivalAirport != null) ...[
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.orange.withOpacity(0.3),
                                     ),
                                   ),
-                                  // Linha do voo
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Container(
-                                                height: 2,
-                                                decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [Colors.orange.withOpacity(0.3), Colors.orange],
+                                  child: Column(
+                                    children: [
+                                      // Rota do voo
+                                      Row(
+                                        children: [
+                                          // Aeroporto de partida
+                                          Expanded(
+                                            child: Column(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    8,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.orange
+                                                        .withOpacity(0.2),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.flight_takeoff,
+                                                    color: Colors.orange,
+                                                    size: 24,
                                                   ),
                                                 ),
-                                              ),
-                                            ),
-                                            const Icon(Icons.flight, color: Colors.orange, size: 20),
-                                            Expanded(
-                                              child: Container(
-                                                height: 2,
-                                                decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [Colors.orange, Colors.orange.withOpacity(0.3)],
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  _departureAirport!.code,
+                                                  style: TextStyle(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .textPrimaryDark
+                                                        : AppColors
+                                                              .textPrimaryLight,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                              ),
+                                                Text(
+                                                  _departureAirport!.name,
+                                                  style: TextStyle(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .textSecondaryDark
+                                                        : AppColors
+                                                              .textSecondaryLight,
+                                                    fontSize: 11,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
                                             ),
-                                          ],
+                                          ),
+                                          // Linha do voo
+                                          Expanded(
+                                            child: Column(
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Container(
+                                                        height: 2,
+                                                        decoration: BoxDecoration(
+                                                          gradient: LinearGradient(
+                                                            colors: [
+                                                              Colors.orange
+                                                                  .withOpacity(
+                                                                    0.3,
+                                                                  ),
+                                                              Colors.orange,
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const Icon(
+                                                      Icons.flight,
+                                                      color: Colors.orange,
+                                                      size: 20,
+                                                    ),
+                                                    Expanded(
+                                                      child: Container(
+                                                        height: 2,
+                                                        decoration: BoxDecoration(
+                                                          gradient: LinearGradient(
+                                                            colors: [
+                                                              Colors.orange,
+                                                              Colors.orange
+                                                                  .withOpacity(
+                                                                    0.3,
+                                                                  ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  _formatTravelTime(
+                                                    _flightDurationMinutes ?? 0,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    color: Colors.orange,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  _totalFlightDistance ?? '',
+                                                  style: TextStyle(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .textSecondaryDark
+                                                        : AppColors
+                                                              .textSecondaryLight,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // Aeroporto de chegada
+                                          Expanded(
+                                            child: Column(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    8,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.purple
+                                                        .withOpacity(0.2),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.flight_land,
+                                                    color: Colors.purple,
+                                                    size: 24,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  _arrivalAirport!.code,
+                                                  style: TextStyle(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .textPrimaryDark
+                                                        : AppColors
+                                                              .textPrimaryLight,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  _arrivalAirport!.name,
+                                                  style: TextStyle(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .textSecondaryDark
+                                                        : AppColors
+                                                              .textSecondaryLight,
+                                                    fontSize: 11,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // Rota até ao aeroporto
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(
+                                          0.1,
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _formatTravelTime(_flightDurationMinutes ?? 0),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        _getTravelModeIcon(_travelMode),
+                                        color: AppColors.primary,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${'trip_details.pdf.to'.tr()} ${_departureAirport!.name}',
+                                            style: TextStyle(
+                                              color: isDark
+                                                  ? AppColors.textPrimaryDark
+                                                  : AppColors.textPrimaryLight,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (_durationText != null &&
+                                              _distanceText != null)
+                                            Text(
+                                              '$_durationText • $_distanceText',
+                                              style: TextStyle(
+                                                color: isDark
+                                                    ? AppColors
+                                                          .textSecondaryDark
+                                                    : AppColors
+                                                          .textSecondaryLight,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (_durationMinutes != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _formatTravelTime(_durationMinutes!),
                                           style: const TextStyle(
-                                            color: Colors.orange,
-                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontSize: 13,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        Text(
-                                          _totalFlightDistance ?? '',
-                                          style: TextStyle(
-                                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                            fontSize: 10,
-                                          ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ] else ...[
+                              // Destino e tempo (modo normal)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(
+                                          0.1,
                                         ),
-                                      ],
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        _getTravelModeIcon(_travelMode),
+                                        color: AppColors.primary,
+                                        size: 24,
+                                      ),
                                     ),
-                                  ),
-                                  // Aeroporto de chegada
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.purple.withOpacity(0.2),
-                                            shape: BoxShape.circle,
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            widget.destinationName,
+                                            style: TextStyle(
+                                              color: isDark
+                                                  ? AppColors.textPrimaryDark
+                                                  : AppColors.textPrimaryLight,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          child: const Icon(Icons.flight_land, color: Colors.purple, size: 24),
+                                          if (_durationText != null &&
+                                              _distanceText != null)
+                                            Text(
+                                              '$_durationText • $_distanceText',
+                                              style: TextStyle(
+                                                color: isDark
+                                                    ? AppColors
+                                                          .textSecondaryDark
+                                                    : AppColors
+                                                          .textSecondaryLight,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (_durationMinutes != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
                                         ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          _arrivalAirport!.code,
-                                          style: TextStyle(
-                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                            fontSize: 18,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _formatTravelTime(_durationMinutes!),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        Text(
-                                          _arrivalAirport!.name,
-                                          style: TextStyle(
-                                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                            fontSize: 11,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                                      ),
+                                  ],
+                                ),
                               ),
                             ],
-                          ),
-                        ),
-                      ),
-                      // Rota até ao aeroporto
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _getTravelModeIcon(_travelMode),
-                                color: AppColors.primary,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${'trip_details.pdf.to'.tr()} ${_departureAirport!.name}',
-                                    style: TextStyle(
-                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (_durationText != null && _distanceText != null)
-                                    Text(
-                                      '$_durationText • $_distanceText',
-                                      style: TextStyle(
-                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                        fontSize: 12,
+
+                            // Lista de passos
+                            if (_steps.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Column(
+                                  children: _steps.map((step) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
                                       ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            if (_durationMinutes != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(16),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary
+                                                  .withOpacity(0.1),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Center(
+                                              child: Icon(
+                                                _getStepIcon(step.travelMode),
+                                                color: AppColors.primary,
+                                                size: 16,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  step.instruction,
+                                                  style: TextStyle(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .textPrimaryDark
+                                                        : AppColors
+                                                              .textPrimaryLight,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${step.distanceText} • ${step.durationText}',
+                                                  style: TextStyle(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .textSecondaryDark
+                                                        : AppColors
+                                                              .textSecondaryLight,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
-                                child: Text(
-                                  _formatTravelTime(_durationMinutes!),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                               ),
+                            ],
+
+                            const SizedBox(height: 16),
                           ],
                         ),
-                      ),
-                    ] else ...[
-                      // Destino e tempo (modo normal)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _getTravelModeIcon(_travelMode),
-                                color: AppColors.primary,
-                                size: 24,
+                      );
+                    },
+                  ),
+
+                  // Botão de centralizar
+                  Positioned(
+                    right: 16,
+                    bottom: 320,
+                    child: FloatingActionButton.small(
+                      onPressed: () {
+                        if (_currentPosition != null &&
+                            _mapController != null) {
+                          _mapController!.animateCamera(
+                            CameraUpdate.newLatLng(
+                              LatLng(
+                                _currentPosition!.latitude,
+                                _currentPosition!.longitude,
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    widget.destinationName,
-                                    style: TextStyle(
-                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (_durationText != null && _distanceText != null)
-                                    Text(
-                                      '$_durationText • $_distanceText',
-                                      style: TextStyle(
-                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            if (_durationMinutes != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  _formatTravelTime(_durationMinutes!),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    // Lista de passos
-                    if (_steps.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: _steps.map((step) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        _getStepIcon(step.travelMode),
-                                        color: AppColors.primary,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          step.instruction,
-                                          style: TextStyle(
-                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${step.distanceText} • ${step.durationText}',
-                                          style: TextStyle(
-                                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              );
-            },
-          ),
-
-            // Botão de centralizar
-            Positioned(
-              right: 16,
-              bottom: 320,
-              child: FloatingActionButton.small(
-                onPressed: () {
-                  if (_currentPosition != null && _mapController != null) {
-                    _mapController!.animateCamera(
-                      CameraUpdate.newLatLng(
-                        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                      ),
-                    );
-                  }
-                },
-                backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-                child: Icon(
-                  Icons.my_location,
-                  color: AppColors.primary,
-                ),
+                          );
+                        }
+                      },
+                      backgroundColor: isDark
+                          ? AppColors.surfaceDark
+                          : Colors.white,
+                      child: Icon(Icons.my_location, color: AppColors.primary),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1701,7 +1980,9 @@ class _NavigationPageState extends State<NavigationPage> {
           icon,
           color: isSelected
               ? Colors.white
-              : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+              : (isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight),
           size: 24,
         ),
       ),

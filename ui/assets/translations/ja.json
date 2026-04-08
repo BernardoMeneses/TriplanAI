@@ -40,7 +40,8 @@
       "friday": "金曜日",
       "saturday": "土曜日",
       "sunday": "日曜日"
-    }
+    },
+    "view": "表示"
   },
   "auth": {
     "welcome_back": "おかえりなさい！",
@@ -88,7 +89,11 @@
       "username_required": "ユーザー名が必要です"
     },
     "email": "メールアドレス",
-    "apple_register_error": "Appleでの登録エラー: {0}"
+    "apple_register_error": "Appleでの登録エラー: {0}",
+    "apple_sign_in_unavailable": "このデバイスではApple Sign Inを利用できません。",
+    "apple_auth_failed": "Appleで認証できませんでした。iPhoneのApple Sign In設定を確認して、もう一度お試しください。",
+    "apple_login_error": "Appleでのログイン中にエラーが発生しました: {0}",
+    "google_login_error": "Googleでのログイン中にエラーが発生しました: {0}"
   },
   "home": {
     "title": "ホーム",
@@ -137,7 +142,9 @@
     "no_past_trips": "過去の旅行はありません",
     "no_past_trips_subtitle": "下のプラスボタンを押して探索を開始し\n新しい思い出を作りましょう！",
     "only_triplan_supported": ".triplanファイルのみサポートされています",
-    "importing_trip": "旅行をインポート中..."
+    "importing_trip": "旅行をインポート中...",
+    "draft": "下書き",
+    "already_member": "あなたはすでにこの旅行のメンバーです。"
   },
   "new_trip": {
     "plan_your_trip": "旅行を計画",
@@ -206,6 +213,8 @@
     "hours": "時間",
     "hours_not_listed": "営業時間未掲載",
     "my_trip": "マイ旅行",
+    "shared_trip_read_only_title": "共有旅行（閲覧専用）",
+    "shared_trip_read_only_subtitle": "この旅行は共有されています。日程や詳細は確認できますが、編集はできません。",
     "your_route": "あなたのルート",
     "share_trip": "旅行を共有",
     "share_trip_subtitle": "WhatsApp、Instagramなどで共有",
@@ -256,7 +265,13 @@
     "duplicate_favorite_message": "この場所は既にお気に入りにあります",
     "place_moved_to_day": "場所を{}日目に移動しました",
     "could_not_open_maps": "Googleマップを開けませんでした",
-    "error_opening_maps": "Googleマップを開く際にエラーが発生しました"
+    "error_opening_maps": "Googleマップを開く際にエラーが発生しました",
+    "leave_trip_title": "旅行を離れる",
+    "leave_trip_message": "この共有旅行のフォローをやめてもよろしいですか？",
+    "leave_trip_action": "離れる",
+    "leave_trip_subtitle": "あなたの旅行から削除",
+    "leave_trip_success": "旅行があなたの旅行から削除されました",
+    "trip_edit_locked": "この旅行はすでに終了しています。新しい目的地の旅行を作成してください。"
   },
   "favorites": {
     "title": "お気に入り",
@@ -266,7 +281,8 @@
     "remove_favorite": "お気に入りから削除",
     "removed_from_favorites": "お気に入りから削除されました",
     "error_removing_favorite": "お気に入り削除エラー",
-    "confirm_remove_favorite": "\"{}\" をお気に入りから削除しますか？"
+    "confirm_remove_favorite": "\"{}\" をお気に入りから削除しますか？",
+    "added_on": "{0}に追加"
   },
   "map": {
     "show_route": "ルートを表示",
@@ -334,7 +350,9 @@
     "faq_answer_10": "プロフィールの'アカウント'セクションで'アカウント削除'をタップします。メールで手順が届きます。この操作は永久的で、すべてのデータが削除されます。",
     "notifications_enabled": "通知が有効になりました",
     "notifications_disabled": "通知が無効になりました",
-    "test_notification_sent": "テスト通知を送信しました！"
+    "test_notification_sent": "テスト通知を送信しました！",
+    "test_notification_title": "通知をテスト",
+    "test_notification_subtitle": "テスト通知を送信"
   },
   "languages": {
     "portuguese": "Português",
@@ -396,6 +414,7 @@
     "premium": "プレミアム",
     "forever": "永久",
     "per_month": "/月",
+    "per_year": "/年",
     "trips": "旅行",
     "activities_per_day": "アクティビティ/日",
     "ai_month": "AI生成/月",
@@ -413,9 +432,21 @@
     "downgrade": "プラン変更",
     "restore_purchases": "購入を復元",
     "restoring": "購入を復元中...",
+    "manage_cancel_button": "サブスクを管理 / 解約",
+    "manage_cancel_title": "サブスクリプションを管理",
+    "manage_cancel_description": "今後の自動更新を停止するにはストアのサブスク管理を開くか、このアカウントをFreeに戻してください。",
+    "manage_cancel_store_notice": "課金の解約は App Store または Google Play で行う必要があります。",
+    "open_store": "ストアを開く",
+    "back_to_free": "Freeに戻す",
+    "open_store_failed": "サブスクリプションストアを開けませんでした。",
+    "back_to_free_success": "プランをFreeに更新しました。",
+    "back_to_free_failed": "プランをFreeに更新できませんでした。",
     "terms_note": "サブスクリプションは自動更新されます。ストア設定でいつでもキャンセルできます。",
     "product_not_found": "製品が見つかりません。後でもう一度お試しください。",
-    "coming_soon": "決済統合は近日公開！"
+    "coming_soon": "決済統合は近日公開！",
+    "free_description": "基本機能と手動バックアップ",
+    "basic_description": "旅行数の拡大、PDF書き出し、自動バックアップ",
+    "premium_description": "すべて無制限"
   },
   "limits": {
     "trip_limit_title": "旅行の上限に達しました",
@@ -429,12 +460,14 @@
     "backup_locked_title": "クラウドバックアップがロックされています",
     "backup_locked_desc": "クラウドバックアップはBasicおよびPremiumプランで利用可能です。アップグレードして旅行を安全に保ちましょう！",
     "maybe_later": "また後で",
-    "upgrade_now": "今すぐアップグレード"
+    "upgrade_now": "今すぐアップグレード",
+    "feature_locked_default": "この機能は現在のプランではロックされています。利用するにはアップグレードしてください。"
   },
   "backup": {
     "title": "バックアップ＆同期",
     "google_drive": "Googleドライブバックアップ",
     "google_drive_desc": "旅行をGoogleドライブに保存",
+    "account_trips_desc": "アカウント内の既存の旅行をバックアップ",
     "local_history": "ローカル履歴",
     "local_history_desc": "ローカルに保存されたバックアップを表示",
     "local_backups": "ローカルバックアップ",

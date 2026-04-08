@@ -23,10 +23,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.triplanai.app"
@@ -34,8 +30,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 5
-        versionName = "5.0.0"
+        versionCode = 12
+        versionName = "12.0.0"
     }
 
     signingConfigs {

@@ -1,14 +1,63 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'trips_service.dart';
 import 'encryption_service.dart';
+import 'subscription_service.dart';
 
 /// Serviço para exportar e importar viagens
 class TripShareService {
   final TripsService _tripsService = TripsService();
   final EncryptionService _encryptionService = EncryptionService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
+
+  Future<void> _ensureTripLimitNotReached() async {
+    final status = await _subscriptionService.getStatus(forceRefresh: true);
+
+    if (!status.canCreateTrip(status.tripsUsed)) {
+      throw Exception('TRIP_LIMIT_REACHED');
+    }
+  }
+
+  Map<String, dynamic> _normalizeBackupPayload(Map<String, dynamic> data) {
+    final payload = Map<String, dynamic>.from(data);
+
+    if (!payload.containsKey('trip')) {
+      throw Exception('Formato de ficheiro inválido');
+    }
+
+    if (!payload.containsKey('version')) {
+      // Compatibilidade com backups antigos sem campo version.
+      payload['version'] = '1.0';
+    }
+
+    return payload;
+  }
+
+  Map<String, dynamic> _parseBackupFileContent(String rawContent) {
+    // 1) Formato encriptado (share/export tradicional)
+    try {
+      final decrypted = _encryptionService.decrypt(rawContent);
+      return _normalizeBackupPayload(decrypted);
+    } catch (_) {
+      // 2) Formato JSON puro (backups automáticos locais/cloud)
+      try {
+        final decoded = jsonDecode(rawContent);
+        if (decoded is! Map) {
+          throw Exception('Formato de ficheiro inválido');
+        }
+
+        final payload = decoded.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+        return _normalizeBackupPayload(payload);
+      } catch (e) {
+        throw Exception('Formato de ficheiro inválido');
+      }
+    }
+  }
 
   /// Exporta uma viagem e retorna o caminho do arquivo
   Future<String> exportTripToFile(String tripId, String tripTitle) async {
@@ -56,7 +105,6 @@ class TripShareService {
     }
   }
 
-
   /// Partilha uma viagem exportada
   Future<void> shareTrip(String tripId, String tripTitle) async {
     try {
@@ -77,17 +125,14 @@ class TripShareService {
   /// Importa uma viagem de um arquivo .triplan encriptado
   Future<Trip> importTripFromFile(String filePath) async {
     try {
+      await _ensureTripLimitNotReached();
+
       // Ler arquivo
       final file = File(filePath);
-      final encryptedData = await file.readAsString();
+      final rawData = await file.readAsString();
 
-      // Desencriptar dados
-      final tripData = _encryptionService.decrypt(encryptedData);
-
-      // Validar estrutura básica
-      if (!tripData.containsKey('trip') || !tripData.containsKey('version')) {
-        throw Exception('Formato de arquivo inválido');
-      }
+      // Suporta ficheiros encriptados e JSON puro (retrocompatível).
+      final tripData = _parseBackupFileContent(rawData);
 
       // Importar para o backend
       final newTrip = await _tripsService.importTrip(tripData);
@@ -102,13 +147,9 @@ class TripShareService {
   /// Importa uma viagem de dados encriptados diretos
   Future<Trip> importTripFromEncryptedString(String encryptedData) async {
     try {
-      // Desencriptar dados
-      final tripData = _encryptionService.decrypt(encryptedData);
+      await _ensureTripLimitNotReached();
 
-      // Validar estrutura básica
-      if (!tripData.containsKey('trip') || !tripData.containsKey('version')) {
-        throw Exception('Formato de dados inválido');
-      }
+      final tripData = _parseBackupFileContent(encryptedData);
 
       // Importar para o backend
       final newTrip = await _tripsService.importTrip(tripData);

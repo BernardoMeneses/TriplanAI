@@ -49,7 +49,8 @@
       "friday": "星期五",
       "saturday": "星期六",
       "sunday": "星期日"
-    }
+    },
+    "view": "查看"
   },
   "auth": {
     "welcome_back": "欢迎回来！",
@@ -95,8 +96,12 @@
       "password_min_6": "密码至少需要6个字符",
       "name_required": "需要姓名",
       "username_required": "需要用户名",
-    "apple_register_error": "Apple注册错误：{0}"
-    }
+      "apple_register_error": "Apple注册错误：{0}"
+    },
+    "apple_sign_in_unavailable": "此设备不支持 Apple Sign In。",
+    "apple_auth_failed": "无法通过 Apple 完成身份验证。请检查你 iPhone 上的 Apple Sign In 设置后重试。",
+    "apple_login_error": "使用 Apple 登录时出错：{0}",
+    "google_login_error": "使用 Google 登录时出错：{0}"
   },
   "home": {
     "title": "首页",
@@ -136,7 +141,9 @@
     "no_past_trips": "没有过往旅行",
     "no_past_trips_subtitle": "点击下面的加号按钮开始探索\n创造新的回忆！",
     "only_triplan_supported": "仅支持.triplan文件",
-    "importing_trip": "正在导入旅行..."
+    "importing_trip": "正在导入旅行...",
+    "draft": "草稿",
+    "already_member": "你已经是该行程的成员。"
   },
   "new_trip": {
     "plan_your_trip": "计划您的旅行",
@@ -205,6 +212,8 @@
     "hours": "小时",
     "hours_not_listed": "营业时间未列出",
     "my_trip": "我的旅行",
+    "shared_trip_read_only_title": "共享行程（只读模式）",
+    "shared_trip_read_only_subtitle": "此行程已与您共享。您可以查看天数和详细信息，但无法进行编辑。",
     "your_route": "您的路线",
     "share_trip": "分享旅行",
     "share_trip_subtitle": "通过WhatsApp、Instagram等分享",
@@ -254,7 +263,13 @@
     "duplicate_favorite_message": "此地点已在收藏中",
     "place_moved_to_day": "地点已移至第{}天",
     "could_not_open_maps": "无法打开Google地图",
-    "error_opening_maps": "打开Google地图时出错"
+    "error_opening_maps": "打开Google地图时出错",
+    "leave_trip_title": "离开行程",
+    "leave_trip_message": "确定要停止关注这个共享行程吗？",
+    "leave_trip_action": "离开",
+    "leave_trip_subtitle": "从你的行程中移除",
+    "leave_trip_success": "已从你的行程中移除",
+    "trip_edit_locked": "此行程已结束。请为新的目的地创建新行程。"
   },
   "favorites": {
     "title": "收藏",
@@ -264,7 +279,8 @@
     "remove_favorite": "从收藏中移除",
     "removed_from_favorites": "已从收藏中移除",
     "error_removing_favorite": "移除收藏错误",
-    "confirm_remove_favorite": "从收藏中移除\"{}\" ？"
+    "confirm_remove_favorite": "从收藏中移除\"{}\" ？",
+    "added_on": "添加于 {0}"
   },
   "map": {
     "show_route": "显示路线",
@@ -332,7 +348,9 @@
     "faq_answer_10": "前往个人资料，'账户'部分，点击'删除账户'。您将通过邮件收到操作指引。此操作不可逆，将永久删除所有数据。",
     "notifications_enabled": "通知已启用",
     "notifications_disabled": "通知已禁用",
-    "test_notification_sent": "测试通知已发送！"
+    "test_notification_sent": "测试通知已发送！",
+    "test_notification_title": "测试通知",
+    "test_notification_subtitle": "发送测试通知"
   },
   "languages": {
     "portuguese": "Português",
@@ -394,6 +412,7 @@
     "premium": "高级",
     "forever": "永久",
     "per_month": "/月",
+    "per_year": "/年",
     "trips": "旅行",
     "activities_per_day": "活动/天",
     "ai_month": "AI生成/月",
@@ -411,9 +430,21 @@
     "downgrade": "更改方案",
     "restore_purchases": "恢复购买",
     "restoring": "正在恢复购买...",
+    "manage_cancel_button": "管理 / 取消订阅",
+    "manage_cancel_title": "管理订阅",
+    "manage_cancel_description": "如需停止未来续费，请打开商店订阅页面，或将此账户切回 Free。",
+    "manage_cancel_store_notice": "账单取消必须在 App Store 或 Google Play 中完成。",
+    "open_store": "打开商店",
+    "back_to_free": "切回 Free",
+    "open_store_failed": "无法打开订阅商店。",
+    "back_to_free_success": "方案已更新为 Free。",
+    "back_to_free_failed": "无法将方案更新为 Free。",
     "terms_note": "订阅自动续订。您可以随时在商店设置中取消。",
     "product_not_found": "未找到产品。请稍后再试。",
-    "coming_soon": "支付集成即将推出！"
+    "coming_soon": "支付集成即将推出！",
+    "free_description": "基础功能和手动备份",
+    "basic_description": "更多行程、PDF 导出和自动备份",
+    "premium_description": "全部无限制"
   },
   "limits": {
     "trip_limit_title": "已达旅行上限",
@@ -427,12 +458,14 @@
     "backup_locked_title": "云备份已锁定",
     "backup_locked_desc": "云备份在Basic和Premium计划中可用。升级以安全保存您的旅行！",
     "maybe_later": "以后再说",
-    "upgrade_now": "立即升级"
+    "upgrade_now": "立即升级",
+    "feature_locked_default": "此功能在你当前的套餐中已被锁定。升级后可使用。"
   },
   "backup": {
     "title": "备份与同步",
     "google_drive": "Google云端硬盘备份",
     "google_drive_desc": "将旅行保存到Google云端硬盘",
+    "account_trips_desc": "备份你账户中现有的旅行",
     "local_history": "本地历史",
     "local_history_desc": "查看本地保存的备份",
     "local_backups": "本地备份",

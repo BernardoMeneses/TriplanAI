@@ -195,6 +195,32 @@ CREATE INDEX idx_user_favorites_user_id ON user_favorites(user_id);
 CREATE INDEX idx_sync_queue_user_id ON sync_queue(user_id);
 CREATE INDEX idx_sync_queue_synced ON sync_queue(is_synced);
 
+-- Trip notes table
+CREATE TABLE trip_notes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_trip_notes_trip_id ON trip_notes(trip_id);
+CREATE INDEX idx_trip_notes_user_id ON trip_notes(user_id);
+
+-- Trip members (shared trips: other users joined via share code)
+CREATE TABLE IF NOT EXISTS trip_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(trip_id, user_id)
+);
+
+CREATE INDEX idx_trip_members_trip_id ON trip_members(trip_id);
+CREATE INDEX idx_trip_members_user_id ON trip_members(user_id);
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

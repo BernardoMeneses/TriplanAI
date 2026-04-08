@@ -35,7 +35,7 @@ class TripsService {
 
     final response = await _apiService.post('/trips', body: body);
     final trip = Trip.fromJson(response);
-    
+
     // Agendar notificações para a viagem
     try {
       await _notificationService.scheduleTripNotifications(
@@ -51,7 +51,7 @@ class TripsService {
         print('⚠️ Erro ao agendar notificações: $e');
       }
     }
-    
+
     return trip;
   }
 
@@ -86,7 +86,8 @@ class TripsService {
 
     if (title != null) body['title'] = title;
     if (destinationCity != null) body['destination_city'] = destinationCity;
-    if (destinationCountry != null) body['destination_country'] = destinationCountry;
+    if (destinationCountry != null)
+      body['destination_country'] = destinationCountry;
     if (startDate != null) body['start_date'] = startDate.toIso8601String();
     if (endDate != null) body['end_date'] = endDate.toIso8601String();
     if (description != null) body['description'] = description;
@@ -94,11 +95,12 @@ class TripsService {
     if (currency != null) body['currency'] = currency;
     if (status != null) body['status'] = status;
     if (tripType != null) body['trip_type'] = tripType;
-    if (numberOfTravelers != null) body['number_of_travelers'] = numberOfTravelers;
+    if (numberOfTravelers != null)
+      body['number_of_travelers'] = numberOfTravelers;
 
     final response = await _apiService.put('/trips/$tripId', body: body);
     final trip = Trip.fromJson(response);
-    
+
     // Se a data de início mudou, reagendar notificações
     if (startDate != null && destinationCity != null) {
       try {
@@ -117,7 +119,7 @@ class TripsService {
         }
       }
     }
-    
+
     return trip;
   }
 
@@ -134,7 +136,7 @@ class TripsService {
         print('⚠️ Erro ao cancelar notificações: $e');
       }
     }
-    
+
     await _apiService.delete('/trips/$tripId');
   }
 
@@ -162,10 +164,7 @@ class TripsService {
 
       // Se a resposta tem campos de uma viagem (ex: id, title), considera que é o objeto trip
       if (response.containsKey('id') || response.containsKey('title')) {
-        return {
-          'trip': response,
-          'itineraries': response['itineraries'] ?? [],
-        };
+        return {'trip': response, 'itineraries': response['itineraries'] ?? []};
       }
     }
 
@@ -186,6 +185,15 @@ class TripsService {
     final response = await _apiService.post('/trips/import', body: tripData);
     return Trip.fromJson(response);
   }
+
+  // Juntar-se a uma viagem partilhada via código (live-sync, sem criar cópia)
+  Future<Trip> joinTrip(String tripCode) async {
+    final response = await _apiService.post(
+      '/trips/join',
+      body: {'trip_code': tripCode},
+    );
+    return Trip.fromJson(response);
+  }
 }
 
 class Trip {
@@ -202,8 +210,12 @@ class Trip {
   final String status;
   final String? tripType;
   final int numberOfTravelers;
+  final Map<String, dynamic>? preferences;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// True when this trip was joined via share code (not owned by the current user)
+  final bool isMember;
 
   Trip({
     required this.id,
@@ -219,11 +231,23 @@ class Trip {
     required this.status,
     this.tripType,
     required this.numberOfTravelers,
+    this.preferences,
     required this.createdAt,
     required this.updatedAt,
+    this.isMember = false,
   });
 
   factory Trip.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? parsedPreferences;
+    final rawPreferences = json['preferences'];
+    if (rawPreferences is Map<String, dynamic>) {
+      parsedPreferences = rawPreferences;
+    } else if (rawPreferences is Map) {
+      parsedPreferences = rawPreferences.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+
     return Trip(
       id: json['id'].toString(),
       userId: json['user_id'].toString(),
@@ -238,8 +262,10 @@ class Trip {
       status: json['status'] ?? 'planning',
       tripType: json['trip_type'],
       numberOfTravelers: json['number_of_travelers'] ?? 1,
+      preferences: parsedPreferences,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      isMember: json['is_member'] == true,
     );
   }
 
@@ -258,10 +284,20 @@ class Trip {
       'status': status,
       'trip_type': tripType,
       'number_of_travelers': numberOfTravelers,
+      'preferences': preferences,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'is_member': isMember,
     };
   }
 
   int get durationInDays => endDate.difference(startDate).inDays + 1;
+
+  int get replacementCount {
+    final raw = preferences?['replacement_count'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    if (raw is String) return int.tryParse(raw) ?? 0;
+    return 0;
+  }
 }

@@ -1,4 +1,5 @@
 import { Client, GeocodeResult, PlaceInputType, TravelMode, Language } from '@googlemaps/google-maps-services-js';
+import { getDirectionsRoute } from '../../services/googleRoutesDirectionsApi.service';
 
 const mapsClient = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
@@ -52,11 +53,20 @@ export interface PlaceDetails {
     isOpenNow?: boolean;
   };
   photos?: string[];
+  photoUrl?: string; // Adicionado para suportar imagem principal
   phoneNumber?: string;
   website?: string;
 }
 
 export class MapsService {
+  private countryCodeCache = new Map<string, string | null>();
+
+  private normalizeLanguageCode(language?: string): string {
+    const value = (language || '').trim();
+    if (!value) return Language.pt_PT;
+    return value;
+  }
+
   async geocode(address: string): Promise<GeocodingResult | null> {
     try {
       const response = await mapsClient.geocode({
@@ -129,13 +139,15 @@ export class MapsService {
     }
   }
 
-  async getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
+  async getPlaceDetails(placeId: string, sessionToken?: string, language?: string): Promise<PlaceDetails | null> {
     try {
+      const languageCode = this.normalizeLanguageCode(language);
       const response = await mapsClient.placeDetails({
         params: {
           place_id: placeId,
           key: GOOGLE_MAPS_API_KEY,
-          language: Language.pt_PT,
+          language: languageCode as any,
+          ...(sessionToken && { sessiontoken: sessionToken }),
           fields: [
             'place_id',
             'name',
@@ -155,6 +167,20 @@ export class MapsService {
       const place = response.data.result;
       if (!place) return null;
 
+      let photos = place.photos?.slice(0, 5).map(photo => 
+        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+      ) || [];
+      let photoUrl = null;
+      if (photos && photos.length > 0) {
+        photoUrl = photos[0];
+        console.log(`[MapsService] Imagens do card para placeId ${placeId}:`, photos);
+      } else {
+        // Fallback Unsplash
+        const fallbackName = place.name || 'travel';
+        photoUrl = `https://source.unsplash.com/800x600/?${encodeURIComponent(fallbackName)}`;
+        photos = [photoUrl];
+        console.log(`[MapsService] Nenhuma imagem encontrada para placeId ${placeId}, usando fallback:`, photoUrl);
+      }
       return {
         placeId: place.place_id || placeId,
         name: place.name || '',
@@ -170,9 +196,8 @@ export class MapsService {
           weekdayText: place.opening_hours.weekday_text || [],
           isOpenNow: place.opening_hours.open_now
         } : undefined,
-        photos: place.photos?.slice(0, 5).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        ),
+        photos,
+        photoUrl, // NOVO CAMPO sempre presente
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -182,36 +207,128 @@ export class MapsService {
     }
   }
 
-  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number): Promise<PlaceDetails[]> {
+  async searchPlaces(query: string, location?: { lat: number; lng: number }, radius?: number, sessionToken?: string, country?: string, language?: string): Promise<PlaceDetails[]> {
     try {
+      const languageCode = this.normalizeLanguageCode(language);
+      const trimmedQuery = query.trim();
+      if (!trimmedQuery) return [];
+
+      const effectiveRadius = radius && radius > 0 ? radius : 15000;
+      const countryCode = await this.resolveCountryCode(country);
+      const countryLabel = (country || '').trim();
+
+      console.log(`[MapsService] searchPlaces input="${trimmedQuery}"`);
+      // First try Place Autocomplete for better fuzzy/partial matching
+      try {
+        const autoParams: any = {
+          input: trimmedQuery,
+          key: GOOGLE_MAPS_API_KEY,
+          language: languageCode,
+        };
+
+        if (countryCode) {
+          autoParams.components = `country:${countryCode}`;
+          // strictbounds helps keep results within the country when combined with components
+          autoParams.strictbounds = true;
+          console.log(`[MapsService] using country filter for autocomplete: ${countryCode}`);
+        }
+        if (location) {
+          autoParams.location = location;
+          autoParams.radius = effectiveRadius;
+        }
+        if (sessionToken) {
+          autoParams.sessiontoken = sessionToken;
+          console.log(`[MapsService] using sessionToken for autocomplete: ${sessionToken}`);
+        }
+
+        const autoResponse = await mapsClient.placeAutocomplete({ params: autoParams });
+        const predictions = autoResponse.data.predictions || [];
+        console.log(`[MapsService] autocomplete returned ${predictions.length} predictions for "${trimmedQuery}"`);
+
+        if (predictions.length > 0) {
+          const detailedPlaces = await Promise.all(predictions.slice(0, 20).map(async (prediction) => {
+            const details = await this.getPlaceDetails(prediction.place_id, sessionToken, languageCode);
+            if (details) return details;
+
+            return {
+              placeId: prediction.place_id || '',
+              name: prediction.structured_formatting?.main_text || prediction.description || '',
+              formattedAddress: prediction.description || '',
+              location: { lat: 0, lng: 0 },
+              types: prediction.types || [],
+              rating: undefined,
+              priceLevel: undefined,
+              openingHours: undefined,
+              photos: [],
+              photoUrl: undefined,
+              phoneNumber: undefined,
+              website: undefined,
+            } as PlaceDetails;
+          }));
+
+          return this.applyLocalityFilter(detailedPlaces, location, effectiveRadius);
+        }
+      } catch (autocompleteError) {
+        // If autocomplete fails, fall back to textSearch below
+        console.warn('Place autocomplete failed, falling back to textSearch:', autocompleteError);
+      }
+
+      // Fallback: use Text Search for broader queries
       const params: any = {
-        query,
+        query: trimmedQuery,
         key: GOOGLE_MAPS_API_KEY,
-        language: Language.pt_PT
+        language: languageCode,
       };
+
+      // Bias textSearch to the resolved country when available.
+      if (countryCode) {
+        params.region = countryCode.toLowerCase();
+        console.log(`[MapsService] using region bias for textSearch: ${countryCode}`);
+      }
+
+      // Also append the original country label (in any language/script) to strengthen locality intent.
+      if (countryLabel && !this.includesNormalized(trimmedQuery, countryLabel)) {
+        params.query = `${trimmedQuery}, ${countryLabel}`;
+        console.log(`[MapsService] appending country label to textSearch query: ${params.query}`);
+      }
 
       if (location) {
         params.location = location;
-        params.radius = radius || 5000; // Default 5km
+        params.radius = effectiveRadius;
       }
 
       const response = await mapsClient.textSearch({ params });
+      const places = response.data.results.slice(0, 20);
+      console.log(`[MapsService] textSearch returned ${places.length} results for "${trimmedQuery}"`);
 
-      return response.data.results.slice(0, 20).map(place => ({
-        placeId: place.place_id || '',
-        name: place.name || '',
-        formattedAddress: place.formatted_address || '',
-        location: {
-          lat: place.geometry?.location.lat || 0,
-          lng: place.geometry?.location.lng || 0
-        },
-        types: place.types || [],
-        rating: place.rating,
-        priceLevel: place.price_level,
-        photos: place.photos?.slice(0, 3).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        )
+      // Buscar detalhes completos para cada resultado
+      const detailedPlaces = await Promise.all(places.map(async (place) => {
+        let details = await this.getPlaceDetails(place.place_id || '', sessionToken, languageCode);
+        // Copiar diretamente o campo photoUrl e photos do details
+        return details || {
+          placeId: place.place_id || '',
+          name: place.name || '',
+          formattedAddress: place.formatted_address || '',
+          location: {
+            lat: place.geometry?.location.lat || 0,
+            lng: place.geometry?.location.lng || 0
+          },
+          types: place.types || [],
+          rating: place.rating,
+          priceLevel: place.price_level,
+          openingHours: undefined,
+          photos: place.photos?.slice(0, 3).map(photo => 
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+          ) || [],
+          photoUrl: (place.photos && place.photos.length > 0)
+            ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+            : undefined,
+          phoneNumber: undefined,
+          website: undefined,
+        } as PlaceDetails;
       }));
+
+      return this.applyLocalityFilter(detailedPlaces, location, effectiveRadius);
     } catch (error) {
       console.error('Erro ao pesquisar lugares:', error);
       return [];
@@ -466,7 +583,120 @@ export class MapsService {
     return deg * (Math.PI / 180);
   }
 
-  // Obter direções entre dois pontos com modo de transporte
+  private normalizeLookupValue(value: string): string {
+    return value
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }
+
+  private includesNormalized(text: string, term: string): boolean {
+    return this.normalizeLookupValue(text).includes(this.normalizeLookupValue(term));
+  }
+
+  private applyLocalityFilter(
+    places: PlaceDetails[],
+    location?: { lat: number; lng: number },
+    radiusMeters: number = 5000,
+  ): PlaceDetails[] {
+    if (!location || places.length === 0) {
+      return places;
+    }
+
+    const minRadiusMeters = Math.max(radiusMeters, 1000);
+    const maxRadiusMeters = Math.max(minRadiusMeters, 120000);
+    const targetLocalResults = 8;
+
+    const rankedByDistance = places
+      .filter((place) => {
+        const lat = place.location?.lat;
+        const lng = place.location?.lng;
+        return typeof lat === 'number' && typeof lng === 'number' && !(lat === 0 && lng === 0);
+      })
+      .map((place) => ({
+        place,
+        distanceKm: this.calculateDistance(location, place.location),
+      }))
+      .filter((item) => Number.isFinite(item.distanceKm))
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    if (rankedByDistance.length === 0) {
+      return [];
+    }
+
+    const radiusSteps = [1, 1.5, 2, 3, 4, 6, 8]
+      .map((factor) => Math.min(Math.round(minRadiusMeters * factor), maxRadiusMeters))
+      .filter((value, index, arr) => arr.indexOf(value) === index);
+
+    if (!radiusSteps.includes(maxRadiusMeters)) {
+      radiusSteps.push(maxRadiusMeters);
+    }
+
+    let bestInRange: Array<{ place: PlaceDetails; distanceKm: number }> = [];
+
+    for (const currentRadius of radiusSteps) {
+      const currentRadiusKm = currentRadius / 1000;
+      const inRange = rankedByDistance.filter((item) => item.distanceKm <= currentRadiusKm);
+
+      if (inRange.length > 0) {
+        bestInRange = inRange;
+      }
+
+      if (inRange.length >= targetLocalResults) {
+        return inRange.map((item) => item.place);
+      }
+    }
+
+    return bestInRange.map((item) => item.place);
+  }
+
+  private async resolveCountryCode(country?: string): Promise<string | undefined> {
+    if (!country) return undefined;
+
+    const trimmed = country.trim();
+    if (!trimmed) return undefined;
+
+    if (/^[a-z]{2}$/i.test(trimmed)) {
+      return trimmed.toUpperCase();
+    }
+
+    const cacheKey = this.normalizeLookupValue(trimmed);
+    if (this.countryCodeCache.has(cacheKey)) {
+      const cached = this.countryCodeCache.get(cacheKey);
+      return cached || undefined;
+    }
+
+    try {
+      const response = await mapsClient.geocode({
+        params: {
+          address: trimmed,
+          key: GOOGLE_MAPS_API_KEY,
+          language: 'en' as any,
+        },
+      });
+
+      for (const result of response.data.results) {
+        for (const component of result.address_components) {
+          const types = component.types as string[];
+          if (!types.includes('country')) continue;
+
+          const shortName = (component.short_name || '').trim().toUpperCase();
+          if (/^[A-Z]{2}$/.test(shortName)) {
+            this.countryCodeCache.set(cacheKey, shortName);
+            return shortName;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`[MapsService] could not resolve country code for "${trimmed}"`, error);
+    }
+
+    this.countryCodeCache.set(cacheKey, null);
+    return undefined;
+  }
+
+  // Obter direções entre dois pontos com modo de transporte (usando nova Google Routes API)
   async getDirections(params: {
     origin: string | { lat: number; lng: number };
     destination: string | { lat: number; lng: number };
@@ -474,53 +704,74 @@ export class MapsService {
     mode?: 'driving' | 'walking' | 'bicycling' | 'transit';
   }) {
     try {
-      const requestParams: any = {
-        origin: typeof params.origin === 'string' ? params.origin : `${params.origin.lat},${params.origin.lng}`,
-        destination: typeof params.destination === 'string' ? params.destination : `${params.destination.lat},${params.destination.lng}`,
-        mode: params.mode ? TravelMode[params.mode] : TravelMode.walking,
-        key: GOOGLE_MAPS_API_KEY,
-      };
+      // Adaptar origem/destino para formato { lat, lng }
+      const origin = typeof params.origin === 'string'
+        ? this.parseLatLngString(params.origin)
+        : params.origin;
+      const destination = typeof params.destination === 'string'
+        ? this.parseLatLngString(params.destination)
+        : params.destination;
 
-      // Só adicionar waypoints se existirem
-      if (params.waypoints && params.waypoints.length > 0) {
-        requestParams.waypoints = params.waypoints.map(wp => 
-          typeof wp === 'string' ? wp : `${wp.lat},${wp.lng}`
-        );
-      }
+      // Nova API ainda não suporta waypoints múltiplos (apenas um par origem-destino)
+      const travelMode = params.mode || 'walking';
 
-      const response = await mapsClient.directions({
-        params: requestParams,
+      const apiResponse = await getDirectionsRoute({
+        origin,
+        destination,
+        travelMode,
+        languageCode: 'pt-PT',
       });
 
-      if (response.data.status !== 'OK') {
-        throw new Error(`Directions API error: ${response.data.status}`);
+      if (!apiResponse.routes || apiResponse.routes.length === 0) {
+        // Mensagem amigável para frontend
+        return {
+          error: 'Não foi encontrada nenhuma rota para o modo de transporte selecionado. Pode não haver transporte público disponível para este trajeto ou horário.'
+        };
+      }
+      const route = apiResponse.routes[0];
+      const leg = route.legs && route.legs[0];
+
+      // Log polylines e modos de transporte
+      if (route.polyline && route.polyline.encodedPolyline) {
+        console.log('[MapsService] Polyline geral:', route.polyline.encodedPolyline);
+      }
+      if (leg && leg.steps && leg.steps.length > 0) {
+        leg.steps.forEach((step: any, idx: any) => {
+          console.log(`[MapsService] Step ${idx} modo: ${step.travelMode}, polyline:`, step.polyline?.encodedPolyline);
+        });
       }
 
-      const route = response.data.routes[0];
-      const leg = route.legs[0];
-
       return {
-        distance: leg.distance,
-        duration: leg.duration,
-        startAddress: leg.start_address,
-        endAddress: leg.end_address,
-        startLocation: leg.start_location,
-        endLocation: leg.end_location,
-        steps: leg.steps.map(step => ({
-          distance: step.distance,
-          duration: step.duration,
-          instruction: step.html_instructions,
+        distance: leg?.distanceMeters ? { value: leg.distanceMeters, text: `${(leg.distanceMeters/1000).toFixed(2)} km` } : undefined,
+        duration: leg?.duration ? { value: leg.duration, text: `${Math.round(leg.duration/60)} min` } : undefined,
+        startAddress: leg?.startLocation,
+        endAddress: leg?.endLocation,
+        startLocation: leg?.startLocation,
+        endLocation: leg?.endLocation,
+        steps: leg?.steps?.map((step: any) => ({
+          distance: step.distanceMeters ? { value: step.distanceMeters, text: `${step.distanceMeters} m` } : undefined,
+          duration: step.duration ? { value: step.duration, text: `${Math.round(step.duration/60)} min` } : undefined,
+          instruction: step.navigationInstruction?.instructions,
           polyline: step.polyline,
-          travelMode: step.travel_mode,
-          startLocation: step.start_location,
-          endLocation: step.end_location,
-        })),
-        polyline: route.overview_polyline,
+          travelMode: step.travelMode,
+          startLocation: step.startLocation,
+          endLocation: step.endLocation,
+        })) || [],
+        polyline: route.polyline,
       };
     } catch (error) {
       console.error('Error getting directions:', error);
-      throw error;
+      // Mensagem amigável para erros inesperados
+      return {
+        error: 'Ocorreu um erro ao obter direções. Tente novamente ou escolha outro modo de transporte.'
+      };
     }
+  }
+
+  // Utilitário para converter string "lat,lng" em objeto { lat, lng }
+  private parseLatLngString(str: string): { lat: number; lng: number } {
+    const [lat, lng] = str.split(',').map(Number);
+    return { lat, lng };
   }
 
   // Obter rota otimizada com múltiplos transportes

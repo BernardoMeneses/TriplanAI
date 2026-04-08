@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'api_service.dart';
 
 class Note {
   final String id;
@@ -16,82 +15,69 @@ class Note {
     required this.updatedAt,
   });
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'body': body,
-        'createdAt': createdAt,
-        'updatedAt': updatedAt,
-      };
+  static Note fromJson(Map<String, dynamic> j) {
+    int toEpoch(dynamic v) {
+      if (v == null) return 0;
+      if (v is int) return v;
+      try {
+        return DateTime.parse(v as String).millisecondsSinceEpoch;
+      } catch (_) {
+        return 0;
+      }
+    }
 
-  static Note fromJson(Map<String, dynamic> j) => Note(
-        id: j['id'] as String,
-        title: j['title'] as String? ?? '',
-        body: j['body'] as String? ?? '',
-        createdAt: j['createdAt'] as int? ?? 0,
-        updatedAt: j['updatedAt'] as int? ?? 0,
-      );
+    return Note(
+      id: j['id'] as String,
+      title: j['title'] as String? ?? '',
+      body: j['body'] as String? ?? '',
+      createdAt: toEpoch(j['created_at'] ?? j['createdAt']),
+      updatedAt: toEpoch(j['updated_at'] ?? j['updatedAt']),
+    );
+  }
 }
 
 class NotesService {
   final String tripId;
+  final _api = ApiService();
 
   NotesService({required this.tripId});
 
-  String get _key => 'trip_notes_$tripId';
-
   Future<List<Note>> loadNotes() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw == null) return [];
     try {
-      final list = json.decode(raw) as List<dynamic>;
-      return list.map((e) => Note.fromJson(Map<String, dynamic>.from(e))).toList();
+      final data = await _api.get('/notes/$tripId');
+      if (data == null) return [];
+      return (data as List<dynamic>)
+          .map((e) => Note.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
     } catch (_) {
       return [];
     }
   }
 
-  Future<void> saveNotes(List<Note> notes) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = json.encode(notes.map((n) => n.toJson()).toList());
-    await prefs.setString(_key, raw);
-  }
-
-  Future<Note> createNote({String? title, String? body}) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final note = Note(
-      id: now.toString(),
-      title: title ?? '',
-      body: body ?? '',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final notes = await loadNotes();
-    notes.insert(0, note);
-    await saveNotes(notes);
-    return note;
-  }
-
-  Future<void> updateNote(Note note) async {
-    final notes = await loadNotes();
-    final idx = notes.indexWhere((n) => n.id == note.id);
-    if (idx >= 0) {
-      note.updatedAt = DateTime.now().millisecondsSinceEpoch;
-      notes[idx] = note;
-      await saveNotes(notes);
+  Future<Note?> createNote({String? title, String? body}) async {
+    try {
+      final data = await _api.post('/notes/$tripId', body: {
+        'title': title ?? '',
+        'body': body ?? '',
+      });
+      if (data == null) return null;
+      return Note.fromJson(Map<String, dynamic>.from(data));
+    } catch (_) {
+      return null;
     }
   }
 
-  Future<void> deleteNote(String id) async {
-    final notes = await loadNotes();
-    notes.removeWhere((n) => n.id == id);
-    await saveNotes(notes);
+  Future<void> updateNote(Note note) async {
+    await _api.put('/notes/$tripId/${note.id}', body: {
+      'title': note.title,
+      'body': note.body,
+    });
   }
 
-  /// Remove all notes for a trip (e.g. when trip is deleted)
-  static Future<void> deleteAllForTrip(String tripId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('trip_notes_$tripId');
+  Future<void> deleteNote(String id) async {
+    await _api.delete('/notes/$tripId/$id');
   }
+
+  /// Notes are removed server-side via ON DELETE CASCADE when the trip is deleted.
+  static Future<void> deleteAllForTrip(String tripId) async {}
 }

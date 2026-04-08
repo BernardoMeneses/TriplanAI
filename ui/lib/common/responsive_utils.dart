@@ -92,7 +92,7 @@ class ResponsiveUtils {
 
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaleFactor: scale,
+            textScaler: TextScaler.linear(scale),
           ),
           child: Text(
             text,

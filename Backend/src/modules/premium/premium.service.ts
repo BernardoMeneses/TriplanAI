@@ -60,7 +60,7 @@ export class PremiumService {
   /**
    * Obter status de subscrição de um utilizador
    */
-  async getSubscriptionStatus(userId: string): Promise<UserSubscriptionStatus & { ai_generations_used: number }> {
+  async getSubscriptionStatus(userId: string): Promise<UserSubscriptionStatus & { ai_generations_used: number; trips_used: number }> {
     const result = await query<{
       user_id: string;
       subscription_plan: SubscriptionPlan;
@@ -98,11 +98,43 @@ export class PremiumService {
       }
     }
 
+    const tripUsageResult = await query<{ total: number | string }>(
+      `SELECT COALESCE(
+          SUM(
+            CASE
+              WHEN t.user_id = $1 THEN
+                1 + COALESCE(
+                  CASE
+                    WHEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count') ~ '^[0-9]+$'
+                      THEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count')::int
+                    ELSE 0
+                  END,
+                  0
+                )
+              ELSE 1
+            END
+          ),
+          0
+        )::int AS total
+       FROM trips t
+       WHERE t.user_id = $1
+          OR EXISTS (
+            SELECT 1
+            FROM trip_members tm
+            WHERE tm.trip_id = t.id
+              AND tm.user_id = $1
+          )`,
+      [userId]
+    );
+
+    const tripsUsed = Number(tripUsageResult.rows[0]?.total ?? 0) || 0;
+
     return {
       user_id: userId,
       plan,
       limits: PLAN_LIMITS[plan],
       ai_generations_used: aiUsed,
+      trips_used: tripsUsed,
     };
   }
 
@@ -147,14 +179,17 @@ export class PremiumService {
   /**
    * Determina o plano baseado no product_id do Adapty
    */
-  private getPlanFromProductId(productId: string): SubscriptionPlan {
-    if (productId?.includes('basic')) {
+  private getPlanFromProductId(productId: string): SubscriptionPlan | null {
+    const normalizedProductId = (productId || '').toLowerCase();
+
+    if (normalizedProductId.includes('basic')) {
       return 'basic';
     }
-    if (productId?.includes('premium')) {
+    if (normalizedProductId.includes('premium')) {
       return 'premium';
     }
-    return 'premium';
+
+    return null;
   }
 
   /**
@@ -171,12 +206,28 @@ export class PremiumService {
 
     const plan = this.getPlanFromProductId(product_id);
 
+    if (!plan && (event_type === 'subscription_started' || event_type === 'subscription_renewed')) {
+      console.warn(
+        `Unknown Adapty product_id in webhook for ${user.email}: ${product_id}`
+      );
+      return;
+    }
+
     switch (event_type) {
       case 'subscription_started':
-      case 'subscription_renewed':
+      case 'subscription_renewed': {
+        // Extra guard para manter type-safety em tempo de compilação.
+        if (!plan) {
+          console.warn(
+            `Cannot activate plan for ${user.email}: unknown product_id ${product_id}`
+          );
+          return;
+        }
+
         await this.setUserPlan(user.id, plan);
         console.log(`✅ Plan ${plan} activated for user ${user.email}`);
         break;
+      }
 
       case 'subscription_cancelled':
       case 'subscription_expired':

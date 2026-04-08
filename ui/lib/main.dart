@@ -19,29 +19,36 @@ import 'services/favorites_service.dart';
 import 'services/subscription_service.dart';
 import 'services/location_service.dart';
 import 'shared/widgets/destination_search_modal.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
     await EasyLocalization.ensureInitialized();
-    
+
+    // Bloquear rotação de tela (apenas portrait)
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+
     if (kDebugMode) {
       print('🚀 TriplanAI: Iniciando app...');
     }
-    
+
     await ThemeService().init();
-    
+
     // Inicializar serviço de notificações
     await NotificationService().initialize();
     await NotificationService().requestPermissions();
-    
+
     // Inicializar Adapty (pagamentos)
     await AdaptyService().initialize();
-    
+
     if (kDebugMode) {
       print('✅ TriplanAI: Todos os serviços inicializados');
     }
-    
+
     runApp(
       EasyLocalization(
         supportedLocales: const [
@@ -94,10 +101,16 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
   final DeepLinkService _deepLinkService = DeepLinkService();
   final ConnectivityService _connectivityService = ConnectivityService();
 
+  void _openNewTripTab() {
+    setState(() {
+      _currentIndex = 1;
+    });
+  }
+
   List<Widget> get _pages => [
-    HomePage(onLogout: _onLogout),
+    HomePage(onLogout: _onLogout, onOpenNewTripTab: _openNewTripTab),
     const NewTripPage(),
-    TravelingPage(onLogout: _onLogout),
+    TravelingPage(onLogout: _onLogout, onOpenNewTripTab: _openNewTripTab),
   ];
 
   @override
@@ -105,10 +118,10 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
     super.initState();
     _checkAuth();
     _themeService.addListener(_onThemeChanged);
-    
+
     // Iniciar verificação periódica de conectividade (para toda a app)
     _connectivityService.startPeriodicCheck();
-    
+
     // Inicializar deep link service após o primeiro frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -120,7 +133,9 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
           },
           onAppLink: (uri) async {
             try {
-              if (uri.scheme == 'triplanai' && uri.host == 'app' && uri.path == '/login') {
+              if (uri.scheme == 'triplanai' &&
+                  uri.host == 'app' &&
+                  uri.path == '/login') {
                 // Forçar logout e limpar caches quando receber link de confirmação de deleção
                 await AuthService().logout();
                 await TripCacheService().clearCache();
@@ -158,7 +173,7 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
       if (kDebugMode) {
         print('🔐 Verificando autenticação...');
       }
-      
+
       final isAuth = await _authService.init().timeout(
         const Duration(seconds: 15),
         onTimeout: () {
@@ -168,13 +183,13 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
           return false;
         },
       );
-      
+
       if (mounted) {
         setState(() {
           _isAuthenticated = isAuth;
           _isLoading = false;
         });
-        
+
         if (kDebugMode) {
           print('✅ Auth check completo: $isAuth');
         }
@@ -217,16 +232,31 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
       builder: (context, child) {
         // Limitar escala de texto para evitar overflow
         final mediaQueryData = MediaQuery.of(context);
-        final constrainedTextScaleFactor = mediaQueryData.textScaleFactor.clamp(1.0, 1.3);
+        final constrainedTextScaleFactor = mediaQueryData.textScaleFactor.clamp(
+          1.0,
+          1.3,
+        );
 
         return MediaQuery(
-          data: mediaQueryData.copyWith(textScaleFactor: constrainedTextScaleFactor),
-          child: child!,
+          data: mediaQueryData.copyWith(
+            textScaler: TextScaler.linear(constrainedTextScaleFactor),
+          ),
+          child: DefaultTextStyle(
+            style: const TextStyle(
+              fontFamily: 'Roboto', // Defina a fonte padrão global aqui
+              fontWeight: FontWeight.normal,
+              fontSize: 14,
+              color: Colors.black,
+              overflow: TextOverflow.ellipsis,
+            ),
+            child: child!,
+          ),
         );
       },
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
+        fontFamily: 'Roboto',
         scaffoldBackgroundColor: AppColors.backgroundLight,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
@@ -243,18 +273,21 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
             color: AppColors.textPrimaryLight,
             fontSize: 20,
             fontWeight: FontWeight.w600,
+            fontFamily: 'Roboto',
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontFamily: 'Roboto'),
           ),
         ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
+        fontFamily: 'Roboto',
         scaffoldBackgroundColor: AppColors.backgroundDark,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
@@ -271,12 +304,14 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
             color: AppColors.textPrimaryDark,
             fontSize: 20,
             fontWeight: FontWeight.w600,
+            fontFamily: 'Roboto',
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontFamily: 'Roboto'),
           ),
         ),
       ),
@@ -305,22 +340,18 @@ class _TriplanAIAppState extends State<TriplanAIApp> {
         return null;
       },
       home: _isLoading
-          ? const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      )
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : _isAuthenticated
           ? AppScaffold(
-        currentIndex: _currentIndex,
-        onTabChange: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        child: _pages[_currentIndex],
-        onLogout: _onLogout,
-      )
+              currentIndex: _currentIndex,
+              onTabChange: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              child: _pages[_currentIndex],
+              onLogout: _onLogout,
+            )
           : LoginPage(onLoginSuccess: _onLoginSuccess),
     );
   }

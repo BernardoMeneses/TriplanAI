@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:uuid/uuid.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../common/app_colors.dart';
+import '../../common/constants/app_constants.dart';
 import '../../services/destinations_service.dart';
 
 class DestinationResult {
@@ -35,12 +38,35 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
   List<Destination> _results = [];
   bool _isLoading = false;
   Timer? _debounce;
+  late final String _sessionToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionToken = Uuid().v4();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  String _searchLanguageCode() {
+    final locale = context.locale;
+    final languageCode = locale.languageCode.trim();
+    final countryCode = locale.countryCode?.trim();
+
+    if (languageCode.isEmpty) {
+      return 'en';
+    }
+
+    if (countryCode != null && countryCode.isNotEmpty) {
+      return '$languageCode-$countryCode';
+    }
+
+    return languageCode;
   }
 
   void _onSearchChanged(String query) {
@@ -52,7 +78,8 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
   }
 
   Future<void> _searchDestinations(String query) async {
-    if (query.trim().isEmpty) {
+    final currentQuery = query.trim();
+    if (currentQuery.isEmpty) {
       setState(() {
         _results = [];
         _isLoading = false;
@@ -63,17 +90,27 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
     setState(() => _isLoading = true);
 
     try {
-      final results = await _destinationsService.searchDestinations(query);
-      if (mounted) {
+      // Capture the query that started this request so we can ignore stale responses
+      final results = await _destinationsService.searchDestinations(
+        currentQuery,
+        sessionToken: _sessionToken,
+        language: _searchLanguageCode(),
+      );
+      if (!mounted) return;
+
+      // Only update results if the input hasn't changed since we started the request
+      if (_searchController.text.trim() == currentQuery) {
         setState(() {
           _results = results;
           _isLoading = false;
         });
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
+        // Stale response: do not override current results
         setState(() => _isLoading = false);
       }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
   }
 
@@ -81,7 +118,10 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
     // Obter detalhes do destino (incluindo foto)
     setState(() => _isLoading = true);
 
-    final details = await _destinationsService.getDestinationDetails(destination.placeId);
+    final details = await _destinationsService.getDestinationDetails(
+      destination.placeId,
+      language: _searchLanguageCode(),
+    );
 
     if (mounted) {
       Navigator.pop(
@@ -102,7 +142,8 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
     if (types.contains('country')) return Icons.flag;
     if (types.contains('locality')) return Icons.location_city;
     if (types.contains('administrative_area_level_1')) return Icons.map;
-    if (types.contains('administrative_area_level_2')) return Icons.map_outlined;
+    if (types.contains('administrative_area_level_2'))
+      return Icons.map_outlined;
     return Icons.place;
   }
 
@@ -127,18 +168,22 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Where to?',
+                      AppConstants.whereToNext.tr(),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                   ),
                   IconButton(
                     icon: Icon(
                       Icons.close,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -149,18 +194,24 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
                 controller: _searchController,
                 autofocus: true,
                 style: TextStyle(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'To country or city',
+                  hintText: AppConstants.toCountryOrCity.tr(),
                   hintStyle: TextStyle(
-                    color: isDark ? AppColors.textHintDark : AppColors.textHintLight,
+                    color: isDark
+                        ? AppColors.textHintDark
+                        : AppColors.textHintLight,
                   ),
                   filled: true,
                   fillColor: isDark ? AppColors.grey800 : AppColors.grey100,
                   prefixIcon: Icon(
                     Icons.search,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -168,21 +219,21 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
                   ),
                   suffixIcon: _isLoading
                       ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
                       : _searchController.text.isNotEmpty
                       ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() => _results = []);
-                    },
-                  )
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _results = []);
+                          },
+                        )
                       : null,
                 ),
                 onChanged: _onSearchChanged,
@@ -191,52 +242,60 @@ class _DestinationSearchModalState extends State<DestinationSearchModal> {
               Expanded(
                 child: _results.isEmpty && !_isLoading
                     ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.travel_explore,
-                        size: 64,
-                        color: isDark ? AppColors.grey800 : Colors.grey[300],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _searchController.text.isEmpty
-                            ? 'Search for a destination'
-                            : 'No destinations found',
-                        style: TextStyle(
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.travel_explore,
+                              size: 64,
+                              color: isDark
+                                  ? AppColors.grey800
+                                  : Colors.grey[300],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _searchController.text.isEmpty
+                                  ? AppConstants.searchDestinations.tr()
+                                  : AppConstants.noResults.tr(),
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                )
+                      )
                     : ListView.builder(
-                  controller: scrollController,
-                  itemCount: _results.length,
-                  itemBuilder: (_, index) {
-                    final item = _results[index];
-                    return ListTile(
-                      leading: Icon(
-                        _getIconForType(item.types),
-                        color: AppColors.primary,
+                        controller: scrollController,
+                        itemCount: _results.length,
+                        itemBuilder: (_, index) {
+                          final item = _results[index];
+                          return ListTile(
+                            leading: Icon(
+                              _getIconForType(item.types),
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              item.name,
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimaryLight,
+                              ),
+                            ),
+                            subtitle: Text(
+                              item.subtitle,
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                            onTap: () => _selectDestination(item),
+                          );
+                        },
                       ),
-                      title: Text(
-                        item.name,
-                        style: TextStyle(
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      subtitle: Text(
-                        item.subtitle,
-                        style: TextStyle(
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                        ),
-                      ),
-                      onTap: () => _selectDestination(item),
-                    );
-                  },
-                ),
               ),
             ],
           ),

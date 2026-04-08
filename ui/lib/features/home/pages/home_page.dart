@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:triplan_ai_front/services/auth_service.dart';
 import '../../../common/app_colors.dart';
 import '../../../common/constants/app_constants.dart';
 import '../../../shared/widgets/custom_app_bar.dart';
@@ -8,6 +10,7 @@ import '../../../common/app_events.dart';
 import '../../../shared/widgets/destination_search_modal.dart';
 import '../../../services/trips_service.dart';
 import '../../../services/trip_cache_service.dart';
+import '../../../services/new_trip_draft_service.dart';
 import '../../../services/destinations_service.dart';
 import '../../profile/pages/profile_page.dart';
 import '../../trip_details/my_trip_page.dart';
@@ -16,8 +19,9 @@ import '../../../services/subscription_service.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback? onLogout;
+  final VoidCallback? onOpenNewTripTab;
 
-  const HomePage({super.key, this.onLogout});
+  const HomePage({super.key, this.onLogout, this.onOpenNewTripTab});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -25,13 +29,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final TripCacheService _tripCacheService = TripCacheService();
+  final NewTripDraftService _newTripDraftService = NewTripDraftService();
   final DestinationsService _destinationsService = DestinationsService();
 
   List<Trip> _upcomingTrips = [];
   List<Trip> _pastTrips = [];
+  NewTripDraft? _newTripDraft;
   bool _isLoading = true;
   bool _isOfflineMode = false;
   SubscriptionStatus? _subscriptionStatus;
+  Timer? _tripsRealtimeTimer;
 
   final Map<String, String?> _tripImages = {};
 
@@ -39,6 +46,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadTrips(forceRefresh: true);
+    _loadDraft();
     _checkPremiumStatus();
     // Atualizar automaticamente quando houver mudanca nas trips
     AppEvents.onTripsChanged.listen((_) {
@@ -47,6 +55,114 @@ class _HomePageState extends State<HomePage> {
     AppEvents.onTripImported.listen((_) {
       if (mounted) _loadTrips(forceRefresh: true);
     });
+    AppEvents.onSubscriptionChanged.listen((_) {
+      if (mounted) _checkPremiumStatus();
+    });
+    AppEvents.onDraftChanged.listen((_) {
+      if (mounted) _loadDraft();
+    });
+
+    _startTripsRealtimeSync();
+  }
+
+  @override
+  void dispose() {
+    _tripsRealtimeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTripsRealtimeSync() {
+    _tripsRealtimeTimer?.cancel();
+    _tripsRealtimeTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _syncTripsSilentlyIfChanged();
+    });
+  }
+
+  String _tripSignature(Trip trip) {
+    return '${trip.id}:${trip.updatedAt.millisecondsSinceEpoch}:${trip.title}:${trip.destinationCity}:${trip.destinationCountry}:${trip.startDate.millisecondsSinceEpoch}:${trip.endDate.millisecondsSinceEpoch}:${trip.status}:${trip.isMember}';
+  }
+
+  String _tripsListSignature(List<Trip> trips) {
+    final sorted = [...trips]..sort((a, b) => a.id.compareTo(b.id));
+    return sorted.map(_tripSignature).join('|');
+  }
+
+  Future<void> _syncTripsSilentlyIfChanged() async {
+    if (!mounted) return;
+
+    try {
+      final latestTrips = await _tripCacheService.getTrips(forceRefresh: true);
+      if (!mounted) return;
+
+      final now = DateTime.now();
+      final latestUpcoming =
+          latestTrips.where((t) => t.endDate.isAfter(now)).toList()
+            ..sort((a, b) => a.startDate.compareTo(b.startDate));
+      final latestPast =
+          latestTrips
+              .where(
+                (t) =>
+                    t.endDate.isBefore(now) || t.endDate.isAtSameMomentAs(now),
+              )
+              .toList()
+            ..sort((a, b) => b.endDate.compareTo(a.endDate));
+
+      final currentSignature =
+          '${_tripsListSignature(_upcomingTrips)}::${_tripsListSignature(_pastTrips)}';
+      final latestSignature =
+          '${_tripsListSignature(latestUpcoming)}::${_tripsListSignature(latestPast)}';
+
+      if (currentSignature == latestSignature &&
+          _isOfflineMode == _tripCacheService.isOfflineMode) {
+        return;
+      }
+
+      final previousIds = {
+        ..._upcomingTrips.map((t) => t.id),
+        ..._pastTrips.map((t) => t.id),
+      };
+      final previousById = {
+        ...{for (final t in _upcomingTrips) t.id: t},
+        ...{for (final t in _pastTrips) t.id: t},
+      };
+      final latestIds = {
+        ...latestUpcoming.map((t) => t.id),
+        ...latestPast.map((t) => t.id),
+      };
+
+      setState(() {
+        _isOfflineMode = _tripCacheService.isOfflineMode;
+        _upcomingTrips = latestUpcoming;
+        _pastTrips = latestPast;
+      });
+
+      for (final removedId in previousIds.difference(latestIds)) {
+        _tripImages.remove(removedId);
+      }
+
+      for (final trip in [...latestUpcoming, ...latestPast]) {
+        final previousTrip = previousById[trip.id];
+        final destinationChanged =
+            previousTrip != null &&
+            (previousTrip.destinationCity.trim().toLowerCase() !=
+                    trip.destinationCity.trim().toLowerCase() ||
+                previousTrip.destinationCountry.trim().toLowerCase() !=
+                    trip.destinationCountry.trim().toLowerCase());
+
+        if (destinationChanged) {
+          _tripImages.remove(trip.id);
+          await _tripCacheService.removeTripImageFromCache(trip.id);
+          _loadTripImage(trip);
+          continue;
+        }
+
+        if (!previousIds.contains(trip.id)) {
+          _loadTripImage(trip);
+        }
+      }
+    } catch (_) {
+      // Silent sync should never disrupt the UI.
+    }
   }
 
   Future<void> _checkPremiumStatus() async {
@@ -60,24 +176,27 @@ class _HomePageState extends State<HomePage> {
     setState(() => _isLoading = true);
 
     try {
-      final trips = await _tripCacheService.getTrips(forceRefresh: forceRefresh);
+      final trips = await _tripCacheService.getTrips(
+        forceRefresh: forceRefresh,
+      );
       final now = DateTime.now();
 
       if (!mounted) return;
 
       setState(() {
         _isOfflineMode = _tripCacheService.isOfflineMode;
-        _upcomingTrips = trips
-            .where((t) => t.endDate.isAfter(now))
-            .toList()
+        _upcomingTrips = trips.where((t) => t.endDate.isAfter(now)).toList()
           ..sort((a, b) => a.startDate.compareTo(b.startDate));
 
-        _pastTrips = trips
-            .where((t) =>
-        t.endDate.isBefore(now) ||
-            t.endDate.isAtSameMomentAs(now))
-            .toList()
-          ..sort((a, b) => b.endDate.compareTo(a.endDate));
+        _pastTrips =
+            trips
+                .where(
+                  (t) =>
+                      t.endDate.isBefore(now) ||
+                      t.endDate.isAtSameMomentAs(now),
+                )
+                .toList()
+              ..sort((a, b) => b.endDate.compareTo(a.endDate));
 
         _isLoading = false;
       });
@@ -105,15 +224,14 @@ class _HomePageState extends State<HomePage> {
     if (_isOfflineMode) return;
 
     try {
-      final query =
-          '${trip.destinationCity}, ${trip.destinationCountry}';
+      final query = '${trip.destinationCity}, ${trip.destinationCountry}';
 
-      final results =
-      await _destinationsService.searchDestinations(query);
+      final results = await _destinationsService.searchDestinations(query);
 
       if (results.isNotEmpty && mounted) {
-        final details = await _destinationsService
-            .getDestinationDetails(results.first.placeId);
+        final details = await _destinationsService.getDestinationDetails(
+          results.first.placeId,
+        );
 
         if (details?.photoUrl != null) {
           // Guardar em cache
@@ -126,18 +244,37 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {}
   }
 
+  Future<void> _loadDraft() async {
+    final draft = await _newTripDraftService.getDraft();
+    if (!mounted) return;
+
+    setState(() {
+      _newTripDraft = draft;
+    });
+  }
+
   // --------------------------------------------------
   // Navigation
   // --------------------------------------------------
 
   void _openTripDetails(Trip trip) {
+    // Verificar owner vs membro
+    final currentUser = AuthService().currentUser;
+    debugPrint('DEBUG trip.userId: [33m${trip.userId}[0m');
+    debugPrint('DEBUG currentUser.id: [36m${currentUser?.id}[0m');
+    debugPrint('DEBUG trip.isMember: [35m${trip.isMember}[0m');
+    final bool isOwner = currentUser != null && trip.userId == currentUser.id;
+    final bool isReadOnly = !isOwner || _isOfflineMode || trip.isMember;
+    debugPrint(
+      'DEBUG isOwner: [32m$isOwner[0m | isReadOnly: [31m$isReadOnly[0m',
+    );
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => MyTripPage(
           trip: trip,
           onTripUpdated: _loadTrips,
-          isReadOnly: _isOfflineMode,
+          isReadOnly: isReadOnly,
         ),
       ),
     ).then((_) => _loadTrips(forceRefresh: true));
@@ -160,6 +297,21 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _openDraft() {
+    final openNewTripTab = widget.onOpenNewTripTab;
+    if (openNewTripTab != null) {
+      openNewTripTab();
+      return;
+    }
+
+    Navigator.pushNamed(context, '/new-trip').then((_) {
+      if (mounted) {
+        _loadDraft();
+        _loadTrips(forceRefresh: true);
+      }
+    });
+  }
+
   // --------------------------------------------------
   // UI
   // --------------------------------------------------
@@ -167,6 +319,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasDraft = _newTripDraft != null;
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -175,17 +328,14 @@ class _HomePageState extends State<HomePage> {
         onFavoritesTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const FavoritesPage(),
-            ),
+            MaterialPageRoute(builder: (_) => const FavoritesPage()),
           );
         },
         onProfileTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) =>
-                  ProfilePage(onLogout: widget.onLogout),
+              builder: (_) => ProfilePage(onLogout: widget.onLogout),
             ),
           );
         },
@@ -193,36 +343,48 @@ class _HomePageState extends State<HomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchBar(isDark),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSearchBar(isDark),
 
-            if (_upcomingTrips.isNotEmpty) ...[
-              const SizedBox(height: 32),
-              _buildSectionHeader(
-                  AppConstants.upcomingTrips.tr(), isDark),
-              const SizedBox(height: 16),
-              ..._upcomingTrips.map(
-                    (trip) => Padding(
-                  padding:
-                  const EdgeInsets.only(bottom: 16),
-                  child: _TripCard(
-                    trip: trip,
-                    imageUrl: _tripImages[trip.id],
-                    isDark: isDark,
-                    onTap: () => _openTripDetails(trip),
-                  ),
-                ),
+                  if (_upcomingTrips.isNotEmpty || hasDraft) ...[
+                    const SizedBox(height: 32),
+                    _buildSectionHeader(
+                      AppConstants.upcomingTrips.tr(),
+                      isDark,
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (hasDraft)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _DraftTripCard(
+                          draft: _newTripDraft!,
+                          isDark: isDark,
+                          onTap: _openDraft,
+                        ),
+                      ),
+
+                    ..._upcomingTrips.map(
+                      (trip) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _TripCard(
+                          trip: trip,
+                          imageUrl: _tripImages[trip.id],
+                          isDark: isDark,
+                          onTap: () => _openTripDetails(trip),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  if (_upcomingTrips.isEmpty && !hasDraft)
+                    _buildEmptyState(isDark),
+                ],
               ),
-            ],
-
-            if (_upcomingTrips.isEmpty)
-              _buildEmptyState(isDark),
-          ],
-        ),
-      ),
+            ),
     );
   }
 
@@ -234,8 +396,7 @@ class _HomePageState extends State<HomePage> {
           color: isDark ? AppColors.grey800 : AppColors.grey100,
           borderRadius: BorderRadius.circular(12),
         ),
-        padding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
             Expanded(
@@ -279,11 +440,11 @@ class _HomePageState extends State<HomePage> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.park_outlined,
-                size: 80,
-                color: isDark
-                    ? AppColors.grey800
-                    : Colors.grey[300]),
+            Icon(
+              Icons.park_outlined,
+              size: 80,
+              color: isDark ? AppColors.grey800 : Colors.grey[300],
+            ),
             const SizedBox(height: 16),
             Text(
               AppConstants.noUpcomingTrips.tr(),
@@ -331,10 +492,18 @@ class _TripCard extends StatelessWidget {
 
   String _formatDateRange() {
     final months = [
-      AppConstants.jan.tr(), AppConstants.feb.tr(), AppConstants.mar.tr(),
-      AppConstants.apr.tr(), AppConstants.may.tr(), AppConstants.jun.tr(),
-      AppConstants.jul.tr(), AppConstants.aug.tr(), AppConstants.sep.tr(),
-      AppConstants.oct.tr(), AppConstants.nov.tr(), AppConstants.dec.tr()
+      AppConstants.jan.tr(),
+      AppConstants.feb.tr(),
+      AppConstants.mar.tr(),
+      AppConstants.apr.tr(),
+      AppConstants.may.tr(),
+      AppConstants.jun.tr(),
+      AppConstants.jul.tr(),
+      AppConstants.aug.tr(),
+      AppConstants.sep.tr(),
+      AppConstants.oct.tr(),
+      AppConstants.nov.tr(),
+      AppConstants.dec.tr(),
     ];
 
     final s = trip.startDate;
@@ -348,8 +517,21 @@ class _TripCard extends StatelessWidget {
         '${e.day} ${months[e.month - 1]} ${s.year}';
   }
 
+  String _locationSubtitle() {
+    final city = trip.destinationCity.trim();
+    final country = trip.destinationCountry.trim();
+
+    if (city.isNotEmpty && country.isNotEmpty) {
+      return '$city, $country';
+    }
+
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final subtitle = _locationSubtitle();
+
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
@@ -369,7 +551,9 @@ class _TripCard extends StatelessWidget {
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
                     color: isDark ? AppColors.grey800 : AppColors.grey200,
-                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                   errorWidget: (context, url, error) => Container(
                     decoration: BoxDecoration(
@@ -402,10 +586,7 @@ class _TripCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                   ),
                 ),
               ),
@@ -428,11 +609,22 @@ class _TripCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       '${_formatDateRange()} • ${trip.durationInDays} ${AppConstants.days.tr()}',
-                      style:
-                      const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
@@ -442,8 +634,176 @@ class _TripCard extends StatelessWidget {
                 right: 16,
                 child: CircleAvatar(
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.arrow_forward,
-                      color: AppColors.primary),
+                  child: Icon(Icons.arrow_forward, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DraftTripCard extends StatelessWidget {
+  final NewTripDraft draft;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  static const List<double> _grayscaleMatrix = [
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ];
+
+  const _DraftTripCard({
+    required this.draft,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  String _title() {
+    if ((draft.destinationCity ?? '').trim().isNotEmpty) {
+      return draft.destinationCity!.trim();
+    }
+    if (draft.destinationLabel.trim().isNotEmpty) {
+      return draft.destinationLabel.trim();
+    }
+    if ((draft.destinationCountry ?? '').trim().isNotEmpty) {
+      return draft.destinationCountry!.trim();
+    }
+    return AppConstants.newTrip.tr();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = draft.destinationImageUrl;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.grey800 : AppColors.grey200,
+          ),
+          child: Stack(
+            children: [
+              if (imageUrl != null && imageUrl.isNotEmpty)
+                ColorFiltered(
+                  colorFilter: const ColorFilter.matrix(_grayscaleMatrix),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: isDark ? AppColors.grey800 : AppColors.grey200,
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: isDark ? AppColors.grey800 : AppColors.grey200,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.grey.shade700, Colors.grey.shade500],
+                    ),
+                  ),
+                ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 60,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _title(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if ((draft.destinationSubtitle ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        draft.destinationSubtitle!,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          color: Color(0xFFFF5A5F),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          AppConstants.draft.tr(),
+                          style: const TextStyle(
+                            color: Color(0xFFFF5A5F),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.arrow_forward, color: AppColors.primary),
                 ),
               ),
             ],

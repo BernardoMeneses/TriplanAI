@@ -5,6 +5,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../common/constants/app_constants.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -48,11 +49,12 @@ class NotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // Configurações para iOS
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+    const DarwinInitializationSettings iosSettings =
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
@@ -80,8 +82,9 @@ class NotificationService {
 
     final iosImplementation = _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
-    
+          IOSFlutterLocalNotificationsPlugin
+        >();
+
     if (iosImplementation != null) {
       final bool? result = await iosImplementation.requestPermissions(
         alert: true,
@@ -93,10 +96,12 @@ class NotificationService {
 
     final androidImplementation = _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
     if (androidImplementation != null) {
-      final bool? result = await androidImplementation.requestNotificationsPermission();
+      final bool? result = await androidImplementation
+          .requestNotificationsPermission();
       return result ?? true;
     }
 
@@ -141,14 +146,17 @@ class NotificationService {
       startDate.year,
       startDate.month,
       startDate.day - 1,
-      9, 0,
+      9,
+      0,
     );
 
     if (scheduledDayBefore.isAfter(now)) {
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         baseId,
         'notification_messages.day_before_title'.tr(),
-        'notification_messages.day_before_body'.tr(namedArgs: {'destination': destination}),
+        'notification_messages.day_before_body'.tr(
+          namedArgs: {'destination': destination},
+        ),
         scheduledDayBefore,
         _buildNotificationDetails(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -158,10 +166,14 @@ class NotificationService {
       );
 
       if (kDebugMode) {
-        print('📅 Notificação dia anterior agendada: $scheduledDayBefore - $destination');
+        print(
+          '📅 Notificação dia anterior agendada: $scheduledDayBefore - $destination',
+        );
       }
     } else if (kDebugMode) {
-      print('⏭️ Notificação dia anterior ignorada (já passou): $scheduledDayBefore');
+      print(
+        '⏭️ Notificação dia anterior ignorada (já passou): $scheduledDayBefore',
+      );
     }
 
     // ── Notificação 2: No próprio dia às 08:00 ──
@@ -170,14 +182,17 @@ class NotificationService {
       startDate.year,
       startDate.month,
       startDate.day,
-      8, 0,
+      8,
+      0,
     );
 
     if (scheduledTripDay.isAfter(now)) {
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         baseId + 1,
         'notification_messages.trip_day_title'.tr(),
-        'notification_messages.trip_day_body'.tr(namedArgs: {'destination': destination}),
+        'notification_messages.trip_day_body'.tr(
+          namedArgs: {'destination': destination},
+        ),
         scheduledTripDay,
         _buildNotificationDetails(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -187,10 +202,14 @@ class NotificationService {
       );
 
       if (kDebugMode) {
-        print('🌅 Notificação dia da viagem agendada: $scheduledTripDay - $destination');
+        print(
+          '🌅 Notificação dia da viagem agendada: $scheduledTripDay - $destination',
+        );
       }
     } else if (kDebugMode) {
-      print('⏭️ Notificação dia da viagem ignorada (já passou): $scheduledTripDay');
+      print(
+        '⏭️ Notificação dia da viagem ignorada (já passou): $scheduledTripDay',
+      );
     }
   }
 
@@ -216,7 +235,7 @@ class NotificationService {
   /// Cancela todas as notificações de uma viagem (dia anterior + próprio dia)
   Future<void> cancelTripNotifications(String tripId) async {
     final baseId = tripIdToNotificationId(tripId);
-    await _flutterLocalNotificationsPlugin.cancel(baseId);     // dia anterior
+    await _flutterLocalNotificationsPlugin.cancel(baseId); // dia anterior
     await _flutterLocalNotificationsPlugin.cancel(baseId + 1); // próprio dia
     if (kDebugMode) {
       print('🗑️ Notificações canceladas para viagem: $tripId');
@@ -240,25 +259,26 @@ class NotificationService {
   Future<void> showTestNotification() async {
     if (!_isInitialized) await initialize();
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'test_channel',
-      'Testes',
-      channelDescription: 'Canal para testes de notificações',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
+    final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'test_channel',
+          'profile.notifications'.tr(),
+          channelDescription: AppConstants.testNotificationSubtitle.tr(),
+          importance: Importance.high,
+          priority: Priority.high,
+        );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
 
-    const NotificationDetails details = NotificationDetails(
+    final NotificationDetails details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
     await _flutterLocalNotificationsPlugin.show(
       0,
-      'Teste de Notificação',
-      'As notificações estão a funcionar!',
+      AppConstants.testNotificationTitle.tr(),
+      AppConstants.testNotificationSent.tr(),
       details,
     );
   }

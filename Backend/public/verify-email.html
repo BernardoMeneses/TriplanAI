@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>Verify Email - TriplanAI</title>
     <style>
         * {
@@ -14,11 +15,6 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #7ED9C8 0%, #2B7A6E 100%);
-            
-            background-image: url('https://www.pixelstalk.net/wp-content/uploads/images6/4K-Travel-Wallpaper-HD-Free-download.jpg');
-            background-size: cover;
-            background-position: center; 
-            background-attachment: fixed; 
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -145,7 +141,7 @@
     <div class="container">
         <div class="logo">
             <div class="logo-icon">
-                <img src="https://github.com/BernardoMeneses/TriplanAI/blob/main/Backend/public/triplan_ai_logo.png?raw=true" alt="TriplanAI Logo">
+                <img src="/triplan_ai_logo.png" alt="TriplanAI Logo">
             </div>
             <h1>TriplanAI</h1>
         </div>
@@ -160,10 +156,26 @@
     </div>
 
     <script>
-        const API_URL = 'https://triplanai-backend.triplanai.eupasoft.com/api';
+        const API_URL = '/api';
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
+        function getTokenFromUrl() {
+            const hash = window.location.hash.startsWith('#')
+                ? window.location.hash.substring(1)
+                : window.location.hash;
+            const hashParams = new URLSearchParams(hash);
+            const hashToken = hashParams.get('token');
+            if (hashToken) return hashToken;
+
+            const queryParams = new URLSearchParams(window.location.search);
+            return queryParams.get('token');
+        }
+
+        const token = getTokenFromUrl();
+
+        if (token) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         const loading = document.getElementById('loading');
         const content = document.getElementById('content');
 

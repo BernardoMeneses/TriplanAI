@@ -137,17 +137,29 @@ export class PlacesService {
     return result.rows;
   }
 
-  async updatePlace(placeId: string, placeData: Partial<Place>): Promise<Place | null> {
+  async updatePlace(placeId: string, placeData: Partial<Place>, userId: string): Promise<Place | null> {
+    // Buscar o place e a viagem associada
+    const placeResult = await query<Place>('SELECT * FROM places WHERE id = $1', [placeId]);
+    if (placeResult.rows.length === 0) {
+      throw new Error('Place not found');
+    }
+    const place = placeResult.rows[0];
+    // Se não houver trip_id, negar alteração
+    if (!('trip_id' in place)) {
+      throw new Error('Place is not associated with a trip');
+    }
+    const tripResult = await query('SELECT user_id FROM trips WHERE id = $1', [place.trip_id]);
+    if (tripResult.rows.length === 0 || tripResult.rows[0].user_id !== userId) {
+      throw new Error('Access denied: only the owner can update places');
+    }
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
-
     const allowedFields = [
       'name', 'description', 'place_type', 'address', 'city', 'country',
       'latitude', 'longitude', 'rating', 'price_level', 'opening_hours',
       'contact_info', 'images', 'metadata'
     ];
-
     for (const field of allowedFields) {
       if (placeData[field as keyof Place] !== undefined) {
         fields.push(`${field} = $${paramIndex}`);
@@ -158,11 +170,9 @@ export class PlacesService {
         paramIndex++;
       }
     }
-
     if (fields.length === 0) {
       return this.getPlaceById(placeId);
     }
-
     values.push(placeId);
     const result = await query<Place>(
       `UPDATE places SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
@@ -171,7 +181,21 @@ export class PlacesService {
     return result.rows[0] || null;
   }
 
-  async deletePlace(placeId: string): Promise<boolean> {
+  async deletePlace(placeId: string, userId: string): Promise<boolean> {
+    // Buscar o place e a viagem associada
+    const placeResult = await query<Place>('SELECT * FROM places WHERE id = $1', [placeId]);
+    if (placeResult.rows.length === 0) {
+      throw new Error('Place not found');
+    }
+    const place = placeResult.rows[0];
+    // Se não houver trip_id, negar alteração
+    if (!('trip_id' in place)) {
+      throw new Error('Place is not associated with a trip');
+    }
+    const tripResult = await query('SELECT user_id FROM trips WHERE id = $1', [place.trip_id]);
+    if (tripResult.rows.length === 0 || tripResult.rows[0].user_id !== userId) {
+      throw new Error('Access denied: only the owner can delete places');
+    }
     const result = await query('DELETE FROM places WHERE id = $1', [placeId]);
     return (result.rowCount ?? 0) > 0;
   }

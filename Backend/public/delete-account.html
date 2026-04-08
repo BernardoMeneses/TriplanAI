@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="referrer" content="no-referrer">
   <title>Delete Account - TriplanAI</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box }
@@ -135,8 +136,23 @@
   </div>
 
   <script>
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
+    function getTokenFromUrl() {
+      const hash = location.hash.startsWith('#')
+        ? location.hash.substring(1)
+        : location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const hashToken = hashParams.get('token');
+      if (hashToken) return hashToken;
+
+      const queryParams = new URLSearchParams(location.search);
+      return queryParams.get('token');
+    }
+
+    const token = getTokenFromUrl();
+
+    if (token) {
+      history.replaceState({}, document.title, location.pathname);
+    }
 
     const tokenSection = document.getElementById('token-section');
     const emailSection = document.getElementById('email-section');
@@ -193,7 +209,7 @@
         const j = await res.json().catch(() => ({}));
         if (res.ok && j.token) { authToken = j.token; msg.className = 'message success'; msg.textContent = 'Signed in successfully. You can now delete the account.'; }
         else { msg.className = 'message error'; msg.textContent = j.error || 'Invalid credentials'; }
-      } catch (e) { msg.className = 'message error'; msg.textContent = 'Erro de rede'; }
+      } catch (e) { msg.className = 'message error'; msg.textContent = 'Network error'; }
     });
 
     document.getElementById('delete-while-logged').addEventListener('click', async () => {
@@ -205,7 +221,7 @@
         const j = await res.json().catch(() => ({}));
         if (res.ok) { out.className='message success'; out.textContent = 'Account deleted successfully.'; setTimeout(() => { window.location.href = 'triplanai://app/login'; }, 1500); }
         else { out.className='message error'; out.textContent = j.error || 'Error deleting account'; }
-      } catch (e) { out.className='message error'; out.textContent = 'Erro de rede'; }
+      } catch (e) { out.className='message error'; out.textContent = 'Network error'; }
     });
   </script>
 </body>

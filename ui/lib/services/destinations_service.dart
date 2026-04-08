@@ -72,13 +72,32 @@ class DestinationsService {
   final ApiService _api = ApiService();
 
   /// Pesquisa destinos (cidades, países, regiões) pelo nome
-  Future<List<Destination>> searchDestinations(String query) async {
+  Future<List<Destination>> searchDestinations(
+    String query, {
+    String? sessionToken,
+    double? lat,
+    double? lng,
+    String? country,
+    String? language,
+  }) async {
     if (query.trim().isEmpty) return [];
 
     try {
+      final params = {'query': query};
+      if (sessionToken != null) params['sessionToken'] = sessionToken;
+      if (lat != null && lng != null) {
+        params['lat'] = lat.toString();
+        params['lng'] = lng.toString();
+      }
+      if (country != null && country.trim().isNotEmpty)
+        params['country'] = country;
+      if (language != null && language.trim().isNotEmpty) {
+        params['language'] = language;
+      }
+
       final response = await _api.get(
         '/maps/destinations/search',
-        queryParams: {'query': query},
+        queryParams: params,
       );
 
       if (response is List) {
@@ -92,9 +111,17 @@ class DestinationsService {
   }
 
   /// Obtém detalhes de um destino incluindo foto
-  Future<DestinationDetails?> getDestinationDetails(String placeId) async {
+  Future<DestinationDetails?> getDestinationDetails(
+    String placeId, {
+    String? language,
+  }) async {
     try {
-      final response = await _api.get('/maps/destinations/$placeId');
+      final response = await _api.get(
+        '/maps/destinations/$placeId',
+        queryParams: language != null && language.trim().isNotEmpty
+            ? {'language': language}
+            : null,
+      );
 
       if (response != null) {
         return DestinationDetails.fromJson(response);

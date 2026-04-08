@@ -1,4 +1,4 @@
-import { query } from '../../config/database';
+import { query, transaction } from '../../config/database';
 
 export interface Trip {
   id: string;
@@ -20,6 +20,212 @@ export interface Trip {
 }
 
 export class TripsService {
+  private async getExpiredOwnedTripIdsForUser(
+    userId: string,
+    plan: string,
+  ): Promise<string[]> {
+    if (plan === 'premium') {
+      return [];
+    }
+
+    if (plan === 'basic') {
+      const result = await query<{ id: string }>(
+        `SELECT id
+         FROM trips
+         WHERE user_id = $1
+           AND end_date < (CURRENT_DATE - INTERVAL '3 months')`,
+        [userId],
+      );
+      return result.rows.map((row) => row.id);
+    }
+
+    const result = await query<{ id: string }>(
+      `SELECT id
+       FROM trips
+       WHERE user_id = $1
+         AND end_date < CURRENT_DATE`,
+      [userId],
+    );
+    return result.rows.map((row) => row.id);
+  }
+
+  async cleanupExpiredPastTripsForUser(userId: string): Promise<number> {
+    const planResult = await query<{ subscription_plan: string | null }>(
+      `SELECT COALESCE(subscription_plan::text, 'free') AS subscription_plan
+       FROM users
+       WHERE id = $1`,
+      [userId],
+    );
+
+    if (planResult.rows.length === 0) {
+      return 0;
+    }
+
+    const plan = (planResult.rows[0].subscription_plan || 'free').toLowerCase();
+
+    const targetTripIds = await this.getExpiredOwnedTripIdsForUser(userId, plan);
+    if (targetTripIds.length === 0) {
+      return 0;
+    }
+
+    return transaction(async (client) => {
+      await client.query(
+        `DELETE FROM ai_conversations
+         WHERE trip_id = ANY($1::uuid[])`,
+        [targetTripIds],
+      );
+
+      const deleteTripsResult = await client.query(
+        `DELETE FROM trips
+         WHERE user_id = $1
+           AND id = ANY($2::uuid[])`,
+        [userId, targetTripIds],
+      );
+
+      return deleteTripsResult.rowCount ?? 0;
+    });
+  }
+
+  async cleanupExpiredPastTripsForAllUsers(): Promise<{
+    deletedTrips: number;
+    deletedFreeTrips: number;
+    deletedBasicTrips: number;
+  }> {
+    const targetsResult = await query<{ id: string; plan: string }>(
+      `SELECT
+         t.id,
+         COALESCE(u.subscription_plan::text, 'free') AS plan
+       FROM trips t
+       INNER JOIN users u ON u.id = t.user_id
+       WHERE t.end_date < CURRENT_DATE
+         AND (
+           COALESCE(u.subscription_plan::text, 'free') = 'free'
+           OR (
+             COALESCE(u.subscription_plan::text, 'free') = 'basic'
+             AND t.end_date < (CURRENT_DATE - INTERVAL '3 months')
+           )
+         )`,
+    );
+
+    const targetTripIds = targetsResult.rows.map((row) => row.id);
+    if (targetTripIds.length === 0) {
+      return {
+        deletedTrips: 0,
+        deletedFreeTrips: 0,
+        deletedBasicTrips: 0,
+      };
+    }
+
+    await transaction(async (client) => {
+      await client.query(
+        `DELETE FROM ai_conversations
+         WHERE trip_id = ANY($1::uuid[])`,
+        [targetTripIds],
+      );
+
+      await client.query(
+        `DELETE FROM trips
+         WHERE id = ANY($1::uuid[])`,
+        [targetTripIds],
+      );
+    });
+
+    const totals = targetsResult.rows.reduce(
+      (acc, row) => {
+        if (row.plan === 'free') acc.deletedFreeTrips += 1;
+        if (row.plan === 'basic') acc.deletedBasicTrips += 1;
+        acc.deletedTrips += 1;
+        return acc;
+      },
+      {
+        deletedTrips: 0,
+        deletedFreeTrips: 0,
+        deletedBasicTrips: 0,
+      },
+    );
+
+    return totals;
+  }
+
+  async countTripsForUser(userId: string): Promise<number> {
+    const result = await query<{ total: number | string }>(
+      `SELECT COALESCE(
+          SUM(
+            CASE
+              WHEN t.user_id = $1 THEN
+                1 + COALESCE(
+                  CASE
+                    WHEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count') ~ '^[0-9]+$'
+                      THEN (COALESCE(t.preferences, '{}'::jsonb)->>'replacement_count')::int
+                    ELSE 0
+                  END,
+                  0
+                )
+              ELSE 1
+            END
+          ),
+          0
+        )::int AS total
+       FROM trips t
+       WHERE t.user_id = $1
+          OR EXISTS (
+            SELECT 1
+            FROM trip_members tm
+            WHERE tm.trip_id = t.id
+              AND tm.user_id = $1
+          )`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return 0;
+    }
+
+    return Number(result.rows[0].total) || 0;
+  }
+
+  async incrementTripReplacementCount(tripId: string): Promise<void> {
+    await query(
+      `UPDATE trips
+       SET preferences = COALESCE(preferences, '{}'::jsonb)
+         || jsonb_build_object(
+              'replacement_count',
+              COALESCE(
+                CASE
+                  WHEN (COALESCE(preferences, '{}'::jsonb)->>'replacement_count') ~ '^[0-9]+$'
+                    THEN (COALESCE(preferences, '{}'::jsonb)->>'replacement_count')::int
+                  ELSE 0
+                END,
+                0
+              ) + 1
+            ),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [tripId]
+    );
+  }
+
+  async resetTripDataAfterDestinationChange(tripId: string): Promise<void> {
+    // Remove plan artifacts tied to the previous destination.
+    await query('DELETE FROM trip_routes WHERE trip_id = $1', [tripId]);
+    await query('DELETE FROM trip_notes WHERE trip_id = $1', [tripId]);
+    await query('DELETE FROM itineraries WHERE trip_id = $1', [tripId]);
+
+    const hasPlacesTripIdResult = await query<{ has_trip_id: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'places'
+           AND column_name = 'trip_id'
+       ) AS has_trip_id`,
+    );
+
+    if (hasPlacesTripIdResult.rows[0]?.has_trip_id) {
+      await query('DELETE FROM places WHERE trip_id = $1', [tripId]);
+    }
+  }
+
   async createTrip(userId: string, tripData: Partial<Trip>): Promise<Trip> {
     const result = await query<Trip>(
       `INSERT INTO trips (
@@ -51,9 +257,15 @@ export class TripsService {
     return result.rows[0] || null;
   }
 
-  async getTripsByUser(userId: string): Promise<Trip[]> {
-    const result = await query<Trip>(
-      'SELECT * FROM trips WHERE user_id = $1 ORDER BY start_date DESC',
+  async getTripsByUser(userId: string): Promise<(Trip & { is_member: boolean })[]> {
+    const result = await query<Trip & { is_member: boolean }>(
+      `SELECT t.*, (t.user_id <> $1) AS is_member
+       FROM trips t
+       WHERE t.user_id = $1
+         OR EXISTS (
+           SELECT 1 FROM trip_members tm WHERE tm.trip_id = t.id AND tm.user_id = $1
+         )
+       ORDER BY t.start_date DESC`,
       [userId]
     );
     return result.rows;
@@ -93,9 +305,57 @@ export class TripsService {
     return result.rows[0] || null;
   }
 
-  async deleteTrip(tripId: string): Promise<boolean> {
-    const result = await query('DELETE FROM trips WHERE id = $1', [tripId]);
-    return (result.rowCount ?? 0) > 0;
+  async deleteTrip(tripId: string, userId?: string): Promise<boolean> {
+    if (userId) {
+      // Check if user is the owner or just a member
+      const tripResult = await query('SELECT user_id FROM trips WHERE id = $1', [tripId]);
+      if (tripResult.rows.length === 0) return false;
+      const isOwner = tripResult.rows[0].user_id === userId;
+      if (!isOwner) {
+        // Member: just leave the trip
+        const leaveResult = await query(
+          'DELETE FROM trip_members WHERE trip_id = $1 AND user_id = $2',
+          [tripId, userId]
+        );
+        return (leaveResult.rowCount ?? 0) > 0;
+      }
+    }
+
+    return transaction(async (client) => {
+      await client.query(
+        `DELETE FROM ai_conversations
+         WHERE trip_id = $1`,
+        [tripId],
+      );
+
+      const result = await client.query(
+        'DELETE FROM trips WHERE id = $1',
+        [tripId],
+      );
+
+      return (result.rowCount ?? 0) > 0;
+    });
+  }
+
+  // Join a shared trip via its code (adds user as member, no copy created)
+  async joinTrip(userId: string, tripCode: string): Promise<(Trip & { is_member: boolean }) | null> {
+    const trip = await this.getTripByCode(tripCode);
+    if (!trip) return null;
+
+    // Owner cannot join their own trip
+    if (trip.user_id === userId) {
+      throw new Error('Já és o dono desta viagem');
+    }
+
+    // Upsert into trip_members (idempotent)
+    await query(
+      `INSERT INTO trip_members (trip_id, user_id)
+       VALUES ($1, $2)
+       ON CONFLICT (trip_id, user_id) DO NOTHING`,
+      [trip.id, userId]
+    );
+
+    return { ...trip, is_member: true };
   }
 
   // Gera ou retorna trip_code (6 caracteres) para uma viagem
@@ -159,6 +419,13 @@ export class TripsService {
       itineraryItems = itemsResult.rows;
     }
 
+    // Buscar notas da viagem
+    const notesResult = await query(
+      `SELECT title, body FROM trip_notes WHERE trip_id = $1 ORDER BY created_at ASC`,
+      [tripId]
+    );
+    const notes = notesResult.rows;
+
     // Estruturar os dados para export
     const exportData = {
       version: '1.0',
@@ -176,6 +443,7 @@ export class TripsService {
         number_of_travelers: trip.number_of_travelers,
         preferences: trip.preferences,
       },
+      notes: notes.map((n: any) => ({ title: n.title, body: n.body })),
       itineraries: itineraries.map((itinerary: any) => ({
         day_number: itinerary.day_number,
         date: itinerary.date,
@@ -258,6 +526,17 @@ export class TripsService {
       await query('UPDATE trips SET preferences = $1 WHERE id = $2', [JSON.stringify(prefs), newTrip.id]);
       // Reflect in newTrip object
       (newTrip as any).preferences = prefs;
+    }
+
+    // Importar notas se existirem
+    if (importData.notes && Array.isArray(importData.notes) && importData.notes.length > 0) {
+      for (const noteData of importData.notes) {
+        await query(
+          `INSERT INTO trip_notes (trip_id, user_id, title, body)
+           VALUES ($1, $2, $3, $4)`,
+          [newTrip.id, userId, noteData.title || '', noteData.body || '']
+        );
+      }
     }
 
     // Importar itinerários se existirem

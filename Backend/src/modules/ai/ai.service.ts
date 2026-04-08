@@ -58,15 +58,278 @@ const LANGUAGE_NAMES: Record<string, string> = {
 };
 
 export class AIService {
+  private getLanguageName(language: string = 'en'): string {
+    const normalized = language.toLowerCase();
+    const base = normalized.split('-')[0];
+    return LANGUAGE_NAMES[normalized] || LANGUAGE_NAMES[base] || 'English';
+  }
+
+  private normalizeQuery(query: string): string {
+    return (query || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private getWhyIntentHints(): string[] {
+    return [
+      // English
+      'why',
+      'reason',
+      // Portuguese
+      'por que',
+      'porque',
+      'motivo',
+      'razao',
+      // Spanish
+      'por que',
+      'porque',
+      'motivo',
+      'razon',
+      // French
+      'pourquoi',
+      'raison',
+      // German
+      'warum',
+      'grund',
+      // Italian
+      'perche',
+      'ragione',
+      // Dutch
+      'waarom',
+      'reden',
+      // Japanese
+      'なぜ',
+      'どうして',
+      '理由',
+      // Korean
+      '왜',
+      '이유',
+      // Chinese (simplified/traditional)
+      '为什么',
+      '為什麼',
+      '为何',
+      '為何',
+      '原因'
+    ];
+  }
+
+  private getPlaceListIntentHints(): string[] {
+    return [
+      // English
+      'what to visit',
+      'what to see',
+      'what to do',
+      'things to do',
+      'must see',
+      'must-visit',
+      'top places',
+      'top spots',
+      'recommend',
+      'suggest',
+      'suggestions',
+      'recommendations',
+      'list',
+      'places',
+      'options',
+      'alternatives',
+      // Portuguese
+      'o que visitar',
+      'que visitar',
+      'o que ver',
+      'que ver',
+      'o que fazer',
+      'que fazer',
+      'recomenda',
+      'recomendar',
+      'recomendacoes',
+      'sugere',
+      'sugerir',
+      'lista',
+      'lugares',
+      'mais lugares',
+      'mais opcoes',
+      // Spanish
+      'que visitar',
+      'que ver',
+      'que hacer',
+      'recomienda',
+      'recomendar',
+      'recomendaciones',
+      'sugerencias',
+      'lista',
+      'lugares',
+      'sitios',
+      // French
+      'que visiter',
+      'que voir',
+      'que faire',
+      'recommande',
+      'recommander',
+      'recommandations',
+      'liste',
+      'lieux',
+      'endroits',
+      // German
+      'was besuchen',
+      'was sehen',
+      'was tun',
+      'empfehle',
+      'empfehlen',
+      'empfehlungen',
+      'liste',
+      'orte',
+      'sehenswurdigkeiten',
+      // Italian
+      'cosa visitare',
+      'cosa vedere',
+      'cosa fare',
+      'consiglia',
+      'consigliare',
+      'raccomandazioni',
+      'lista',
+      'luoghi',
+      'posti',
+      // Dutch
+      'wat bezoeken',
+      'wat te zien',
+      'wat te doen',
+      'aanbevelen',
+      'aanbevelingen',
+      'lijst',
+      'plekken',
+      // Japanese
+      'おすすめ',
+      '何を見る',
+      '何する',
+      '訪れる',
+      '場所',
+      'スポット',
+      '一覧',
+      // Korean
+      '추천',
+      '뭐 볼',
+      '무엇을 볼',
+      '뭐 할',
+      '무엇을 할',
+      '가볼만한',
+      '장소',
+      '목록',
+      // Chinese (simplified/traditional)
+      '推荐',
+      '推薦',
+      '去哪',
+      '看什么',
+      '看什麼',
+      '做什么',
+      '做什麼',
+      '景点',
+      '景點',
+      '地方',
+      '列表',
+      '清单',
+      '清單'
+    ];
+  }
+
+  private containsAnyHint(normalizedQuery: string, hints: string[]): boolean {
+    return hints.some((hint) => normalizedQuery.includes(hint));
+  }
+
+  private isExplanationOnlyQuery(query: string): boolean {
+    const normalized = this.normalizeQuery(query);
+
+    const asksWhy = this.containsAnyHint(normalized, this.getWhyIntentHints());
+    const asksForMoreOptions = this.containsAnyHint(
+      normalized,
+      this.getPlaceListIntentHints(),
+    );
+
+    return asksWhy && !asksForMoreOptions;
+  }
+
+  private isPlaceListQuery(query: string): boolean {
+    const normalized = this.normalizeQuery(query);
+    return this.containsAnyHint(normalized, this.getPlaceListIntentHints());
+  }
+
+  private async generatePlacesFallback(params: {
+    query: string;
+    location: string;
+    dayNumber: number;
+    language?: string;
+  }): Promise<any[]> {
+    const responseLanguage = this.getLanguageName(params.language || 'en');
+    const fallbackPrompt = `The user asked: "${params.query}".
+Location context: ${params.location || 'unknown'}.
+Day: ${params.dayNumber}.
+
+Return ONLY a places list with 4-5 concrete options relevant to this request.
+Do not return an explanation paragraph.
+
+Respond in JSON with this schema:
+{
+  "places": [
+    {
+      "name": "place name",
+      "category": "category",
+      "placeId": "leave empty",
+      "description": "short practical description with why it fits"
+    }
+  ]
+}
+
+IMPORTANT: All text MUST be in ${responseLanguage}.
+Respond ONLY with JSON.`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: this.getSystemPrompt(params.language) },
+          { role: 'user', content: fallbackPrompt }
+        ],
+        temperature: 0.5,
+        response_format: { type: 'json_object' }
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) return [];
+
+      const parsed = JSON.parse(content);
+      return Array.isArray(parsed.places) ? parsed.places : [];
+    } catch (error) {
+      console.error('Error generating fallback places list:', error);
+      return [];
+    }
+  }
+
   // Gerar system prompt dinâmico baseado na língua
   private getSystemPrompt(language: string = 'en'): string {
-    const langName = LANGUAGE_NAMES[language] || 'English';
+    const langName = this.getLanguageName(language);
     
     return `You are a specialized travel assistant called TriplanAI.
-You help users plan trips, suggest destinations, create itineraries, and provide travel tips.
-IMPORTANT: Always respond in ${langName}. The user's language is ${language}.
-Be friendly, informative, and practical in your responses.
-When suggesting places, include useful information such as opening hours, estimated prices, and practical tips.`;
+You help users plan trips, suggest destinations, create itineraries, and provide practical travel advice.
+
+IMPORTANT LANGUAGE RULE:
+- Always respond in ${langName}. The user's language is ${language}.
+
+VOICE & TONE:
+- Sound human, warm, and professional.
+- Avoid robotic phrasing and generic list-only answers.
+- Explain recommendations as if you are a trusted travel advisor.
+
+REASONING & QUALITY:
+- Justify suggestions with clear criteria: logistics, variety, time fit, budget fit, and user intent.
+- Be critical and honest: point out trade-offs, weak options, and better alternatives when relevant.
+- If the user asks "why these places", answer directly with concrete reasoning.
+- If the user asks why a specific place is recommended, focus on that place only and do not add extra place lists unless explicitly asked.
+- Prefer realistic plans over overpacked itineraries.
+
+PRACTICALITY:
+- Include actionable details (best timing, expected pace, rough costs, local tips, reservation advice).
+- Never invent certainty for unknown data; when unsure, state assumptions briefly.
+- Keep answers concise but complete, with a clear recommendation and next best step.`;
   }
 
   async generatePlaceSuggestions(params: {
@@ -76,23 +339,44 @@ When suggesting places, include useful information such as opening hours, estima
     language?: string;
   }): Promise<{ response: string; places: any[] }> {
     const systemPrompt = this.getSystemPrompt(params.language);
+    const responseLanguage = this.getLanguageName(params.language || 'en');
+    const explanationOnly = this.isExplanationOnlyQuery(params.query);
+    const mustReturnPlaces = this.isPlaceListQuery(params.query) && !explanationOnly;
     const prompt = `The user is planning day ${params.dayNumber} in ${params.location}.
 Question: "${params.query}"
 
-Respond with a friendly message and suggest 4-5 relevant places.
+Choose response format based on intent:
+- EXPLANATION mode: if the user is asking "why" (or equivalent) about a specific recommendation/place, answer that question directly and do NOT add extra place suggestions.
+- SUGGESTION mode: if the user asks for ideas/options, provide place suggestions.
+- Default to SUGGESTION mode unless the user explicitly asks "why".
+
+Quality requirements:
+- In EXPLANATION mode:
+  - Keep the response focused on the asked place/recommendation.
+  - Use 1-2 short paragraphs with concrete reasons and one practical tip.
+  - Return "places": []
+- In SUGGESTION mode:
+  - Suggest 4-5 relevant places with good diversity (culture, food, views, local life, etc. when possible).
+  - Build a coherent day flow (avoid unrealistic jumps across the city).
+  - Be critical: mention one key trade-off or caveat (crowds, timing, budget, distance, reservation risk).
+  - The response text must explain why these places are good for this user question.
+  - Each place description should include both "why it fits" and one practical tip.
 
 Respond in JSON format with this schema:
 {
-  "response": "friendly message responding to the user in ${LANGUAGE_NAMES[params.language || 'en'] || 'English'}",
+  "response": "natural, advisor-style response in ${responseLanguage}, including reasoning and one critical caveat",
   "places": [{
     "name": "place name",
     "category": "category (e.g.: Accommodation, Restaurant, Museum, Park, Shopping, Activities & Experiences, Nature & Outdoor)",
     "placeId": "leave empty for now, will be filled later",
-    "description": "brief description of the place"
+    "description": "brief but useful description including why it fits and one practical tip"
   }]
 }
 
-IMPORTANT: The "response" field MUST be in ${LANGUAGE_NAMES[params.language || 'en'] || 'English'}.
+IMPORTANT:
+- The "response" field MUST be in ${responseLanguage}.
+- If this is EXPLANATION mode, the "places" array must be empty.
+- If this is SUGGESTION mode, include 4-5 places in the "places" array.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -108,6 +392,14 @@ Respond ONLY with the JSON, no additional text.`;
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
+        if (mustReturnPlaces) {
+          const fallbackPlaces = await this.generatePlacesFallback(params);
+          return {
+            response: this.getDefaultSuggestionsMessage(params.language),
+            places: fallbackPlaces,
+          };
+        }
+
         return {
           response: this.getDefaultErrorMessage(params.language),
           places: []
@@ -115,10 +407,21 @@ Respond ONLY with the JSON, no additional text.`;
       }
 
       const parsed = JSON.parse(content);
+      let places = Array.isArray(parsed.places) ? parsed.places : [];
+
+      // Enforce direct-answer behavior for "why recommend X" queries.
+      if (explanationOnly) {
+        places = [];
+      }
+
+      // Enforce list behavior for "what to visit"/list queries.
+      if (mustReturnPlaces && places.length === 0) {
+        places = await this.generatePlacesFallback(params);
+      }
       
       // Processar lugares para buscar placeId real se possível
-      if (parsed.places && Array.isArray(parsed.places)) {
-        for (const place of parsed.places) {
+      if (Array.isArray(places)) {
+        for (const place of places) {
           // Aqui poderíamos buscar o placeId real do Google Places
           // Por agora, vamos deixar vazio e o frontend vai buscar quando adicionar
           place.placeId = `temp_${Date.now()}_${Math.random()}`;
@@ -127,7 +430,7 @@ Respond ONLY with the JSON, no additional text.`;
       
       return {
         response: parsed.response || this.getDefaultSuggestionsMessage(params.language),
-        places: parsed.places || []
+        places: Array.isArray(places) ? places : []
       };
     } catch (error) {
       console.error('Error generating place suggestions:', error);
@@ -173,12 +476,17 @@ Respond ONLY with the JSON, no additional text.`;
   ): Promise<TripSuggestion[]> {
     const lang = preferences.language || 'en';
     const systemPrompt = this.getSystemPrompt(lang);
+    const responseLanguage = this.getLanguageName(lang);
     
     const prompt = `Suggest 5 travel destinations based on these preferences:
 - Interests: ${preferences.interests.join(', ')}
 - Budget: ${preferences.budget || 'medium'}
 - Duration: ${preferences.duration || 7} days
 - Travel style: ${preferences.travelStyle || 'flexible'}
+
+Be opinionated and practical: prioritize fit over generic popularity.
+For each destination, focus on what makes it genuinely suitable for this profile.
+Avoid repetitive suggestions and include variety.
 
 Respond in JSON format with this schema:
 [{
@@ -193,7 +501,7 @@ Respond in JSON format with this schema:
   }
 }]
 
-IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+IMPORTANT: All text content MUST be in ${responseLanguage}.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -230,6 +538,7 @@ Respond ONLY with the JSON, no additional text.`;
   ): Promise<ItinerarySuggestion[]> {
     const lang = tripDetails.language || 'en';
     const systemPrompt = this.getSystemPrompt(lang);
+    const responseLanguage = this.getLanguageName(lang);
     const startDate = new Date(tripDetails.startDate);
     const endDate = new Date(tripDetails.endDate);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -247,6 +556,10 @@ Details:
 - End date: ${tripDetails.endDate}
 - Interests: ${tripDetails.interests.join(', ')}
 - Pace: ${paceDescriptions[tripDetails.pace || 'moderate']}
+
+Build a realistic itinerary with strong sequencing and practical timing.
+If a plan would be inefficient, adjust it and reflect the rationale in tips.
+Be selective and quality-focused rather than overpacking the day.
 
 Respond in JSON format with this schema:
 {
@@ -266,7 +579,7 @@ Respond in JSON format with this schema:
   ]
 }
 
-IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+IMPORTANT: All text content MUST be in ${responseLanguage}.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -336,8 +649,13 @@ Respond ONLY with the JSON, no additional text.`;
   ): Promise<PlaceRecommendation[]> {
     const lang = language || 'en';
     const systemPrompt = this.getSystemPrompt(lang);
+    const responseLanguage = this.getLanguageName(lang);
     
     const prompt = `Recommend 10 places to visit in ${destination} based on these interests: ${interests.join(', ')}.
+
+Do not give a bland list.
+Choose places with strong fit and include practical/advisor-style reasoning.
+If some options are popular but weakly aligned, deprioritize them.
 
 Respond in JSON format with this schema:
 {
@@ -352,7 +670,7 @@ Respond in JSON format with this schema:
   ]
 }
 
-IMPORTANT: All text content MUST be in ${LANGUAGE_NAMES[lang] || 'English'}.
+IMPORTANT: All text content MUST be in ${responseLanguage}.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -481,7 +799,9 @@ Responde em formato JSON com este schema:
   ]
 }
 
-Foca em lugares variados (cultura, gastronomia, natureza, etc) e populares.
+Foca em lugares variados (cultura, gastronomia, natureza, etc) e populares,
+mas com pensamento crítico: evita escolhas redundantes e equilibra logística.
+Em cada descrição, inclui "porque vale a pena" e uma dica prática.
 Responde APENAS com o JSON, sem texto adicional.`;
 
     try {

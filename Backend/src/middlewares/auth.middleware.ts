@@ -2,7 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { query } from '../config/database';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'triplanai-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET must be configured');
+}
 
 // Extend Express Request to include user info
 declare global {

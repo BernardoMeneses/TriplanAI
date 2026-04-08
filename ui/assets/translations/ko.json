@@ -49,7 +49,8 @@
       "friday": "금요일",
       "saturday": "토요일",
       "sunday": "일요일"
-    }
+    },
+    "view": "보기"
   },
   "auth": {
     "welcome_back": "다시 오신 것을 환영합니다!",
@@ -98,7 +99,11 @@
       "username_required": "사용자명이 필요합니다"
     },
     "email": "이메일",
-    "apple_register_error": "Apple 등록 오류: {0}"
+    "apple_register_error": "Apple 등록 오류: {0}",
+    "apple_sign_in_unavailable": "이 기기에서는 Apple Sign In을 사용할 수 없습니다.",
+    "apple_auth_failed": "Apple 인증에 실패했습니다. iPhone의 Apple Sign In 설정을 확인한 후 다시 시도하세요.",
+    "apple_login_error": "Apple 로그인 중 오류가 발생했습니다: {0}",
+    "google_login_error": "Google 로그인 중 오류가 발생했습니다: {0}"
   },
   "home": {
     "title": "홈",
@@ -138,7 +143,9 @@
     "no_past_trips": "지난 여행이 없습니다",
     "no_past_trips_subtitle": "아래 플러스 버튼을 눌러 탐험을 시작하고\n새로운 추억을 만들어보세요!",
     "only_triplan_supported": ".triplan 파일만 지원됩니다",
-    "importing_trip": "여행 가져오는 중..."
+    "importing_trip": "여행 가져오는 중...",
+    "draft": "초안",
+    "already_member": "이미 이 여행의 멤버입니다."
   },
   "new_trip": {
     "plan_your_trip": "여행 계획하기",
@@ -207,6 +214,8 @@
     "hours": "시간",
     "hours_not_listed": "영업시간 미기재",
     "my_trip": "내 여행",
+    "shared_trip_read_only_title": "공유 여행(읽기 전용)",
+    "shared_trip_read_only_subtitle": "이 여행은 공유되었습니다. 날짜와 세부 정보는 확인할 수 있지만 편집은 비활성화되어 있습니다.",
     "your_route": "내 경로",
     "share_trip": "여행 공유",
     "share_trip_subtitle": "WhatsApp, Instagram 등으로 공유",
@@ -255,7 +264,13 @@
     "duplicate_favorite_message": "이 장소는 이미 즐겨찾기에 있습니다",
     "place_moved_to_day": "장소가 {}일차로 이동되었습니다",
     "could_not_open_maps": "Google 지도를 열 수 없습니다",
-    "error_opening_maps": "Google 지도 열기 오류"
+    "error_opening_maps": "Google 지도 열기 오류",
+    "leave_trip_title": "여행 나가기",
+    "leave_trip_message": "이 공유 여행 팔로우를 중단하시겠습니까?",
+    "leave_trip_action": "나가기",
+    "leave_trip_subtitle": "내 여행에서 제거",
+    "leave_trip_success": "내 여행에서 여행이 제거되었습니다",
+    "trip_edit_locked": "이 여행은 이미 종료되었습니다. 새로운 목적지로 새 여행을 만들어 주세요."
   },
   "favorites": {
     "title": "즐겨찾기",
@@ -265,7 +280,8 @@
     "remove_favorite": "즐겨찾기에서 제거",
     "removed_from_favorites": "즐겨찾기에서 제거되었습니다",
     "error_removing_favorite": "즐겨찾기 제거 오류",
-    "confirm_remove_favorite": "즐겨찾기에서 \"{}\" 을(를) 제거하시겠습니까?"
+    "confirm_remove_favorite": "즐겨찾기에서 \"{}\" 을(를) 제거하시겠습니까?",
+    "added_on": "{0}에 추가됨"
   },
   "map": {
     "show_route": "경로 표시",
@@ -333,7 +349,9 @@
     "faq_answer_10": "프로필의 '계정' 섹션에서 '계정 삭제'를 탭하세요. 이메일로 안내를 받게 됩니다. 이 작업은 영구적이며 모든 데이터가 삭제됩니다.",
     "notifications_enabled": "알림이 활성화되었습니다",
     "notifications_disabled": "알림이 비활성화되었습니다",
-    "test_notification_sent": "테스트 알림이 전송되었습니다!"
+    "test_notification_sent": "테스트 알림이 전송되었습니다!",
+    "test_notification_title": "알림 테스트",
+    "test_notification_subtitle": "테스트 알림 보내기"
   },
   "languages": {
     "portuguese": "Português",
@@ -395,6 +413,7 @@
     "premium": "프리미엄",
     "forever": "영구",
     "per_month": "/월",
+    "per_year": "/년",
     "trips": "여행",
     "activities_per_day": "활동/일",
     "ai_month": "AI 생성/월",
@@ -412,9 +431,21 @@
     "downgrade": "플랜 변경",
     "restore_purchases": "구매 복원",
     "restoring": "구매 복원 중...",
+    "manage_cancel_button": "구독 관리 / 취소",
+    "manage_cancel_title": "구독 관리",
+    "manage_cancel_description": "향후 자동 갱신을 중지하려면 스토어 구독 페이지를 열거나 이 계정을 Free로 변경하세요.",
+    "manage_cancel_store_notice": "결제 취소는 App Store 또는 Google Play에서 해야 합니다.",
+    "open_store": "스토어 열기",
+    "back_to_free": "Free로 변경",
+    "open_store_failed": "구독 스토어를 열 수 없습니다.",
+    "back_to_free_success": "플랜이 Free로 변경되었습니다.",
+    "back_to_free_failed": "플랜을 Free로 변경할 수 없습니다.",
     "terms_note": "구독은 자동 갱신됩니다. 스토어 설정에서 언제든지 취소할 수 있습니다.",
     "product_not_found": "제품을 찾을 수 없습니다. 나중에 다시 시도해주세요.",
-    "coming_soon": "결제 연동 준비 중!"
+    "coming_soon": "결제 연동 준비 중!",
+    "free_description": "기본 기능과 수동 백업",
+    "basic_description": "더 많은 여행, PDF 내보내기 및 자동 백업",
+    "premium_description": "모든 기능 무제한"
   },
   "limits": {
     "trip_limit_title": "여행 한도 도달",
@@ -428,12 +459,14 @@
     "backup_locked_title": "클라우드 백업 잠김",
     "backup_locked_desc": "클라우드 백업은 Basic 및 Premium 플랜에서 사용 가능합니다. 업그레이드하여 여행을 안전하게 보관하세요!",
     "maybe_later": "나중에",
-    "upgrade_now": "지금 업그레이드"
+    "upgrade_now": "지금 업그레이드",
+    "feature_locked_default": "이 기능은 현재 요금제에서 잠겨 있습니다. 이용하려면 업그레이드하세요."
   },
   "backup": {
     "title": "백업 및 동기화",
     "google_drive": "Google 드라이브 백업",
     "google_drive_desc": "여행을 Google 드라이브에 저장",
+    "account_trips_desc": "계정에 있는 기존 여행을 백업",
     "local_history": "로컬 기록",
     "local_history_desc": "로컬에 저장된 백업 보기",
     "local_backups": "로컬 백업",

@@ -24,37 +24,12 @@ router.post('/calculate', async (req: Request, res: Response) => {
 
 // POST /api/routes/optimize - Calcular rota otimizada com múltiplos waypoints
 router.post('/optimize', async (req: Request, res: Response) => {
-  try {
-    const { origin, destination, waypoints, travelMode } = req.body;
-    
-    if (!origin || !destination || !waypoints || !Array.isArray(waypoints)) {
-      return res.status(400).json({ error: 'Origem, destino e waypoints são obrigatórios' });
-    }
-
-    const result = await routesService.getOptimizedRoute(origin, destination, waypoints, travelMode);
-    if (!result) {
-      return res.status(400).json({ error: 'Não foi possível otimizar a rota' });
-    }
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao otimizar rota' });
-  }
+  res.status(501).json({ error: 'Otimização de rota com múltiplos waypoints não é suportada pela nova Google Routes API.' });
 });
 
 // POST /api/routes/alternatives - Obter rotas alternativas
 router.post('/alternatives', async (req: Request, res: Response) => {
-  try {
-    const { origin, destination, travelMode } = req.body;
-    
-    if (!origin || !destination) {
-      return res.status(400).json({ error: 'Origem e destino são obrigatórios' });
-    }
-
-    const routes = await routesService.getAlternativeRoutes(origin, destination, travelMode);
-    res.json(routes);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao obter rotas alternativas' });
-  }
+  res.status(501).json({ error: 'Rotas alternativas não são suportadas pela nova Google Routes API.' });
 });
 
 // POST /api/routes/distance-matrix - Calcular matriz de distâncias
@@ -75,23 +50,7 @@ router.post('/distance-matrix', async (req: Request, res: Response) => {
 
 // POST /api/routes/traffic - Obter tempo de viagem com tráfego
 router.post('/traffic', async (req: Request, res: Response) => {
-  try {
-    const { origin, destination, departureTime } = req.body;
-    
-    if (!origin || !destination) {
-      return res.status(400).json({ error: 'Origem e destino são obrigatórios' });
-    }
-
-    const departure = departureTime ? new Date(departureTime) : undefined;
-    const result = await routesService.getTravelTimeWithTraffic(origin, destination, departure);
-    
-    if (!result) {
-      return res.status(400).json({ error: 'Não foi possível calcular tempo com tráfego' });
-    }
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao obter tempo com tráfego' });
-  }
+  res.status(501).json({ error: 'Tempo de viagem com tráfego não é suportado pela nova Google Routes API.' });
 });
 
 // POST /api/routes/decode-polyline - Descodificar polyline

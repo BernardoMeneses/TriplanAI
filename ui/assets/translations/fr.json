@@ -40,7 +40,8 @@
       "friday": "Ven",
       "saturday": "Sam",
       "sunday": "Dim"
-    }
+    },
+    "view": "Voir"
   },
   "auth": {
     "welcome_back": "Bon retour!",
@@ -87,8 +88,12 @@
       "username_required": "Le nom d'utilisateur est obligatoire",
       "username_min_3": "Le nom d'utilisateur doit contenir au moins 3 caractères",
       "name_required": "Le nom est obligatoire",
-    "apple_register_error": "Erreur lors de l'inscription avec Apple : {0}"
-    }
+      "apple_register_error": "Erreur lors de l'inscription avec Apple : {0}"
+    },
+    "apple_sign_in_unavailable": "Apple Sign In n'est pas disponible sur cet appareil.",
+    "apple_auth_failed": "Impossible de s'authentifier avec Apple. Vérifiez les paramètres Apple Sign In sur votre iPhone puis réessayez.",
+    "apple_login_error": "Erreur lors de la connexion avec Apple : {0}",
+    "google_login_error": "Erreur lors de la connexion avec Google : {0}"
   },
   "home": {
     "title": "Accueil",
@@ -139,7 +144,9 @@
     "no_past_trips": "Pas de voyages passés",
     "no_past_trips_subtitle": "Appuyez sur le bouton ci-dessous pour commencer à explorer\net créer de nouveaux souvenirs!",
     "only_triplan_supported": "Seuls les fichiers .triplan sont pris en charge",
-    "importing_trip": "Importation du voyage..."
+    "importing_trip": "Importation du voyage...",
+    "draft": "Brouillon",
+    "already_member": "Vous êtes déjà membre de ce voyage."
   },
   "new_trip": {
     "plan_your_trip": "Planifiez votre voyage",
@@ -208,6 +215,8 @@
     "hours": "h",
     "hours_not_listed": "Horaires non listés",
     "my_trip": "Mon voyage",
+    "shared_trip_read_only_title": "Voyage partagé en mode lecture seule",
+    "shared_trip_read_only_subtitle": "Ce voyage a été partagé avec vous. Vous pouvez consulter les jours et les détails, mais la modification est désactivée.",
     "your_route": "Votre itinéraire",
     "share_trip": "Partager voyage",
     "share_trip_subtitle": "Partager via WhatsApp, Instagram, etc.",
@@ -257,7 +266,13 @@
     "duplicate_favorite_message": "Ce lieu est déjà dans vos favoris",
     "place_moved_to_day": "Lieu déplacé au Jour {}",
     "could_not_open_maps": "Impossible d'ouvrir Google Maps",
-    "error_opening_maps": "Erreur lors de l'ouverture de Google Maps"
+    "error_opening_maps": "Erreur lors de l'ouverture de Google Maps",
+    "leave_trip_title": "Quitter le voyage",
+    "leave_trip_message": "Voulez-vous vraiment arrêter de suivre ce voyage partagé ?",
+    "leave_trip_action": "Quitter",
+    "leave_trip_subtitle": "Retirer de vos voyages",
+    "leave_trip_success": "Voyage retiré de vos voyages",
+    "trip_edit_locked": "Ce voyage est déjà terminé. Créez un nouveau voyage vers une nouvelle destination."
   },
   "favorites": {
     "title": "Favoris",
@@ -267,7 +282,8 @@
     "remove_favorite": "Retirer des favoris",
     "removed_from_favorites": "Retiré des favoris",
     "error_removing_favorite": "Erreur lors de la suppression du favori",
-    "confirm_remove_favorite": "Supprimer \"{}\" des favoris ?"
+    "confirm_remove_favorite": "Supprimer \"{}\" des favoris ?",
+    "added_on": "Ajouté le {0}"
   },
   "map": {
     "show_route": "Afficher l'itinéraire",
@@ -335,7 +351,9 @@
     "faq_answer_10": "Allez dans votre profil, section 'Compte', et appuyez sur 'Supprimer le compte'. Vous recevrez des instructions par email. Cette action est permanente et effacera toutes vos données.",
     "notifications_enabled": "Notifications activées",
     "notifications_disabled": "Notifications désactivées",
-    "test_notification_sent": "Notification de test envoyée !"
+    "test_notification_sent": "Notification de test envoyée !",
+    "test_notification_title": "Tester la notification",
+    "test_notification_subtitle": "Envoyer une notification de test"
   },
   "languages": {
     "portuguese": "Português",
@@ -397,6 +415,7 @@
     "premium": "Premium",
     "forever": "pour toujours",
     "per_month": "/mois",
+    "per_year": "/an",
     "trips": "voyages",
     "activities_per_day": "activités/jour",
     "ai_month": "générations IA/mois",
@@ -414,9 +433,24 @@
     "downgrade": "Changer de plan",
     "restore_purchases": "Restaurer les achats",
     "restoring": "Restauration des achats...",
+    "manage_cancel_button": "Gérer / Annuler l'abonnement",
+    "manage_cancel_title": "Gérer l'abonnement",
+    "manage_cancel_description": "Ouvrez les abonnements du store pour arrêter les renouvellements futurs, ou repassez ce compte en Free.",
+    "manage_cancel_store_notice": "L'annulation de facturation doit être faite sur l'App Store ou Google Play.",
+    "open_store": "Ouvrir le store",
+    "back_to_free": "Revenir à Free",
+    "upgrade_to_basic": "Passer à Basic",
+    "downgrade_to_free": "Revenir à Free",
+    "downgrade_to_basic": "Rétrograder vers Basic",
+    "open_store_failed": "Impossible d'ouvrir le store des abonnements.",
+    "back_to_free_success": "Plan mis à jour en Free.",
+    "back_to_free_failed": "Impossible de passer le plan en Free.",
     "terms_note": "Les abonnements se renouvellent automatiquement. Vous pouvez annuler à tout moment dans les paramètres du store.",
     "product_not_found": "Produit non trouvé. Réessayez plus tard.",
-    "coming_soon": "Intégration des paiements bientôt disponible !"
+    "coming_soon": "Intégration des paiements bientôt disponible !",
+    "free_description": "Fonctions de base et sauvegarde manuelle",
+    "basic_description": "Plus de voyages, export PDF et sauvegarde automatique",
+    "premium_description": "Tout illimité"
   },
   "limits": {
     "trip_limit_title": "Limite de Voyages Atteinte",
@@ -430,12 +464,14 @@
     "backup_locked_title": "Sauvegarde Cloud Verrouillée",
     "backup_locked_desc": "La sauvegarde cloud est disponible dans les plans Basic et Premium. Passez à un plan supérieur pour garder vos voyages en sécurité !",
     "maybe_later": "Peut-être Plus Tard",
-    "upgrade_now": "Passer au Supérieur"
+    "upgrade_now": "Passer au Supérieur",
+    "feature_locked_default": "Cette fonctionnalité est verrouillée pour votre forfait actuel. Passez à une offre supérieure pour y accéder."
   },
   "backup": {
     "title": "Sauvegarde et Synchronisation",
     "google_drive": "Sauvegarde Google Drive",
     "google_drive_desc": "Enregistrer les voyages sur Google Drive",
+    "account_trips_desc": "Sauvegarde les voyages existants de votre compte",
     "local_history": "Historique Local",
     "local_history_desc": "Voir les sauvegardes locales",
     "local_backups": "Sauvegardes Locales",

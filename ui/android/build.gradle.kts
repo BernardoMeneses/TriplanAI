@@ -1,3 +1,10 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import java.io.File
+import org.gradle.api.file.Directory
+import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.compile.JavaCompile
+
 allprojects {
     repositories {
         google()
@@ -15,6 +22,7 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
@@ -22,11 +30,11 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
-subprojects {
 
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        kotlinOptions {
-            jvmTarget = "17"
+subprojects {
+    tasks.withType<KotlinJvmCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
 
@@ -35,4 +43,3 @@ subprojects {
         targetCompatibility = "17"
     }
 }
-

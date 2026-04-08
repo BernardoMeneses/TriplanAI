@@ -1,8 +1,64 @@
 import { Router, Request, Response } from 'express';
-import { PremiumService, PLAN_LIMITS } from './premium.service';
+import { timingSafeEqual } from 'crypto';
+import { PremiumService } from './premium.service';
 
 const router = Router();
 const premiumService = new PremiumService();
+
+function getConfiguredWebhookAuthTokens(envKeys: string[]): string[] {
+  const tokens = new Set<string>();
+
+  for (const key of envKeys) {
+    const rawValue = process.env[key];
+    if (!rawValue) continue;
+
+    const values = rawValue
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    for (const value of values) {
+      tokens.add(value);
+    }
+  }
+
+  return [...tokens];
+}
+
+const adaptyWebhookAuthTokens = getConfiguredWebhookAuthTokens([
+  'ADAPTY_WEBHOOK_AUTHORIZATION',
+  'ADAPTY_WEBHOOK_AUTHORIZATION_PRODUCTION',
+  'ADAPTY_WEBHOOK_AUTHORIZATION_SANDBOX',
+  'ADAPTY_WEBHOOK_AUTH_TOKENS',
+]);
+
+if (adaptyWebhookAuthTokens.length === 0) {
+  throw new Error(
+    'Adapty webhook authorization must be configured via ADAPTY_WEBHOOK_AUTHORIZATION (or related env keys).',
+  );
+}
+
+function timingSafeStringEquals(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function isAuthorizedAdaptyWebhookRequest(headerValue?: string): boolean {
+  if (!headerValue) {
+    return false;
+  }
+
+  const normalizedHeader = headerValue.trim();
+  return adaptyWebhookAuthTokens.some((token) =>
+    timingSafeStringEquals(normalizedHeader, token),
+  );
+}
 
 /**
  * @swagger
@@ -31,6 +87,7 @@ router.get('/status', async (req: Request, res: Response) => {
       plan: status.plan,
       limits: status.limits,
       ai_generations_used: status.ai_generations_used,
+      trips_used: status.trips_used,
     });
   } catch (error) {
     console.error('Error checking subscription status:', error);
@@ -58,12 +115,34 @@ router.get('/status', async (req: Request, res: Response) => {
  */
 router.post('/adapty-webhook', async (req: Request, res: Response) => {
   try {
-    const event = req.body;
+    const authorizationHeader = req.get('authorization');
+    if (!isAuthorizedAdaptyWebhookRequest(authorizationHeader)) {
+      return res.status(401).json({ error: 'Unauthorized webhook request' });
+    }
+
+    const event = req.body as Record<string, unknown> | null;
+    if (!event || typeof event !== 'object' || Array.isArray(event)) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+
+    // Adapty sends an empty JSON object as verification payload when enabling integration.
+    if (Object.keys(event).length === 0) {
+      return res.status(200).json({ success: true, verification: true });
+    }
+
+    const eventType =
+      typeof event.event_type === 'string' ? event.event_type : undefined;
+    const profileEmail =
+      typeof event.profile_email === 'string'
+        ? event.profile_email
+        : typeof event.email === 'string'
+          ? event.email
+          : undefined;
     
     // Log do evento
     console.log('📥 Adapty webhook received:', {
-      event_type: event.event_type,
-      profile_email: event.profile_email,
+      event_type: eventType,
+      profile_email: profileEmail,
       timestamp: new Date().toISOString(),
     });
 
@@ -189,24 +268,44 @@ router.post('/sync', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { productId, purchaseToken, expiresAt } = req.body;
+    const { productId, purchaseToken, expiresAt, plan: requestedPlan } =
+      req.body;
     
     console.log('📱 Premium sync request:', {
       userId,
       productId,
+      requestedPlan,
       purchaseToken: purchaseToken ? '***' : undefined,
       expiresAt,
       timestamp: new Date().toISOString(),
     });
 
-    // Determinar o plano baseado no productId
-    let plan: 'basic' | 'premium' = 'premium';
-    if (productId) {
-      if (productId.includes('basic')) {
+    // Determinar plano com prioridade ao productId; usar `plan` como fallback.
+    let plan: 'basic' | 'premium' | null = null;
+
+    if (typeof productId === 'string' && productId.trim().length > 0) {
+      const normalizedProductId = productId.toLowerCase();
+      if (normalizedProductId.includes('basic')) {
         plan = 'basic';
-      } else if (productId.includes('premium')) {
+      } else if (normalizedProductId.includes('premium')) {
         plan = 'premium';
       }
+    }
+
+    if (!plan && typeof requestedPlan === 'string') {
+      const normalizedPlan = requestedPlan.toLowerCase();
+      if (normalizedPlan === 'basic') {
+        plan = 'basic';
+      } else if (normalizedPlan === 'premium') {
+        plan = 'premium';
+      }
+    }
+
+    if (!plan) {
+      return res.status(400).json({
+        error:
+          'Missing or invalid subscription plan. Provide productId or plan (basic|premium).',
+      });
     }
 
     // Ativar o plano

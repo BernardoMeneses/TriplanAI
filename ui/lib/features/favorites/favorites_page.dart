@@ -31,7 +31,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     };
     _loadFavorites();
   }
-  
+
   @override
   void dispose() {
     _favoritesService.onFavoritesUpdated = null;
@@ -60,12 +60,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
     try {
       await _favoritesService.removeFavorite(favorite.placeId);
       if (mounted) {
-        SnackBarHelper.showSuccess(context, AppConstants.removedFromFavorites.tr());
+        SnackBarHelper.showSuccess(
+          context,
+          AppConstants.removedFromFavorites.tr(),
+        );
         _loadFavorites();
       }
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.showError(context, AppConstants.errorRemovingFavorite.tr());
+        SnackBarHelper.showError(
+          context,
+          AppConstants.errorRemovingFavorite.tr(),
+        );
       }
     }
   }
@@ -75,14 +81,20 @@ class _FavoritesPageState extends State<FavoritesPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       appBar: AppBar(
-        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        backgroundColor: isDark
+            ? AppColors.surfaceDark
+            : AppColors.surfaceLight,
         elevation: 0,
         title: Text(
           AppConstants.myFavorites.tr(),
           style: TextStyle(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color: isDark
+                ? AppColors.textPrimaryDark
+                : AppColors.textPrimaryLight,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -90,7 +102,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color: isDark
+                ? AppColors.textPrimaryDark
+                : AppColors.textPrimaryLight,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -98,209 +112,232 @@ class _FavoritesPageState extends State<FavoritesPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _favorites.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.bookmark_border,
-                        size: 100,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        AppConstants.noFavorites.tr(),
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 48),
-                        child: Text(
-                          AppConstants.noFavoritesDescription.tr(),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                          ),
-                        ),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.bookmark_border,
+                    size: 100,
+                    color: Colors.grey[400],
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadFavorites,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _favorites.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final favorite = _favorites[index];
-                      return Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        color: isDark ? AppColors.surfaceDark : Colors.white,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (favorite.place.images?.isNotEmpty ?? false)
-                              ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(12),
-                                ),
-                                child: CachedNetworkImage(
-                                  imageUrl: favorite.place.images!.first,
-                                  height: 160,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(
-                                    height: 160,
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                  ),
-                                  errorWidget: (context, url, error) => Container(
-                                    height: 160,
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.place,
-                                        size: 64,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
+                  const SizedBox(height: 24),
+                  Text(
+                    AppConstants.noFavorites.tr(),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 48),
+                    child: Text(
+                      AppConstants.noFavoritesDescription.tr(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadFavorites,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _favorites.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final favorite = _favorites[index];
+                  // Determine the best image URL: prefer photoUrl, fallback to images[0], else null
+                  String? imageUrl =
+                      (favorite.place.photoUrl != null &&
+                          favorite.place.photoUrl!.isNotEmpty)
+                      ? favorite.place.photoUrl
+                      : (favorite.place.images?.isNotEmpty ?? false)
+                      ? favorite.place.images!.first
+                      : null;
+                  return Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    color: isDark ? AppColors.surfaceDark : Colors.white,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (imageUrl != null && imageUrl.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(12),
+                            ),
+                            child: CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              height: 160,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                height: 160,
+                                color: AppColors.primary.withOpacity(0.1),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                   ),
                                 ),
                               ),
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          favorite.place.name,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? AppColors.textPrimaryDark
-                                                : AppColors.textPrimaryLight,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.bookmark,
-                                          color: AppColors.primary,
-                                        ),
-                                        onPressed: () => _showRemoveDialog(favorite),
-                                      ),
-                                    ],
+                              errorWidget: (context, url, error) => Container(
+                                height: 160,
+                                color: AppColors.primary.withOpacity(0.1),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.place,
+                                    size: 64,
+                                    color: AppColors.primary,
                                   ),
-                                  if (favorite.place.address != null) ...[
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.location_on,
-                                          size: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      favorite.place.name,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark
+                                            ? AppColors.textPrimaryDark
+                                            : AppColors.textPrimaryLight,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.bookmark,
+                                      color: AppColors.primary,
+                                    ),
+                                    onPressed: () =>
+                                        _showRemoveDialog(favorite),
+                                  ),
+                                ],
+                              ),
+                              if (favorite.place.address != null) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 16,
+                                      color: isDark
+                                          ? AppColors.textSecondaryDark
+                                          : AppColors.textSecondaryLight,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        favorite.place.address!,
+                                        style: TextStyle(
+                                          fontSize: 14,
                                           color: isDark
                                               ? AppColors.textSecondaryDark
                                               : AppColors.textSecondaryLight,
                                         ),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            favorite.place.address!,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: isDark
-                                                  ? AppColors.textSecondaryDark
-                                                  : AppColors.textSecondaryLight,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ],
-                                  if (favorite.place.rating != null) ...[
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.star,
-                                          size: 16,
-                                          color: Colors.amber,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          favorite.place.rating!.toStringAsFixed(1),
+                                ),
+                              ],
+                              if (favorite.place.rating != null) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      size: 16,
+                                      color: Colors.amber,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      favorite.place.rating!.toStringAsFixed(1),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textPrimaryDark
+                                            : AppColors.textPrimaryLight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              if (favorite.notes != null) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.note,
+                                        size: 16,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          favorite.notes!,
                                           style: TextStyle(
                                             fontSize: 14,
-                                            fontWeight: FontWeight.w600,
                                             color: isDark
                                                 ? AppColors.textPrimaryDark
                                                 : AppColors.textPrimaryLight,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ],
-                                  if (favorite.notes != null) ...[
-                                    const SizedBox(height: 12),
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.note,
-                                            size: 16,
-                                            color: AppColors.primary,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              favorite.notes!,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: isDark
-                                                    ? AppColors.textPrimaryDark
-                                                    : AppColors.textPrimaryLight,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Added ${DateFormat('MMM d, yyyy').format(favorite.createdAt)}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[500],
-                                    ),
+                                    ],
                                   ),
-                                ],
+                                ),
+                              ],
+                              const SizedBox(height: 8),
+                              Text(
+                                AppConstants.favoriteAddedOn.tr(
+                                  args: [
+                                    DateFormat(
+                                      'MMM d, yyyy',
+                                    ).format(favorite.createdAt),
+                                  ],
+                                ),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 
@@ -309,7 +346,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppConstants.removeFavorite.tr()),
-        content: Text('Remove "${favorite.place.name}" from favorites?'),
+        content: Text(
+          AppConstants.confirmRemoveFavorite.tr(args: [favorite.place.name]),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

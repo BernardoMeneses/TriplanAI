@@ -1,28 +1,27 @@
-import 'dart:convert';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'trip_cache_service.dart';
+import 'trips_service.dart';
 
 /// Serviço para backup de viagens no Google Drive
 class GoogleDriveBackupService {
   static const String _backupFolderName = 'TriplanAI Backups';
-  
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      'email',
-      drive.DriveApi.driveFileScope,
-      drive.DriveApi.driveAppdataScope,
-    ],
+    scopes: ['email', drive.DriveApi.driveFileScope],
   );
 
   final TripCacheService _cacheService = TripCacheService();
+  final TripsService _tripsService = TripsService();
 
   // Singleton
-  static final GoogleDriveBackupService _instance = GoogleDriveBackupService._internal();
+  static final GoogleDriveBackupService _instance =
+      GoogleDriveBackupService._internal();
   factory GoogleDriveBackupService() => _instance;
   GoogleDriveBackupService._internal();
 
@@ -34,29 +33,68 @@ class GoogleDriveBackupService {
   }
 
   /// Faz login no Google e obtém acesso ao Drive
-  Future<bool> signIn() async {
+  Future<bool> signIn({bool forceAccountSelection = false}) async {
     try {
-      // Forçar escolha de conta: faz signOut antes de signIn
-      await _googleSignIn.signOut();
-      final account = await _googleSignIn.signIn();
+      if (forceAccountSelection) {
+        // Permite reescolher conta explicitamente.
+        await _googleSignIn.signOut();
+      }
+
+      GoogleSignInAccount? account = _googleSignIn.currentUser;
+      account ??= await _googleSignIn.signInSilently();
+      account ??= await _googleSignIn.signIn();
+
       if (account == null) {
         return false;
       }
 
-      final httpClient = await _googleSignIn.authenticatedClient();
-      if (httpClient == null) {
+      final hasDriveScope = await _googleSignIn.requestScopes([
+        drive.DriveApi.driveFileScope,
+      ]);
+
+      if (!hasDriveScope) {
+        if (kDebugMode) {
+          print('❌ GoogleDriveBackupService: Permissão Drive não concedida');
+        }
         return false;
       }
 
-      _driveApi = drive.DriveApi(httpClient);
-      if (kDebugMode) {
-        print('✅ GoogleDriveBackupService: Login bem sucedido');
+      for (var attempt = 0; attempt < 3; attempt++) {
+        final httpClient = await _googleSignIn.authenticatedClient();
+        if (httpClient != null) {
+          _driveApi = drive.DriveApi(httpClient);
+          if (kDebugMode) {
+            print(
+              '✅ GoogleDriveBackupService: Login bem sucedido (${account.email})',
+            );
+          }
+          return true;
+        }
+
+        await Future<void>.delayed(const Duration(milliseconds: 250));
       }
-      return true;
+
+      if (kDebugMode) {
+        print('❌ GoogleDriveBackupService: authenticatedClient retornou null');
+      }
+      return false;
     } catch (e) {
       if (kDebugMode) {
         print('❌ GoogleDriveBackupService: Erro no login: $e');
       }
+      return false;
+    }
+  }
+
+  Future<bool> _ensureDriveApiFromExistingSession() async {
+    if (_driveApi != null) return true;
+
+    try {
+      final httpClient = await _googleSignIn.authenticatedClient();
+      if (httpClient == null) return false;
+      _driveApi = drive.DriveApi(httpClient);
+      return true;
+    } catch (_) {
       return false;
     }
   }
@@ -108,11 +146,16 @@ class GoogleDriveBackupService {
   /// Faz backup de um ficheiro .triplan para o Google Drive
   Future<bool> backupFile(File file) async {
     try {
+      final hasApi = await _ensureDriveApiFromExistingSession();
+      if (!hasApi) {
+        if (!await signIn()) return false;
+      }
+
       final folderId = await _getOrCreateBackupFolder();
       if (folderId == null) return false;
 
       final fileName = file.path.split(Platform.pathSeparator).last;
-      
+
       // Verificar se já existe e apagar
       await _deleteExistingFile(fileName, folderId);
 
@@ -122,11 +165,8 @@ class GoogleDriveBackupService {
         ..parents = [folderId];
 
       final media = drive.Media(file.openRead(), await file.length());
-      
-      await _driveApi!.files.create(
-        driveFile,
-        uploadMedia: media,
-      );
+
+      await _driveApi!.files.create(driveFile, uploadMedia: media);
 
       if (kDebugMode) {
         print('☁️ Backup: $fileName enviado para Google Drive');
@@ -138,6 +178,50 @@ class GoogleDriveBackupService {
       }
       return false;
     }
+  }
+
+  Future<bool> backupTripById(String tripId) async {
+    try {
+      if (!await isSignedIn()) {
+        return false;
+      }
+
+      final hasApi = await _ensureDriveApiFromExistingSession();
+      if (!hasApi) {
+        return false;
+      }
+
+      final exportData = await _tripsService.exportTrip(tripId);
+      final trip = (exportData['trip'] as Map<String, dynamic>? ?? {});
+      final destinationCity = trip['destination_city']?.toString() ?? 'trip';
+      final fileName = '${_sanitizeFileName(destinationCity)}_$tripId.triplan';
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsString(jsonEncode(exportData));
+
+      final uploaded = await backupFile(file);
+
+      try {
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (_) {}
+
+      return uploaded;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erro no backup automático da viagem $tripId: $e');
+      }
+      return false;
+    }
+  }
+
+  String _sanitizeFileName(String name) {
+    return name
+        .replaceAll(RegExp(r'[^\w\s.-]'), '')
+        .replaceAll(RegExp(r'\s+'), '_')
+        .toLowerCase();
   }
 
   /// Apaga ficheiro existente com o mesmo nome
@@ -161,11 +245,11 @@ class GoogleDriveBackupService {
   /// Faz backup de todas as viagens locais para o Google Drive
   Future<int> backupAllTrips() async {
     int successCount = 0;
-    
+
     try {
       // Exportar viagens localmente primeiro
       final exportedFiles = await _cacheService.exportAllTripsLocally();
-      
+
       for (final filePath in exportedFiles) {
         final file = File(filePath);
         if (await file.exists()) {
@@ -176,14 +260,16 @@ class GoogleDriveBackupService {
       }
 
       if (kDebugMode) {
-        print('✅ Backup completo: $successCount/${exportedFiles.length} viagens');
+        print(
+          '✅ Backup completo: $successCount/${exportedFiles.length} viagens',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Erro no backup geral: $e');
       }
     }
-    
+
     return successCount;
   }
 
@@ -215,19 +301,21 @@ class GoogleDriveBackupService {
         if (!await signIn()) return null;
       }
 
-      final response = await _driveApi!.files.get(
-        fileId,
-        downloadOptions: drive.DownloadOptions.fullMedia,
-      ) as drive.Media;
+      final response =
+          await _driveApi!.files.get(
+                fileId,
+                downloadOptions: drive.DownloadOptions.fullMedia,
+              )
+              as drive.Media;
 
       final appDir = await getApplicationDocumentsDirectory();
       final localFile = File('${appDir.path}/restored_$fileName');
-      
+
       final List<int> dataStore = [];
       await for (final data in response.stream) {
         dataStore.addAll(data);
       }
-      
+
       await localFile.writeAsBytes(dataStore);
 
       if (kDebugMode) {

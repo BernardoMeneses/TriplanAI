@@ -244,9 +244,17 @@ router.post('/reset-password', async (req: Request, res: Response) => {
  */
 router.post('/google', async (req: Request, res: Response) => {
   try {
-    const { googleId, email, name, picture, accessToken, refreshToken } = req.body;
+    const {
+      googleId,
+      email,
+      name,
+      picture,
+      idToken,
+      refreshToken,
+    } = req.body;
+    const googleIdToken = idToken || refreshToken;
     
-    if (!googleId || !email || !name || !accessToken) {
+    if (!googleId || !email || !googleIdToken) {
       return res.status(400).json({ error: 'Dados do Google incompletos' });
     }
 
@@ -255,8 +263,7 @@ router.post('/google', async (req: Request, res: Response) => {
       email,
       name,
       picture,
-      accessToken,
-      refreshToken,
+      idToken: googleIdToken,
     });
 
     res.json(result);
