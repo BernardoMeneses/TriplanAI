@@ -64,16 +64,244 @@ export class AIService {
     return LANGUAGE_NAMES[normalized] || LANGUAGE_NAMES[base] || 'English';
   }
 
-  private isExplanationOnlyQuery(query: string): boolean {
-    const normalized = (query || '')
+  private normalizeQuery(query: string): string {
+    return (query || '')
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  }
 
-    const asksWhy = /\b(why|por que|porque|porque e que|pq|motivo|razao|reason)\b/.test(normalized);
-    const asksForMoreOptions = /\b(list|lista|suggest|suggestions|recommendations|recomendacoes|options|alternatives|outras|outros|mais lugares|mais opcoes)\b/.test(normalized);
+  private getWhyIntentHints(): string[] {
+    return [
+      // English
+      'why',
+      'reason',
+      // Portuguese
+      'por que',
+      'porque',
+      'motivo',
+      'razao',
+      // Spanish
+      'por que',
+      'porque',
+      'motivo',
+      'razon',
+      // French
+      'pourquoi',
+      'raison',
+      // German
+      'warum',
+      'grund',
+      // Italian
+      'perche',
+      'ragione',
+      // Dutch
+      'waarom',
+      'reden',
+      // Japanese
+      'なぜ',
+      'どうして',
+      '理由',
+      // Korean
+      '왜',
+      '이유',
+      // Chinese (simplified/traditional)
+      '为什么',
+      '為什麼',
+      '为何',
+      '為何',
+      '原因'
+    ];
+  }
+
+  private getPlaceListIntentHints(): string[] {
+    return [
+      // English
+      'what to visit',
+      'what to see',
+      'what to do',
+      'things to do',
+      'must see',
+      'must-visit',
+      'top places',
+      'top spots',
+      'recommend',
+      'suggest',
+      'suggestions',
+      'recommendations',
+      'list',
+      'places',
+      'options',
+      'alternatives',
+      // Portuguese
+      'o que visitar',
+      'que visitar',
+      'o que ver',
+      'que ver',
+      'o que fazer',
+      'que fazer',
+      'recomenda',
+      'recomendar',
+      'recomendacoes',
+      'sugere',
+      'sugerir',
+      'lista',
+      'lugares',
+      'mais lugares',
+      'mais opcoes',
+      // Spanish
+      'que visitar',
+      'que ver',
+      'que hacer',
+      'recomienda',
+      'recomendar',
+      'recomendaciones',
+      'sugerencias',
+      'lista',
+      'lugares',
+      'sitios',
+      // French
+      'que visiter',
+      'que voir',
+      'que faire',
+      'recommande',
+      'recommander',
+      'recommandations',
+      'liste',
+      'lieux',
+      'endroits',
+      // German
+      'was besuchen',
+      'was sehen',
+      'was tun',
+      'empfehle',
+      'empfehlen',
+      'empfehlungen',
+      'liste',
+      'orte',
+      'sehenswurdigkeiten',
+      // Italian
+      'cosa visitare',
+      'cosa vedere',
+      'cosa fare',
+      'consiglia',
+      'consigliare',
+      'raccomandazioni',
+      'lista',
+      'luoghi',
+      'posti',
+      // Dutch
+      'wat bezoeken',
+      'wat te zien',
+      'wat te doen',
+      'aanbevelen',
+      'aanbevelingen',
+      'lijst',
+      'plekken',
+      // Japanese
+      'おすすめ',
+      '何を見る',
+      '何する',
+      '訪れる',
+      '場所',
+      'スポット',
+      '一覧',
+      // Korean
+      '추천',
+      '뭐 볼',
+      '무엇을 볼',
+      '뭐 할',
+      '무엇을 할',
+      '가볼만한',
+      '장소',
+      '목록',
+      // Chinese (simplified/traditional)
+      '推荐',
+      '推薦',
+      '去哪',
+      '看什么',
+      '看什麼',
+      '做什么',
+      '做什麼',
+      '景点',
+      '景點',
+      '地方',
+      '列表',
+      '清单',
+      '清單'
+    ];
+  }
+
+  private containsAnyHint(normalizedQuery: string, hints: string[]): boolean {
+    return hints.some((hint) => normalizedQuery.includes(hint));
+  }
+
+  private isExplanationOnlyQuery(query: string): boolean {
+    const normalized = this.normalizeQuery(query);
+
+    const asksWhy = this.containsAnyHint(normalized, this.getWhyIntentHints());
+    const asksForMoreOptions = this.containsAnyHint(
+      normalized,
+      this.getPlaceListIntentHints(),
+    );
 
     return asksWhy && !asksForMoreOptions;
+  }
+
+  private isPlaceListQuery(query: string): boolean {
+    const normalized = this.normalizeQuery(query);
+    return this.containsAnyHint(normalized, this.getPlaceListIntentHints());
+  }
+
+  private async generatePlacesFallback(params: {
+    query: string;
+    location: string;
+    dayNumber: number;
+    language?: string;
+  }): Promise<any[]> {
+    const responseLanguage = this.getLanguageName(params.language || 'en');
+    const fallbackPrompt = `The user asked: "${params.query}".
+Location context: ${params.location || 'unknown'}.
+Day: ${params.dayNumber}.
+
+Return ONLY a places list with 4-5 concrete options relevant to this request.
+Do not return an explanation paragraph.
+
+Respond in JSON with this schema:
+{
+  "places": [
+    {
+      "name": "place name",
+      "category": "category",
+      "placeId": "leave empty",
+      "description": "short practical description with why it fits"
+    }
+  ]
+}
+
+IMPORTANT: All text MUST be in ${responseLanguage}.
+Respond ONLY with JSON.`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: this.getSystemPrompt(params.language) },
+          { role: 'user', content: fallbackPrompt }
+        ],
+        temperature: 0.5,
+        response_format: { type: 'json_object' }
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) return [];
+
+      const parsed = JSON.parse(content);
+      return Array.isArray(parsed.places) ? parsed.places : [];
+    } catch (error) {
+      console.error('Error generating fallback places list:', error);
+      return [];
+    }
   }
 
   // Gerar system prompt dinâmico baseado na língua
@@ -113,12 +341,14 @@ PRACTICALITY:
     const systemPrompt = this.getSystemPrompt(params.language);
     const responseLanguage = this.getLanguageName(params.language || 'en');
     const explanationOnly = this.isExplanationOnlyQuery(params.query);
+    const mustReturnPlaces = this.isPlaceListQuery(params.query) && !explanationOnly;
     const prompt = `The user is planning day ${params.dayNumber} in ${params.location}.
 Question: "${params.query}"
 
 Choose response format based on intent:
 - EXPLANATION mode: if the user is asking "why" (or equivalent) about a specific recommendation/place, answer that question directly and do NOT add extra place suggestions.
 - SUGGESTION mode: if the user asks for ideas/options, provide place suggestions.
+- Default to SUGGESTION mode unless the user explicitly asks "why".
 
 Quality requirements:
 - In EXPLANATION mode:
@@ -146,6 +376,7 @@ Respond in JSON format with this schema:
 IMPORTANT:
 - The "response" field MUST be in ${responseLanguage}.
 - If this is EXPLANATION mode, the "places" array must be empty.
+- If this is SUGGESTION mode, include 4-5 places in the "places" array.
 Respond ONLY with the JSON, no additional text.`;
 
     try {
@@ -161,6 +392,14 @@ Respond ONLY with the JSON, no additional text.`;
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
+        if (mustReturnPlaces) {
+          const fallbackPlaces = await this.generatePlacesFallback(params);
+          return {
+            response: this.getDefaultSuggestionsMessage(params.language),
+            places: fallbackPlaces,
+          };
+        }
+
         return {
           response: this.getDefaultErrorMessage(params.language),
           places: []
@@ -168,11 +407,16 @@ Respond ONLY with the JSON, no additional text.`;
       }
 
       const parsed = JSON.parse(content);
-      let places = parsed.places || [];
+      let places = Array.isArray(parsed.places) ? parsed.places : [];
 
       // Enforce direct-answer behavior for "why recommend X" queries.
       if (explanationOnly) {
         places = [];
+      }
+
+      // Enforce list behavior for "what to visit"/list queries.
+      if (mustReturnPlaces && places.length === 0) {
+        places = await this.generatePlacesFallback(params);
       }
       
       // Processar lugares para buscar placeId real se possível
