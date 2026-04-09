@@ -282,7 +282,7 @@
     "removed_from_favorites": "お気に入りから削除されました",
     "error_removing_favorite": "お気に入り削除エラー",
     "confirm_remove_favorite": "\"{}\" をお気に入りから削除しますか？",
-    "added_on": "{0}に追加"
+    "added_on": "{date}に追加"
   },
   "map": {
     "show_route": "ルートを表示",

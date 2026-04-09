@@ -280,7 +280,7 @@
     "removed_from_favorites": "已从收藏中移除",
     "error_removing_favorite": "移除收藏错误",
     "confirm_remove_favorite": "从收藏中移除\"{}\" ？",
-    "added_on": "添加于 {0}"
+    "added_on": "添加于 {date}"
   },
   "map": {
     "show_route": "显示路线",

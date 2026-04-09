@@ -1524,7 +1524,13 @@ class _DayDetailsPageState extends State<DayDetailsPage>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => NotesPage(tripId: widget.tripId),
+                  builder: (_) => NotesPage(
+                    tripId: widget.tripId,
+                    isReadOnly: _effectiveReadOnly,
+                    readOnlyMessage: widget.isReadOnly
+                        ? AppConstants.sharedTripReadOnlySubtitle.tr()
+                        : 'offline.read_only_mode'.tr(),
+                  ),
                 ),
               );
             },

@@ -283,7 +283,7 @@
     "removed_from_favorites": "Retiré des favoris",
     "error_removing_favorite": "Erreur lors de la suppression du favori",
     "confirm_remove_favorite": "Supprimer \"{}\" des favoris ?",
-    "added_on": "Ajouté le {0}"
+    "added_on": "Ajouté le {date}"
   },
   "map": {
     "show_route": "Afficher l'itinéraire",

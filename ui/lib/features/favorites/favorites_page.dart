@@ -157,6 +157,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final favorite = _favorites[index];
+                  final hasValidCreatedAt =
+                      favorite.createdAt.millisecondsSinceEpoch > 0;
+                  final addedOnText = hasValidCreatedAt
+                      ? DateFormat('MMM d, yyyy').format(favorite.createdAt)
+                      : null;
                   // Determine the best image URL: prefer photoUrl, fallback to images[0], else null
                   String? imageUrl =
                       (favorite.place.photoUrl != null &&
@@ -315,20 +320,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: 8),
-                              Text(
-                                AppConstants.favoriteAddedOn.tr(
-                                  args: [
-                                    DateFormat(
-                                      'MMM d, yyyy',
-                                    ).format(favorite.createdAt),
-                                  ],
+                              if (addedOnText != null) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  AppConstants.favoriteAddedOn.tr(
+                                    namedArgs: {'date': addedOnText},
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
                                 ),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
