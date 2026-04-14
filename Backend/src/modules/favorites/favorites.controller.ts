@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { FavoritesService } from './favorites.service';
+import { MapsService } from '../maps/maps.service';
 
 const router = Router();
 const favoritesService = new FavoritesService();
+const mapsService = new MapsService();
 
 /**
  * @swagger
@@ -24,7 +26,48 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const favorites = await favoritesService.getFavorites(userId);
-    res.json(favorites);
+    
+    // Regenerar URLs das imagens a partir das referências (se tiverem)
+    const favoritesWithFreshImages = favorites.map(favorite => {
+      if (!favorite.place) return favorite;
+
+      // Se tiver photoReferences, regenera as URLs frescas
+      if (favorite.place.photo_references && Array.isArray(favorite.place.photo_references) && favorite.place.photo_references.length > 0) {
+        try {
+          const photoRefs = favorite.place.photo_references as Array<{ reference: string; type: string }>;
+          const { photos, photoUrl } = mapsService.regeneratePhotoUrlsFromReferences(photoRefs);
+          return {
+            ...favorite,
+            place: {
+              ...favorite.place,
+              photos,
+              photoUrl // Adiciona o campo photoUrl para o frontend usar
+            }
+          };
+        } catch (error) {
+          console.error('Erro ao regenerar URLs de fotos:', error);
+          // Se falhar, usar as imagens antigas como fallback
+          return {
+            ...favorite,
+            place: {
+              ...favorite.place,
+              photoUrl: favorite.place.images?.length > 0 ? favorite.place.images[0] : null
+            }
+          };
+        }
+      }
+      
+      // Se não tiver photoReferences, usado as imagens antigas ou fallback
+      return {
+        ...favorite,
+        place: {
+          ...favorite.place,
+          photoUrl: favorite.place.images?.length > 0 ? favorite.place.images[0] : null
+        }
+      };
+    });
+    
+    res.json(favoritesWithFreshImages);
   } catch (error) {
     console.error('Erro ao obter favoritos:', error);
     res.status(500).json({ error: 'Erro ao obter favoritos' });

@@ -50,6 +50,7 @@ export class FavoritesService {
           'opening_hours', p.opening_hours,
           'contact_info', p.contact_info,
           'images', p.images,
+          'photo_references', COALESCE(p.photo_references, '[]'::jsonb),
           'metadata', p.metadata,
           'created_at', p.created_at,
           'updated_at', p.updated_at
