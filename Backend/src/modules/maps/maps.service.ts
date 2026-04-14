@@ -928,26 +928,60 @@ export class MapsService {
     // 1. Usar tipos do place se disponível
     if (place.types && Array.isArray(place.types)) {
       const typeKeywords: { [key: string]: string } = {
+        // Transporte
+        'airport': 'airport architecture',
+        'bus_station': 'bus station transportation',
+        'train_station': 'train station architecture',
+        'taxi_stand': 'transportation hub',
+        
+        // Lazer e Turismo
         'museum': 'museum architecture',
         'park': 'park nature landscape',
-        'restaurant': 'restaurant food dining',
-        'lodging': 'hotel accommodation',
-        'hotel': 'luxury hotel',
-        'cafe': 'cafe coffee',
-        'bar': 'bar night life',
-        'shopping_mall': 'shopping mall retail',
         'tourist_attraction': 'tourist attraction landmark',
-        'church': 'church architecture religious',
-        'temple': 'temple architecture religious',
         'beach': 'beach sea ocean',
         'mountain': 'mountain landscape nature',
         'lake': 'lake water landscape',
-        'theater': 'theater entertainment',
-        'stadium': 'stadium sports',
-        'amusement_park': 'amusement park fun rides',
         'hiking_area': 'hiking trail mountain',
         'zoo': 'zoo animals wildlife',
         'aquarium': 'aquarium marine life',
+        'theater': 'theater entertainment',
+        'stadium': 'stadium sports',
+        'amusement_park': 'amusement park fun rides',
+        'casino': 'casino entertainment',
+        'movie_theater': 'cinema theater',
+        'night_club': 'nightclub entertainment',
+        
+        // Alimentação
+        'restaurant': 'restaurant food dining',
+        'cafe': 'cafe coffee',
+        'bar': 'bar drinks',
+        'bakery': 'bakery pastries bread',
+        'food': 'food restaurant',
+        
+        // Hospedagem
+        'lodging': 'hotel accommodation',
+        'hotel': 'luxury hotel',
+        'rv_park': 'camping rv park',
+        
+        // Shopping
+        'shopping_mall': 'shopping mall retail',
+        'store': 'shop retail',
+        'supermarket': 'supermarket market',
+        
+        // Religião e Cultura
+        'church': 'church architecture religious',
+        'temple': 'temple architecture religious',
+        'mosque': 'mosque architecture religious',
+        'hindu_temple': 'temple architecture religious',
+        
+        // Saúde
+        'hospital': 'hospital medical',
+        'doctor': 'medical clinic healthcare',
+        'pharmacy': 'pharmacy healthcare',
+        
+        // Outros
+        'point_of_interest': 'landmark scenic',
+        'establishment': 'location landmark',
       };
 
       for (const type of place.types) {
@@ -957,14 +991,22 @@ export class MapsService {
       }
     }
 
-    // 2. Usar o nome do place como fallback
+    // 2. Se ainda sem keywords, extrair primeira palavra do nome (mais seguro que nome completo)
     if (keywords.length === 0) {
-      keywords.push(placeName);
+      const firstWord = placeName.split(' ')[0].toLowerCase();
+      // Evitar palavras muito genéricas ou ruído
+      if (firstWord.length > 2 && !['the', 'a', 'an', 'and', 'or'].includes(firstWord)) {
+        keywords.push(firstWord);
+      }
+      // Adicionar tipo genérico se nome não funcionou
+      if (keywords.length === 0) {
+        keywords.push('location');
+      }
     }
 
     // 3. Adicionar keywords genéricas como último recurso
     keywords.push('travel destination');
-    keywords.push('scenic landmark');
+    keywords.push('scenic');
 
     return keywords;
   }
