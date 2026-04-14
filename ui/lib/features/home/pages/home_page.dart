@@ -95,14 +95,17 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
 
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day); // Normaliza para data-only (meia-noite)
       final latestUpcoming =
-          latestTrips.where((t) => t.endDate.isAfter(now)).toList()
+          latestTrips.where((t) {
+            final endDate = DateTime(t.endDate.year, t.endDate.month, t.endDate.day);
+            return endDate.isAfter(today) || endDate.isAtSameMomentAs(today);
+          }).toList()
             ..sort((a, b) => a.startDate.compareTo(b.startDate));
       final latestPast =
           latestTrips
               .where(
-                (t) =>
-                    t.endDate.isBefore(now) || t.endDate.isAtSameMomentAs(now),
+                (t) => DateTime(t.endDate.year, t.endDate.month, t.endDate.day).isBefore(today),
               )
               .toList()
             ..sort((a, b) => b.endDate.compareTo(a.endDate));
@@ -180,20 +183,22 @@ class _HomePageState extends State<HomePage> {
         forceRefresh: forceRefresh,
       );
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day); // Normaliza para data-only (meia-noite)
 
       if (!mounted) return;
 
       setState(() {
         _isOfflineMode = _tripCacheService.isOfflineMode;
-        _upcomingTrips = trips.where((t) => t.endDate.isAfter(now)).toList()
+        _upcomingTrips = trips.where((t) {
+          final endDate = DateTime(t.endDate.year, t.endDate.month, t.endDate.day);
+          return endDate.isAfter(today) || endDate.isAtSameMomentAs(today);
+        }).toList()
           ..sort((a, b) => a.startDate.compareTo(b.startDate));
 
         _pastTrips =
             trips
                 .where(
-                  (t) =>
-                      t.endDate.isBefore(now) ||
-                      t.endDate.isAtSameMomentAs(now),
+                  (t) => DateTime(t.endDate.year, t.endDate.month, t.endDate.day).isBefore(today),
                 )
                 .toList()
               ..sort((a, b) => b.endDate.compareTo(a.endDate));

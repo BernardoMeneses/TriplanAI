@@ -94,15 +94,17 @@ class _TravelingPageState extends State<TravelingPage>
       if (!mounted) return;
 
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day); // Normaliza para data-only (meia-noite)
       final latestUpcoming =
-          latestTrips.where((trip) => trip.endDate.isAfter(now)).toList()
+          latestTrips.where((trip) {
+            final endDate = DateTime(trip.endDate.year, trip.endDate.month, trip.endDate.day);
+            return endDate.isAfter(today) || endDate.isAtSameMomentAs(today);
+          }).toList()
             ..sort((a, b) => a.startDate.compareTo(b.startDate));
       final latestPast =
           latestTrips
               .where(
-                (trip) =>
-                    trip.endDate.isBefore(now) ||
-                    trip.endDate.isAtSameMomentAs(now),
+                (trip) => DateTime(trip.endDate.year, trip.endDate.month, trip.endDate.day).isBefore(today),
               )
               .toList()
             ..sort((a, b) => b.endDate.compareTo(a.endDate));
@@ -171,19 +173,21 @@ class _TravelingPageState extends State<TravelingPage>
     try {
       final trips = await _tripCacheService.getTrips();
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day); // Normaliza para data-only (meia-noite)
 
       if (mounted) {
         setState(() {
           _isOfflineMode = _tripCacheService.isOfflineMode;
           _upcomingTrips =
-              trips.where((trip) => trip.endDate.isAfter(now)).toList()
+              trips.where((trip) {
+                final endDate = DateTime(trip.endDate.year, trip.endDate.month, trip.endDate.day);
+                return endDate.isAfter(today) || endDate.isAtSameMomentAs(today);
+              }).toList()
                 ..sort((a, b) => a.startDate.compareTo(b.startDate));
           _pastTrips =
               trips
                   .where(
-                    (trip) =>
-                        trip.endDate.isBefore(now) ||
-                        trip.endDate.isAtSameMomentAs(now),
+                    (trip) => DateTime(trip.endDate.year, trip.endDate.month, trip.endDate.day).isBefore(today),
                   )
                   .toList()
                 ..sort((a, b) => b.endDate.compareTo(a.endDate));
