@@ -131,6 +131,11 @@ export class ItineraryItemsService {
           }
           
           // Criar novo place com todos os detalhes
+          // Guardar photoReferences em vez de URLs para evitar expiração
+          const photoRefsData = placeDetails.photoReferences && placeDetails.photoReferences.length > 0 
+            ? JSON.stringify({ references: placeDetails.photoReferences })
+            : '{}';
+          
           const contactInfo = {
             phone: placeDetails.phoneNumber || null,
             website: placeDetails.website || null,
@@ -154,7 +159,7 @@ export class ItineraryItemsService {
               placeDetails.location.lat,
               placeDetails.location.lng,
               placeDetails.rating || null,
-              placeDetails.photos && placeDetails.photos.length > 0 ? JSON.stringify(placeDetails.photos) : '[]',
+              photoRefsData, // Guardar referências (não URLs) para regenerar depois
               placeType,
               placeDetails.openingHours ? JSON.stringify(placeDetails.openingHours) : null,
               placeDetails.priceLevel || null,
@@ -273,13 +278,27 @@ export class ItineraryItemsService {
       [result.rows[0].id]
     );
     
-    // Parse images if they're a string
+    // Parse e regenera imagens com URLs frescas
     const item = updatedResult.rows[0];
-    if (item.place && item.place.images && typeof item.place.images === 'string') {
+    if (item && item.place && item.place.images) {
       try {
-        item.place.images = JSON.parse(item.place.images);
+        const parsed = typeof item.place.images === 'string' 
+          ? JSON.parse(item.place.images) 
+          : item.place.images;
+        
+        // Se tem formato novo { references: [...] }, regenerar URLs frescas
+        if (parsed && parsed.references && Array.isArray(parsed.references)) {
+          const freshUrls = mapsService.regeneratePhotoUrlsFromReferences(parsed.references);
+          item.place.images = freshUrls.photos;
+          (item.place as any).photoUrl = freshUrls.photoUrl;
+        } else if (Array.isArray(parsed)) {
+          // Backward compatibility: se era array direto de URLs
+          item.place.images = parsed;
+          (item.place as any).photoUrl = parsed[0] || null;
+        }
       } catch (e) {
         item.place.images = [];
+        (item.place as any).photoUrl = null;
       }
     }
     
@@ -313,13 +332,27 @@ export class ItineraryItemsService {
       [itineraryId]
     );
     
-    // Parse images se for string
+    // Parse e regenera imagens com URLs frescas
     const items = result.rows.map((item: any) => {
-      if (item.place && item.place.images && typeof item.place.images === 'string') {
+      if (item.place && item.place.images) {
         try {
-          item.place.images = JSON.parse(item.place.images);
+          const parsed = typeof item.place.images === 'string' 
+            ? JSON.parse(item.place.images) 
+            : item.place.images;
+          
+          // Se tem formato novo { references: [...] }, regenerar URLs frescas
+          if (parsed && parsed.references && Array.isArray(parsed.references)) {
+            const freshUrls = mapsService.regeneratePhotoUrlsFromReferences(parsed.references);
+            item.place.images = freshUrls.photos;
+            item.place.photoUrl = freshUrls.photoUrl;
+          } else if (Array.isArray(parsed)) {
+            // Backward compatibility: se era array direto de URLs
+            item.place.images = parsed;
+            item.place.photoUrl = parsed[0] || null;
+          }
         } catch (e) {
           item.place.images = [];
+          item.place.photoUrl = null;
         }
       }
       return item;
@@ -353,7 +386,31 @@ export class ItineraryItemsService {
       WHERE ii.id = $1`,
       [id]
     );
-    return result.rows[0] || null;
+    
+    const item = result.rows[0];
+    if (item && item.place && item.place.images) {
+      try {
+        const parsed = typeof item.place.images === 'string' 
+          ? JSON.parse(item.place.images) 
+          : item.place.images;
+        
+        // Se tem formato novo { references: [...] }, regenerar URLs frescas
+        if (parsed && parsed.references && Array.isArray(parsed.references)) {
+          const freshUrls = mapsService.regeneratePhotoUrlsFromReferences(parsed.references);
+          item.place.images = freshUrls.photos;
+          (item.place as any).photoUrl = freshUrls.photoUrl;
+        } else if (Array.isArray(parsed)) {
+          // Backward compatibility
+          item.place.images = parsed;
+          (item.place as any).photoUrl = parsed[0] || null;
+        }
+      } catch (e) {
+        item.place.images = [];
+        (item.place as any).photoUrl = null;
+      }
+    }
+    
+    return item || null;
   }
 
   async updateItineraryItem(

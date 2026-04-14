@@ -54,6 +54,7 @@ export interface PlaceDetails {
   };
   photos?: string[];
   photoUrl?: string; // Adicionado para suportar imagem principal
+  photoReferences?: Array<{ reference: string; type: string }>; // Referências para regenerar URLs frescas
   phoneNumber?: string;
   website?: string;
 }
@@ -168,7 +169,7 @@ export class MapsService {
       if (!place) return null;
 
       // Usar novo método para gerar URLs de imagens inteligentes
-      const { photos, photoUrl } = this.getImageUrlsForPlace(place, place.name || 'place');
+      const { photos, photoUrl, photoReferences } = this.getImageUrlsForPlace(place, place.name || 'place');
 
       return {
         placeId: place.place_id || placeId,
@@ -187,6 +188,7 @@ export class MapsService {
         } : undefined,
         photos,
         photoUrl, // Campo com URL confiável (Google Maps ou Unsplash)
+        photoReferences, // Armazenar referências para regenerar URLs depois (evita expiração)
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -756,46 +758,84 @@ export class MapsService {
   }
 
   /**
-   * Gera URLs de imagens confiáveis para um place
+   * Gera URLs de imagens confiáveis para um place (SEMPRE FRESCAS, não cached)
+   * Estrutura armazenada na BD: { photos: [{ reference: "...", type: "google" }, ...] }
+   * 
    * Prioridade:
-   * 1. Fotos do Google Maps API (URLs do serviço de photos)
-   * 2. Imagens do Unsplash (busca genérica)
-   * 3. Imagens do Pexels (busca genérica)
+   * 1. Fotos do Google Maps API (regenera URL com API key atual)
+   * 2. Busca Unsplash com keywords inteligentes
    */
   private getImageUrlsForPlace(
     place: any,
     placeName: string
-  ): { photos: string[]; photoUrl: string } {
+  ): { photos: string[]; photoUrl: string; photoReferences: Array<{ reference: string; type: string }> } {
     const photos: string[] = [];
+    const photoReferences: Array<{ reference: string; type: string }> = [];
     let photoUrl = '';
 
-    // 1. Tentar Google Maps Photos
+    // 1. Tentar Google Maps Photos - guardar REFERENCE para regenerar URL depois
     if (place.photos && Array.isArray(place.photos) && place.photos.length > 0) {
-      const googlePhotos = place.photos.slice(0, 5).map((photo: any) =>
-        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      photos.push(...googlePhotos);
-      photoUrl = googlePhotos[0];
-      console.log(`[MapsService] Usando ${googlePhotos.length} fotos do Google Maps para "${placeName}"`);
+      place.photos.slice(0, 5).forEach((photo: any) => {
+        if (photo.photo_reference) {
+          const photoRefObj = { reference: photo.photo_reference, type: 'google' };
+          photoReferences.push(photoRefObj);
+          
+          // Gerar URL fresca com API key ATUAL
+          const freshUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`;
+          photos.push(freshUrl);
+        }
+      });
+      photoUrl = photos[0];
+      console.log(`[MapsService] Guardando ${photoReferences.length} referências do Google Maps para "${placeName}"`);
     }
 
     // 2. Se não houver fotos do Google, usar Unsplash com query inteligente
     if (photos.length === 0) {
-      // Extrair keywords da descrição do place
       const keywords = this.extractKeywordsFromPlace(place, placeName);
-      const baseUrl = 'https://source.unsplash.com/800x600';
       
-      // Gerar múltiplas URLs com diferentes keywords para diversificar
       for (const keyword of keywords.slice(0, 3)) {
-        const unsplashUrl = `${baseUrl}/?${encodeURIComponent(keyword)}`;
+        const unsplashQuery = encodeURIComponent(keyword);
+        const unsplashUrl = `https://source.unsplash.com/800x600/?${unsplashQuery}`;
+        
         photos.push(unsplashUrl);
+        photoReferences.push({ 
+          reference: unsplashQuery, 
+          type: 'unsplash'
+        });
       }
       
-      photoUrl = photos[0] || `${baseUrl}/?travel`;
-      console.log(`[MapsService] Usando Unsplash para "${placeName}": ${keywords.join(', ')}`);
+      photoUrl = photos[0] || 'https://source.unsplash.com/800x600/?travel';
+      console.log(`[MapsService] Usando Unsplash para "${placeName}": ${keywords.slice(0, 3).join(', ')}`);
     }
 
-    return { photos, photoUrl };
+    return { photos, photoUrl, photoReferences };
+  }
+
+  /**
+   * Regenera URLs frescas a partir das referências armazenadas na BD
+   * Chamado sempre que precisar exibir imagens
+   */
+  regeneratePhotoUrlsFromReferences(
+    photoReferences: Array<{ reference: string; type: string }>
+  ): { photos: string[]; photoUrl: string } {
+    const photos: string[] = [];
+
+    for (const ref of photoReferences) {
+      if (ref.type === 'google') {
+        // Gerar URL FRESCA com API key ATUAL (evita expiração)
+        const url = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${ref.reference}&key=${GOOGLE_MAPS_API_KEY}`;
+        photos.push(url);
+      } else if (ref.type === 'unsplash') {
+        // Unsplash URL é sempre fresca
+        const url = `https://source.unsplash.com/800x600/?${ref.reference}`;
+        photos.push(url);
+      }
+    }
+
+    return {
+      photos,
+      photoUrl: photos[0] || 'https://source.unsplash.com/800x600/?travel'
+    };
   }
 
   /**
