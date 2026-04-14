@@ -167,20 +167,9 @@ export class MapsService {
       const place = response.data.result;
       if (!place) return null;
 
-      let photos = place.photos?.slice(0, 5).map(photo => 
-        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-      ) || [];
-      let photoUrl = null;
-      if (photos && photos.length > 0) {
-        photoUrl = photos[0];
-        console.log(`[MapsService] Imagens do card para placeId ${placeId}:`, photos);
-      } else {
-        // Fallback Unsplash
-        const fallbackName = place.name || 'travel';
-        photoUrl = `https://source.unsplash.com/800x600/?${encodeURIComponent(fallbackName)}`;
-        photos = [photoUrl];
-        console.log(`[MapsService] Nenhuma imagem encontrada para placeId ${placeId}, usando fallback:`, photoUrl);
-      }
+      // Usar novo método para gerar URLs de imagens inteligentes
+      const { photos, photoUrl } = this.getImageUrlsForPlace(place, place.name || 'place');
+
       return {
         placeId: place.place_id || placeId,
         name: place.name || '',
@@ -197,7 +186,7 @@ export class MapsService {
           isOpenNow: place.opening_hours.open_now
         } : undefined,
         photos,
-        photoUrl, // NOVO CAMPO sempre presente
+        photoUrl, // Campo com URL confiável (Google Maps ou Unsplash)
         phoneNumber: place.formatted_phone_number,
         website: place.website
       };
@@ -317,12 +306,7 @@ export class MapsService {
           rating: place.rating,
           priceLevel: place.price_level,
           openingHours: undefined,
-          photos: place.photos?.slice(0, 3).map(photo => 
-            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-          ) || [],
-          photoUrl: (place.photos && place.photos.length > 0)
-            ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-            : undefined,
+          ...this.getImageUrlsForPlace(place, place.name || 'place'),
           phoneNumber: undefined,
           website: undefined,
         } as PlaceDetails;
@@ -355,21 +339,23 @@ export class MapsService {
 
       const response = await mapsClient.placesNearby({ params });
 
-      return response.data.results.slice(0, 20).map(place => ({
-        placeId: place.place_id || '',
-        name: place.name || '',
-        formattedAddress: place.vicinity || '',
-        location: {
-          lat: place.geometry?.location.lat || 0,
-          lng: place.geometry?.location.lng || 0
-        },
-        types: place.types || [],
-        rating: place.rating,
-        priceLevel: place.price_level,
-        photos: place.photos?.slice(0, 3).map(photo => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        )
-      }));
+      return response.data.results.slice(0, 20).map(place => {
+        const { photos, photoUrl } = this.getImageUrlsForPlace(place, place.name || 'place');
+        return {
+          placeId: place.place_id || '',
+          name: place.name || '',
+          formattedAddress: place.vicinity || '',
+          location: {
+            lat: place.geometry?.location.lat || 0,
+            lng: place.geometry?.location.lng || 0
+          },
+          types: place.types || [],
+          rating: place.rating,
+          priceLevel: place.price_level,
+          photos,
+          photoUrl
+        };
+      });
     } catch (error) {
       console.error('Erro ao obter lugares próximos:', error);
       return [];
@@ -538,13 +524,8 @@ export class MapsService {
         subtitle = adminArea?.long_name || country?.long_name || '';
       }
 
-      // Get photo URL - pegar foto aleatória se houver múltiplas
-      let photoUrl: string | null = null;
-      if (place.photos && place.photos.length > 0) {
-        // Escolher uma foto aleatória
-        const randomIndex = Math.floor(Math.random() * Math.min(place.photos.length, 10));
-        photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[randomIndex].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`;
-      }
+      // Get photo URL - usar novo método inteligente
+      const { photos, photoUrl } = this.getImageUrlsForPlace(place, place.name || 'place');
 
       return {
         placeId: place.place_id || placeId,
@@ -772,6 +753,99 @@ export class MapsService {
   private parseLatLngString(str: string): { lat: number; lng: number } {
     const [lat, lng] = str.split(',').map(Number);
     return { lat, lng };
+  }
+
+  /**
+   * Gera URLs de imagens confiáveis para um place
+   * Prioridade:
+   * 1. Fotos do Google Maps API (URLs do serviço de photos)
+   * 2. Imagens do Unsplash (busca genérica)
+   * 3. Imagens do Pexels (busca genérica)
+   */
+  private getImageUrlsForPlace(
+    place: any,
+    placeName: string
+  ): { photos: string[]; photoUrl: string } {
+    const photos: string[] = [];
+    let photoUrl = '';
+
+    // 1. Tentar Google Maps Photos
+    if (place.photos && Array.isArray(place.photos) && place.photos.length > 0) {
+      const googlePhotos = place.photos.slice(0, 5).map((photo: any) =>
+        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      photos.push(...googlePhotos);
+      photoUrl = googlePhotos[0];
+      console.log(`[MapsService] Usando ${googlePhotos.length} fotos do Google Maps para "${placeName}"`);
+    }
+
+    // 2. Se não houver fotos do Google, usar Unsplash com query inteligente
+    if (photos.length === 0) {
+      // Extrair keywords da descrição do place
+      const keywords = this.extractKeywordsFromPlace(place, placeName);
+      const baseUrl = 'https://source.unsplash.com/800x600';
+      
+      // Gerar múltiplas URLs com diferentes keywords para diversificar
+      for (const keyword of keywords.slice(0, 3)) {
+        const unsplashUrl = `${baseUrl}/?${encodeURIComponent(keyword)}`;
+        photos.push(unsplashUrl);
+      }
+      
+      photoUrl = photos[0] || `${baseUrl}/?travel`;
+      console.log(`[MapsService] Usando Unsplash para "${placeName}": ${keywords.join(', ')}`);
+    }
+
+    return { photos, photoUrl };
+  }
+
+  /**
+   * Extrai keywords relevantes do place para busca de imagens
+   */
+  private extractKeywordsFromPlace(place: any, placeName: string): string[] {
+    const keywords: string[] = [];
+    
+    // 1. Usar tipos do place se disponível
+    if (place.types && Array.isArray(place.types)) {
+      const typeKeywords: { [key: string]: string } = {
+        'museum': 'museum architecture',
+        'park': 'park nature landscape',
+        'restaurant': 'restaurant food dining',
+        'lodging': 'hotel accommodation',
+        'hotel': 'luxury hotel',
+        'cafe': 'cafe coffee',
+        'bar': 'bar night life',
+        'shopping_mall': 'shopping mall retail',
+        'tourist_attraction': 'tourist attraction landmark',
+        'church': 'church architecture religious',
+        'temple': 'temple architecture religious',
+        'beach': 'beach sea ocean',
+        'mountain': 'mountain landscape nature',
+        'lake': 'lake water landscape',
+        'theater': 'theater entertainment',
+        'stadium': 'stadium sports',
+        'amusement_park': 'amusement park fun rides',
+        'hiking_area': 'hiking trail mountain',
+        'zoo': 'zoo animals wildlife',
+        'aquarium': 'aquarium marine life',
+      };
+
+      for (const type of place.types) {
+        if (typeKeywords[type]) {
+          keywords.push(typeKeywords[type]);
+        }
+      }
+    }
+
+    // 2. Usar o nome do place como fallback
+    if (keywords.length === 0) {
+      keywords.push(placeName);
+    }
+
+    // 3. Adicionar keywords genéricas como último recurso
+    keywords.push('travel destination');
+    keywords.push('scenic landmark');
+
+    return keywords;
   }
 
   // Obter rota otimizada com múltiplos transportes

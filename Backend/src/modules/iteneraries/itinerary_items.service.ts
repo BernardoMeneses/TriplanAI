@@ -314,7 +314,7 @@ export class ItineraryItemsService {
     );
     
     // Parse images se for string
-    const items = result.rows.map(item => {
+    const items = result.rows.map((item: any) => {
       if (item.place && item.place.images && typeof item.place.images === 'string') {
         try {
           item.place.images = JSON.parse(item.place.images);
@@ -540,7 +540,7 @@ export class ItineraryItemsService {
         [itineraryId]
       );
       console.log(`❌ [calculateDistancesForItem] Previous item not found. All items in itinerary:`, 
-        allItemsResult.rows.map(r => `[${r.order_index}] ${r.title}`).join(', '));
+        allItemsResult.rows.map((r: any) => `[${r.order_index}] ${r.title}`).join(', '));
       return;
     }
     const previousItem = previousResult.rows[0];

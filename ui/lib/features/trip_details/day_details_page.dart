@@ -1358,12 +1358,13 @@ class _DayDetailsPageState extends State<DayDetailsPage>
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final item = placesWithInfo[index];
+                  final imageUrl = item.place?.photoUrl ?? item.place?.images?.firstOrNull;
                   return ListTile(
                     leading: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: item.place?.images?.isNotEmpty ?? false
+                      child: imageUrl != null && imageUrl.isNotEmpty
                           ? CachedNetworkImage(
-                              imageUrl: item.place!.images!.first,
+                              imageUrl: imageUrl,
                               width: 50,
                               height: 50,
                               fit: BoxFit.cover,
@@ -1877,7 +1878,7 @@ class _DayDetailsPageState extends State<DayDetailsPage>
                             number: index + 1,
                             title: item.title,
                             subtitle: item.description ?? '',
-                            imageUrl: item.place?.images?.firstOrNull ?? '',
+                            imageUrl: item.place?.photoUrl ?? item.place?.images?.firstOrNull ?? '',
                             time: item.startTime ?? '',
                             duration: _formatDuration(item.durationMinutes),
                             durationMinutes: item.durationMinutes ?? 60,

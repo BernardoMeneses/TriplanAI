@@ -53,7 +53,6 @@ android {
             isShrinkResources = false
         }
         debug {
-            // Use debug keystore for debug builds so Google OAuth debug SHA matches.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
