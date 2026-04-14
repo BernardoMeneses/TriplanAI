@@ -31,14 +31,14 @@
 			<string>com.google</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.642189351798-ptlgnqr4rplg6ud3ovv148v92rco7jtj</string>
+				<string>com.googleusercontent.apps.916440717409-m3hq8oj5mlbthpg6jclok2keit4qr5oq</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GIDClientID</key>
-	<string>642189351798-ptlgnqr4rplg6ud3ovv148v92rco7jtj.apps.googleusercontent.com</string>
+	<string>916440717409-m3hq8oj5mlbthpg6jclok2keit4qr5oq.apps.googleusercontent.com</string>
 	<key>GMSApiKey</key>
 	<string>AIzaSyCv9N9yz-qDlchmcU5jiVZ-v6_8V_YwyN4</string>
 	<key>LSRequiresIPhoneOS</key>

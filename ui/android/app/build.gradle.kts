@@ -30,8 +30,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 12
-        versionName = "12.0.0"
+        versionCode = 14
+        versionName = "14.0.0"
     }
 
     signingConfigs {
@@ -53,7 +53,8 @@ android {
             isShrinkResources = false
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            // Use debug keystore for debug builds so Google OAuth debug SHA matches.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
