@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,15 +7,15 @@ import 'connectivity_service.dart';
 
 class FavoritesService {
   static const String _favoritesListKey = 'cached_favorites_list';
-  
+
   final ApiService _apiService = ApiService();
   final ConnectivityService _connectivityService = ConnectivityService();
-  
+
   // Singleton
   static final FavoritesService _instance = FavoritesService._internal();
   factory FavoritesService() => _instance;
   FavoritesService._internal();
-  
+
   /// Callback para notificar quando favoritos são atualizados em background
   Function(List<FavoritePlace>)? onFavoritesUpdated;
 
@@ -36,6 +35,7 @@ class FavoritesService {
     // Atualizar cache após remover
     _refreshFavoritesInBackground();
   }
+
   /// Adicionar favorito de forma segura (sem duplicados)
   Future<bool> addFavoriteSafe(String placeId, {String? notes}) async {
     if (await isFavorite(placeId)) {
@@ -56,20 +56,22 @@ class FavoritesService {
         return _getCachedFavorites();
       }
     }
-    
+
     // CACHE FIRST: Se tiver cache, retorna imediatamente
     final cachedFavorites = await _getCachedFavorites();
     if (cachedFavorites.isNotEmpty) {
       if (kDebugMode) {
-        print('💾 FavoritesService: Usando ${cachedFavorites.length} favoritos do cache');
+        print(
+          '💾 FavoritesService: Usando ${cachedFavorites.length} favoritos do cache',
+        );
       }
-      
+
       // Atualizar em background (não bloqueia)
       _refreshFavoritesInBackground();
-      
+
       return cachedFavorites;
     }
-    
+
     // Sem cache, tentar buscar da net
     try {
       final favorites = await _fetchAndCacheFavorites();
@@ -81,19 +83,19 @@ class FavoritesService {
       return [];
     }
   }
-  
+
   /// Busca favoritos da API e guarda em cache
   Future<List<FavoritePlace>> _fetchAndCacheFavorites() async {
     final response = await _apiService.get('/favorites');
     final List<dynamic> data = response as List<dynamic>;
     final favorites = data.map((json) => FavoritePlace.fromJson(json)).toList();
-    
+
     // Guardar em cache
     await _cacheFavorites(favorites);
-    
+
     return favorites;
   }
-  
+
   /// Guarda favoritos em cache
   Future<void> _cacheFavorites(List<FavoritePlace> favorites) async {
     try {
@@ -101,7 +103,9 @@ class FavoritesService {
       final jsonList = favorites.map((f) => f.toJson()).toList();
       await prefs.setString(_favoritesListKey, jsonEncode(jsonList));
       if (kDebugMode) {
-        print('💾 FavoritesService: ${favorites.length} favoritos guardados em cache');
+        print(
+          '💾 FavoritesService: ${favorites.length} favoritos guardados em cache',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
@@ -109,14 +113,14 @@ class FavoritesService {
       }
     }
   }
-  
+
   /// Obtém favoritos do cache local
   Future<List<FavoritePlace>> _getCachedFavorites() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonString = prefs.getString(_favoritesListKey);
       if (jsonString == null) return [];
-      
+
       final List<dynamic> jsonList = jsonDecode(jsonString);
       return jsonList.map((json) => FavoritePlace.fromJson(json)).toList();
     } catch (e) {
@@ -126,7 +130,7 @@ class FavoritesService {
       return [];
     }
   }
-  
+
   /// Atualiza favoritos em background se online
   Future<void> _refreshFavoritesInBackground() async {
     // Verificar conectividade antes de tentar atualizar
@@ -137,7 +141,7 @@ class FavoritesService {
       }
       return;
     }
-    
+
     try {
       final favorites = await _fetchAndCacheFavorites();
       if (kDebugMode) {
@@ -163,7 +167,7 @@ class FavoritesService {
       return cached.any((f) => f.placeId == placeId);
     }
   }
-  
+
   /// Limpar cache de favoritos
   Future<void> clearCache() async {
     final prefs = await SharedPreferences.getInstance();
@@ -188,17 +192,65 @@ class FavoritePlace {
     required this.place,
   });
 
+  static DateTime _parseCreatedAt(dynamic value) {
+    DateTime fromEpoch(int rawValue) {
+      if (rawValue <= 0) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
+
+      // If looks like seconds precision, convert to milliseconds.
+      final msValue = rawValue < 1000000000000 ? rawValue * 1000 : rawValue;
+      return DateTime.fromMillisecondsSinceEpoch(msValue).toLocal();
+    }
+
+    if (value == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+
+    if (value is DateTime) {
+      return value.toLocal();
+    }
+
+    if (value is int) {
+      return fromEpoch(value);
+    }
+
+    if (value is double) {
+      return fromEpoch(value.round());
+    }
+
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty || trimmed == '0') {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
+
+      final numeric = int.tryParse(trimmed);
+      if (numeric != null) {
+        return fromEpoch(numeric);
+      }
+
+      try {
+        return DateTime.parse(trimmed).toLocal();
+      } catch (_) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
+    }
+
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   factory FavoritePlace.fromJson(Map<String, dynamic> json) {
     return FavoritePlace(
       id: json['id'],
       userId: json['user_id'],
       placeId: json['place_id'],
       notes: json['notes'],
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: _parseCreatedAt(json['created_at'] ?? json['createdAt']),
       place: PlaceInfo.fromJson(json['place']),
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

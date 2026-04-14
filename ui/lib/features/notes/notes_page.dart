@@ -3,10 +3,19 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:triplan_ai_front/common/constants/app_constants.dart';
 
 import '../../services/notes_service.dart';
+import '../../shared/widgets/snackbar_helper.dart';
 
 class NotesPage extends StatefulWidget {
   final String tripId;
-  const NotesPage({super.key, required this.tripId});
+  final bool isReadOnly;
+  final String? readOnlyMessage;
+
+  const NotesPage({
+    super.key,
+    required this.tripId,
+    this.isReadOnly = false,
+    this.readOnlyMessage,
+  });
 
   @override
   State<NotesPage> createState() => _NotesPageState();
@@ -16,6 +25,14 @@ class _NotesPageState extends State<NotesPage> {
   late final NotesService _service = NotesService(tripId: widget.tripId);
   List<Note> _notes = [];
   bool _loading = true;
+
+  void _showReadOnlyFeedback() {
+    final customMessage = widget.readOnlyMessage?.trim() ?? '';
+    final message = customMessage.isNotEmpty
+        ? customMessage
+        : 'offline.read_only_mode'.tr();
+    SnackBarHelper.showWarning(context, message);
+  }
 
   @override
   void initState() {
@@ -32,6 +49,11 @@ class _NotesPageState extends State<NotesPage> {
   }
 
   Future<void> _create() async {
+    if (widget.isReadOnly) {
+      _showReadOnlyFeedback();
+      return;
+    }
+
     final note = await _service.createNote(title: '', body: '');
     if (note == null) return;
     await _edit(note);
@@ -39,6 +61,11 @@ class _NotesPageState extends State<NotesPage> {
   }
 
   Future<void> _edit(Note note) async {
+    if (widget.isReadOnly) {
+      _showReadOnlyFeedback();
+      return;
+    }
+
     final edited = await Navigator.push<Note?>(
       context,
       MaterialPageRoute(builder: (_) => NoteEditorPage(note: note)),
@@ -50,6 +77,11 @@ class _NotesPageState extends State<NotesPage> {
   }
 
   Future<void> _delete(String id) async {
+    if (widget.isReadOnly) {
+      _showReadOnlyFeedback();
+      return;
+    }
+
     await _service.deleteNote(id);
     await _load();
   }

@@ -280,7 +280,7 @@
     "removed_from_favorites": "Eliminado de favoritos",
     "error_removing_favorite": "Error al eliminar favorito",
     "confirm_remove_favorite": "¿Eliminar \"{}\" de favoritos?",
-    "added_on": "Añadido el {0}"
+    "added_on": "Añadido el {date}"
   },
   "map": {
     "show_route": "Mostrar ruta",

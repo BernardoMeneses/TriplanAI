@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:path_provider/path_provider.dart';
+import '../common/constants/oauth_constants.dart';
 import 'trip_cache_service.dart';
 import 'trips_service.dart';
 
@@ -14,6 +15,7 @@ class GoogleDriveBackupService {
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', drive.DriveApi.driveFileScope],
+    serverClientId: OAuthConstants.googleServerClientId,
   );
 
   final TripCacheService _cacheService = TripCacheService();

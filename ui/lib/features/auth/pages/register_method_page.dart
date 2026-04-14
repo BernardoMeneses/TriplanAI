@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:triplan_ai_front/common/constants/app_constants.dart';
+import 'package:triplan_ai_front/common/constants/oauth_constants.dart';
 import 'package:triplan_ai_front/shared/widgets/snackbar_helper.dart';
 import '../../../common/app_colors.dart';
 import '../../../services/auth_service.dart';
@@ -20,6 +21,56 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
   final _authService = AuthService();
   bool _isLoading = false;
 
+  void _logGoogleAuthError(String flow, String rawError) {
+    if (!kDebugMode) return;
+
+    final apiMatch = RegExp(r'ApiException:\s*(\d+)').firstMatch(rawError);
+    final platformMatch = RegExp(
+      r'PlatformException\(([^,]+),',
+    ).firstMatch(rawError);
+    final platformCode = platformMatch?.group(1)?.trim().toLowerCase() ?? '';
+    final lowerError = rawError.toLowerCase();
+    final code =
+        apiMatch?.group(1) ?? (platformCode.isNotEmpty ? platformCode : 'n/a');
+    final isIosRuntime = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final isAndroidRuntime =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+    String reason;
+    if (lowerError.contains('missing support for the following url schemes')) {
+      reason = 'MISSING_IOS_URL_SCHEME (Info.plist CFBundleURLSchemes)';
+    } else {
+      switch (code) {
+        case '10':
+          reason = 'DEVELOPER_ERROR (SHA/package/client ID)';
+          break;
+        case '12500':
+          reason = 'SIGN_IN_FAILED (OAuth config)';
+          break;
+        case '7':
+          reason = 'NETWORK_ERROR';
+          break;
+        case '0':
+          reason = 'UNKNOWN (normalmente config OAuth nativa)';
+          break;
+        case 'sign_in_failed':
+          if (isIosRuntime) {
+            reason = 'SIGN_IN_FAILED (iOS OAuth client mismatch)';
+          } else if (isAndroidRuntime) {
+            reason =
+                'SIGN_IN_FAILED (Android OAuth config: package/SHA/client IDs)';
+          } else {
+            reason = 'SIGN_IN_FAILED (OAuth config)';
+          }
+          break;
+        default:
+          reason = 'UNMAPPED';
+      }
+    }
+
+    debugPrint('Google $flow erro: code=$code reason=$reason');
+  }
+
   bool get _showAppleSignIn =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
@@ -31,6 +82,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
+        serverClientId: OAuthConstants.googleServerClientId,
       );
 
       // Forçar logout para permitir escolha de conta
@@ -77,6 +129,7 @@ class _RegisterMethodPageState extends State<RegisterMethodPage> {
       }
     } catch (e) {
       String errorMsg = e.toString();
+      _logGoogleAuthError('register', errorMsg);
 
       // Tratar erros específicos de provider diferente
       if (errorMsg.contains('EMAIL_EXISTS_NATIVE') ||

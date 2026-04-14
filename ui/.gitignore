@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Keep local Android manifest with API key metadata out of VCS.
+/android/app/src/main/AndroidManifest.xml
